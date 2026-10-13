@@ -1,10 +1,10 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
 {
     public class OscPacket
     {

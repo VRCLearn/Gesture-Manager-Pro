@@ -1,20 +1,20 @@
 {
-	"name" : "vrchat.blackstartx.gesture-manager",
-	"displayName" : "Gesture Manager",
-	"version" : "3.9.9",
+	"name" : "com.vrclearn.gesture-manager-pro",
+	"displayName" : "Gesture Manager Pro",
+	"version" : "0.1.0",
 	"unity" : "2022.3",
-	"description" : "A tool that will help you preview your VRChat Avatar animation directly in Unity.",
+	"description" : "A standalone avatar testing toolkit with multilingual interfaces, audio-driven lip sync, and controlled movement, derived from Gesture Manager.",
 	"type" : "tool",
-	"url" : "https://github.com/BlackStartx/VRC-Gesture-Manager/releases/download/v3.9.9/GestureManager3.9.9.zip",
+	"license" : "MIT AND LicenseRef-Meta-SDK",
 	"author" : {
-		"name" : "BlackStartx",
-		"email" : "leonardo.lorenzoni99@gmail.com",
-		"url" : "https://github.com/BlackStartx/VRC-Gesture-Manager"
+		"name" : "VRCLearn",
+		"url" : "https://github.com/VRCLearn"
 	},
-	"legacyFolders" : {
-		"Assets\\GestureManager" : "73dec07c46a7d41409b0c389860fb28e"
+	"repository" : {
+		"type" : "git",
+		"url" : "https://github.com/VRCLearn/Gesture-Manager-Pro.git"
 	},
 	"vpmDependencies" : {
-		"com.vrchat.avatars" : ">=3.10.4 < 3.11.X"
+		"com.vrchat.avatars" : ">=3.10.4 <3.11.0"
 	}
 }

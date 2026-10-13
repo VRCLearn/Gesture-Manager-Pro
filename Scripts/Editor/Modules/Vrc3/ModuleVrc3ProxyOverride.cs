@@ -1,11 +1,11 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using BlackStartX.GestureManager.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Data;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public static class Vrc3ProxyOverride
     {

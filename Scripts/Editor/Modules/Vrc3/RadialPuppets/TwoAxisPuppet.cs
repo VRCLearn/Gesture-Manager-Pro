@@ -1,8 +1,8 @@
-﻿#if VRC_SDK_VRCSDK3
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialPuppets.Base;
+#if VRC_SDK_VRCSDK3
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets.Base;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialPuppets
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets
 {
     public class TwoAxisPuppet : BaseAxisPuppet
     {

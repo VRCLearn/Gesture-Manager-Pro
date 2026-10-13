@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
-using BlackStartX.GestureManager.Modules;
+using System.Collections.Generic;
+using VRCLearn.GestureManagerPro.Modules;
 using GmgAvatarDescriptor =
-#if VRC_SDK_VRCSDK2 || VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
     VRC.SDKBase.VRC_AvatarDescriptor;
 #else
     UnityEngine.UI.GraphicRaycaster;
@@ -9,7 +9,7 @@ using GmgAvatarDescriptor =
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace BlackStartX.GestureManager.Data
+namespace VRCLearn.GestureManagerPro.Data
 {
     public abstract class ModuleBase
     {

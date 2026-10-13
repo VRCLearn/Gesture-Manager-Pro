@@ -1,8 +1,8 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Cache
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Cache
 {
     [Serializable]
     public class AvatarFile

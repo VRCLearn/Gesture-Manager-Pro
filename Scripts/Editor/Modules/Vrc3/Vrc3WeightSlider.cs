@@ -1,11 +1,12 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using UnityEngine;
 using UnityEngine.UIElements;
-using BlackStartX.GestureManager.Library;
-using BlackStartX.GestureManager.Library.VisualElements;
+using VRCLearn.GestureManagerPro.Library;
+using VRCLearn.GestureManagerPro.Library.VisualElements;
 using UIEPosition = UnityEngine.UIElements.Position;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public class Vrc3WeightSlider : Vrc3VisualRender
     {
@@ -51,7 +52,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
             _slider.Add(_dot = RadialMenuUtility.Prefabs.NewCircle(16, RadialMenuUtility.Colors.CenterIdle, RadialMenuUtility.Colors.CustomMain, RadialMenuUtility.Colors.CustomBorder, UIEPosition.Absolute));
 
             Add(_textHolder = new VisualElement { pickingMode = PickingMode.Ignore, style = { opacity = 1f, position = UIEPosition.Absolute, justifyContent = Justify.Center, unityTextAlign = TextAnchor.MiddleCenter, alignItems = Align.Center, flexDirection = FlexDirection.Row } });
-            _textHolder.Add(new TextElement { pickingMode = PickingMode.Ignore, text = "Weight: ", style = { fontSize = 12, height = 15 } });
+            _textHolder.Add(EditorLocalization.Bind(new TextElement { pickingMode = PickingMode.Ignore, style = { fontSize = 12, height = 15 } }, EditorLocalization.Tr("Weight: ")));
             _textHolder.Add(_textWeight = new TextElement { pickingMode = PickingMode.Ignore, text = "100%", style = { fontSize = 15, color = RadialMenuUtility.Colors.CustomSelected, height = 15 } });
         }
 

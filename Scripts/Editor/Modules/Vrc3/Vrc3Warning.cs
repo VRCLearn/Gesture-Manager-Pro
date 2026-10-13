@@ -1,7 +1,7 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public class Vrc3Warning
     {

@@ -1,9 +1,9 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System.Collections.Generic;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl.VisualElements;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl.VisualElements;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
 {
     public class EndpointControl
     {

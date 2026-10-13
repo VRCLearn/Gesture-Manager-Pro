@@ -1,7 +1,7 @@
-﻿using UnityEditor.Animations;
+using UnityEditor.Animations;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Library
+namespace VRCLearn.GestureManagerPro.Editor.Library
 {
     public static class GmgAnimatorControllerHelper
     {

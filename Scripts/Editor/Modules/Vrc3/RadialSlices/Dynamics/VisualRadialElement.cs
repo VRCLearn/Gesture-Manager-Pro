@@ -1,7 +1,7 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using UnityEngine.UIElements;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices.Dynamics
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices.Dynamics
 {
     public class VisualRadialElement : VisualElement
     {

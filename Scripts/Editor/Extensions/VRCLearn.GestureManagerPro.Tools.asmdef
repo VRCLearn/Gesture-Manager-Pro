@@ -1,0 +1,8 @@
+{
+    "name": "VRCLearn.GestureManagerPro.Tools",
+    "rootNamespace": "VRCLearn.GestureManagerPro.Extensions.Editor",
+    "references": ["VRCLearn.GestureManagerPro", "VRCLearn.GestureManagerPro.Editor", "VRCLearn.GestureManagerPro.Audio", "VRCLearn.GestureManagerPro.Localization", "VRC.SDK3A"],
+    "includePlatforms": ["Editor"],
+    "defineConstraints": ["VRC_SDK_VRCSDK3"],
+    "autoReferenced": true
+}

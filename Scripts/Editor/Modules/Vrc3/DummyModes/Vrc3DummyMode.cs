@@ -1,8 +1,9 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
+using VRCLearn.GestureManagerPro.Localization;
 using UnityEditor;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.DummyModes
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.DummyModes
 {
     public abstract class Vrc3DummyMode
     {
@@ -13,7 +14,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.DummyModes
         internal readonly Animator Animator;
         internal readonly GameObject Avatar;
 
-        public string ExitDummyText => $"Exit {ModeName}-Mode";
+        public string ExitDummyText => EditorLocalization.Format("Exit {0}-Mode", ModeName);
 
         protected Vrc3DummyMode(ModuleVrc3 module, string prefix, bool keepPose = false)
         {

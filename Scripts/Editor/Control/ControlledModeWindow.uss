@@ -1,0 +1,29 @@
+.control-panel {
+    padding: 10px;
+    flex-grow: 1;
+}
+
+.control-title {
+    font-size: 16px;
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+}
+
+.control-panel .unity-base-field {
+    margin-top: 4px;
+}
+
+.control-note {
+    white-space: normal;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.control-buttons {
+    flex-direction: row;
+    margin-bottom: 8px;
+}
+
+.control-buttons > Button {
+    flex-grow: 1;
+}

@@ -1,14 +1,14 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System.Collections.Generic;
 using System.Linq;
-using BlackStartX.GestureManager.Library;
+using VRCLearn.GestureManagerPro.Library;
 using UnityEngine;
 using VRC.Dynamics;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.SDK3.Dynamics.PhysBone;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.AvatarDynamics
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.AvatarDynamics
 {
     public static class AvatarDynamicReset
     {

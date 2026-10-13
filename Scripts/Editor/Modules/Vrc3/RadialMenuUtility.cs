@@ -1,12 +1,12 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Params;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices;
-using BlackStartX.GestureManager.Library;
-using BlackStartX.GestureManager.Library.VisualElements;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices;
+using VRCLearn.GestureManagerPro.Library;
+using VRCLearn.GestureManagerPro.Library.VisualElements;
 using JetBrains.Annotations;
 using UnityEditor;
 using UnityEngine;
@@ -16,9 +16,9 @@ using UnityEngine.Playables;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using UIEPosition = UnityEngine.UIElements.Position;
 using ControlType = VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionsMenu.Control.ControlType;
-using DynamicType = BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices.RadialSliceDynamic.DynamicType;
+using DynamicType = VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices.RadialSliceDynamic.DynamicType;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public static class RadialMenuUtility
     {

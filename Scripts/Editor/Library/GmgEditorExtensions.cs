@@ -1,7 +1,7 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEditor.UIElements;
 
-namespace BlackStartX.GestureManager.Editor.Library
+namespace VRCLearn.GestureManagerPro.Editor.Library
 {
     public static class GmgEditorExtensions
     {

@@ -1,9 +1,9 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public static class Vrc3Supporter
     {

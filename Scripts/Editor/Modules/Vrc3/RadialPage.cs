@@ -1,10 +1,10 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System.Collections.Generic;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Params;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public class RadialPage
     {

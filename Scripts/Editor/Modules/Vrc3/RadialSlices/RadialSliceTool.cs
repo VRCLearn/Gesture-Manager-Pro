@@ -1,8 +1,8 @@
-﻿#if VRC_SDK_VRCSDK3
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools;
+#if VRC_SDK_VRCSDK3
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices
 {
     public class RadialSliceTool : RadialSliceDynamic
     {

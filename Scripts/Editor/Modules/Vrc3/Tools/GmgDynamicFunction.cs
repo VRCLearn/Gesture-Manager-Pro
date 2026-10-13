@@ -1,9 +1,9 @@
-﻿#if VRC_SDK_VRCSDK3
-using BlackStartX.GestureManager.Editor.Data;
-using BlackStartX.GestureManager.Editor.Library;
+#if VRC_SDK_VRCSDK3
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Library;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 {
     public abstract class GmgDynamicFunction
     {

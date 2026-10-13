@@ -1,0 +1,39 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:editor="UnityEditor.UIElements">
+    <ui:Style src="LipSyncTestWindow.uss" />
+    <ui:ScrollView class="test-root">
+        <ui:Label name="heading" text="Gesture Manager Pro · Lip Sync Test" class="title" />
+        <ui:DropdownField name="language" label="Language" />
+        <ui:Label name="engine" class="description" />
+        <ui:Button name="license" text="Bundled analyzer license" />
+        <ui:VisualElement name="settings" class="section">
+            <editor:ObjectField name="manager" label="Gesture Manager Pro" />
+            <ui:Button name="findManager" text="Use selected / active manager" />
+            <ui:DropdownField name="input" label="Audio input" />
+            <ui:VisualElement name="microphoneSettings">
+                <ui:DropdownField name="device" label="Microphone" />
+                <ui:Button name="refreshDevices" text="Refresh microphones" />
+            </ui:VisualElement>
+            <ui:VisualElement name="clipSettings">
+                <editor:ObjectField name="clip" label="AudioClip" />
+                <ui:Toggle name="loop" label="Loop audio" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="section">
+            <ui:Slider name="gain" label="Analysis gain" low-value="0.1" high-value="10" show-input-field="true" />
+            <ui:Slider name="noiseFloor" label="Noise floor (RMS)" low-value="0" high-value="0.05" show-input-field="true" />
+            <ui:Toggle name="monitor" label="Monitor microphone audio" tooltip="Disabled by default to prevent speaker feedback. Use headphones when monitoring." />
+            <ui:Toggle name="blend" label="Blend viseme weights" tooltip="Use all 15 analyzer scores for the mouth mesh. Disable to use Gesture Manager's discrete viseme rendering." />
+        </ui:VisualElement>
+        <ui:VisualElement class="actions">
+            <ui:Button name="start" text="Start test" />
+            <ui:Button name="stop" text="Stop and restore" />
+        </ui:VisualElement>
+        <ui:HelpBox name="status" />
+        <ui:HelpBox name="configuration" />
+        <ui:ProgressBar name="voice" low-value="0" high-value="1" title="Voice" />
+        <ui:Label name="result" class="title" />
+        <ui:Foldout name="scoreFoldout" text="Viseme scores" value="true">
+            <ui:VisualElement name="scores" />
+        </ui:Foldout>
+    </ui:ScrollView>
+</ui:UXML>

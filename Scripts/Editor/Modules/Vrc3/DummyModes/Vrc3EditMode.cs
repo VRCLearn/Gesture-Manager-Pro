@@ -1,15 +1,16 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System.Collections.Generic;
-using BlackStartX.GestureManager.Editor.Library;
+using VRCLearn.GestureManagerPro.Editor.Library;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.DummyModes
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.DummyModes
 {
     public class Vrc3EditMode : Vrc3DummyMode
     {
-        internal override string ModeName => "Edit";
+        internal override string ModeName => EditorLocalization.Tr("Edit");
 
         private const string Prefix = "[Edit-Mode]";
 

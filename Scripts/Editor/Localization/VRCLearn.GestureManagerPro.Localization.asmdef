@@ -1,0 +1,7 @@
+{
+    "name": "VRCLearn.GestureManagerPro.Localization",
+    "rootNamespace": "VRCLearn.GestureManagerPro.Localization",
+    "references": ["VRCLearn.GestureManagerPro"],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": true
+}

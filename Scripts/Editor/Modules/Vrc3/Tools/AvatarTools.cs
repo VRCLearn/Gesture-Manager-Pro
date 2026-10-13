@@ -1,19 +1,20 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BlackStartX.GestureManager.Data;
-using BlackStartX.GestureManager.Editor.Data;
-using BlackStartX.GestureManager.Editor.Library;
-using BlackStartX.GestureManager.Library;
+using VRCLearn.GestureManagerPro.Data;
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Library;
+using VRCLearn.GestureManagerPro.Library;
 using UnityEditor;
 using UnityEditor.Profiling;
 using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.Profiling;
 using VRC.Dynamics;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 {
     public class AvatarTools
     {
@@ -44,17 +45,17 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
 
         internal void Gui(ModuleVrc3 module)
         {
-            GUILayout.Label("Gesture Manager Tools", GestureManagerStyles.Header);
-            GUILayout.Label("A collection of some small utility functions~", GestureManagerStyles.Centered);
+            GUILayout.Label(EditorLocalization.Tr("Gesture Manager Pro Tools"), GestureManagerStyles.Header);
+            GUILayout.Label(EditorLocalization.Tr("A collection of some small utility functions~"), GestureManagerStyles.Centered);
             GUILayout.Space(10);
             SceneCamera.Display(module);
             ContactsClickable.Display(module);
             PoseAvatar.Display(module);
-            GUILayout.Label("Extra Tools", GestureManagerStyles.Header);
+            GUILayout.Label(EditorLocalization.Tr("Extra Tools"), GestureManagerStyles.Header);
             BackgroundAvatar.Display(module);
             AnimationTest.Display(module);
             PerformanceAnimator.Display(module);
-            GUILayout.Label("Customization", GestureManagerStyles.Header);
+            GUILayout.Label(EditorLocalization.Tr("Customization"), GestureManagerStyles.Header);
             CustomizationTool.Display(module);
         }
 
@@ -83,8 +84,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
             private static Camera _camera;
             private static readonly BoolProperty IsActive = new("GM3 SceneCamera");
 
-            protected internal override string Name => "Scene Camera";
-            protected override string Description => "This will match your game view with your scene view!\n\nClick the button to setup the main camera automatically~";
+            protected internal override string Name => EditorLocalization.Tr("Scene Camera");
+            protected override string Description => EditorLocalization.Tr("This will match your game view with your scene view!\n\nClick the button to setup the main camera automatically~");
             protected internal override bool Active => IsActive.Property;
 
             public UpdateSceneCamera() => Set(IsActive.Property ? ModuleVrc3.MainCamera : null);
@@ -93,7 +94,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
 
             protected override void Gui(ModuleVrc3 module)
             {
-                if (GmgLayoutHelper.ButtonObjectField("Scene Camera: ", _camera, !_camera ? 'A' : 'X', Set)) AutoToggle();
+                if (GmgLayoutHelper.ButtonObjectField(EditorLocalization.Tr("Scene Camera: "), _camera, !_camera ? 'A' : 'X', Set)) AutoToggle();
             }
 
             protected override void Update(ModuleVrc3 module)
@@ -134,8 +135,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
             private readonly StringProperty _tag = new("GM3 ClickableContacts Tag");
             private readonly Dictionary<ContactReceiver, Flat> _activeContact = new();
 
-            protected internal override string Name => "Clickable Contacts";
-            protected override string Description => "Click and trigger Avatar Contacts with your mouse!\n\nLike you can do with PhysBones~";
+            protected internal override string Name => EditorLocalization.Tr("Clickable Contacts");
+            protected override string Description => EditorLocalization.Tr("Click and trigger Avatar Contacts with your mouse!\n\nLike you can do with PhysBones~");
             protected internal override bool Active => _isActive.Property;
 
             private Camera _camera = ModuleVrc3.MainCamera;
@@ -145,8 +146,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
 
             protected override void Gui(ModuleVrc3 module)
             {
-                _isActive.Property = GmgLayoutHelper.ToggleRight("Enabled: ", _isActive.Property);
-                _tag.Property = GmgLayoutHelper.PlaceHolderTextField("Tag: ", _tag.Property, " <leave blank to ignore tags> ");
+                _isActive.Property = GmgLayoutHelper.ToggleRight(EditorLocalization.Tr("Enabled: "), _isActive.Property);
+                _tag.Property = GmgLayoutHelper.PlaceHolderTextField(EditorLocalization.Tr("Tag: "), _tag.Property, EditorLocalization.Tr(" <leave blank to ignore tags> "));
             }
 
             protected override void Update(ModuleVrc3 module) => LateUpdate(module);
@@ -372,8 +373,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
         public class AvatarPose : GmgDynamicFunction
         {
             private bool _poseMode;
-            protected internal override string Name => "Pose Avatar";
-            protected override string Description => "This feature will mask the humanoid animations!\n\nIt allows you to control the transform of your bones!";
+            protected internal override string Name => EditorLocalization.Tr("Pose Avatar");
+            protected override string Description => EditorLocalization.Tr("This feature will mask the humanoid animations!\n\nIt allows you to control the transform of your bones!");
             protected internal override bool Active => _poseMode;
 
             protected override void Gui(ModuleVrc3 module)
@@ -381,7 +382,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
                 _poseMode = module.PoseMode;
                 using (new GUILayout.HorizontalScope())
                 using (new GmgLayoutHelper.FlexibleScope())
-                    if (GmgLayoutHelper.DebugButton(_poseMode ? "Stop Posing" : "Start Posing"))
+                    if (GmgLayoutHelper.DebugButton(_poseMode ? EditorLocalization.Tr("Stop Posing") : EditorLocalization.Tr("Start Posing")))
                         Toggle(module);
             }
 
@@ -414,8 +415,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
             private const string CmLabel = "Vrc Camera: ";
             private const string DstLabel = "Distance";
 
-            protected override string Description => "Use this tool to set a background for your avatar!";
-            protected internal override string Name => "Avatar Background";
+            protected override string Description => EditorLocalization.Tr("Use this tool to set a background for your avatar!");
+            protected internal override string Name => EditorLocalization.Tr("Avatar Background");
             protected internal override bool Active => _cover != null;
             private static void ToggleOff() => UnityEngine.Object.DestroyImmediate(_cover.gameObject);
             private static bool VrcCameraRule(Camera camera) => VrcCameraRule(camera, camera.gameObject);
@@ -438,8 +439,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
                 {
                     using (new GUILayout.VerticalScope())
                     {
-                        if (_cameraOb != (_cameraOb = EditorGUILayout.ObjectField(CmLabel, _cameraOb, typeof(Camera), allowSceneObjects) as Camera)) SetUp();
-                        if (Math.Abs(_distance - (_distance = EditorGUILayout.Slider(DstLabel, _distance, leftValue, rightValue))) > 0.000001f) SetUp();
+                        if (_cameraOb != (_cameraOb = EditorGUILayout.ObjectField(EditorLocalization.Tr(CmLabel), _cameraOb, typeof(Camera), allowSceneObjects) as Camera)) SetUp();
+                        if (Math.Abs(_distance - (_distance = EditorGUILayout.Slider(EditorLocalization.Tr(DstLabel), _distance, leftValue, rightValue))) > 0.000001f) SetUp();
                         if (GuiToggle(Active)) Toggle(null);
                     }
 
@@ -451,9 +452,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
             {
                 using (new GUILayout.HorizontalScope())
                 {
-                    var isToggle = EditorGUILayout.Toggle(text, active) != active;
+                    var isToggle = EditorGUILayout.Toggle(EditorLocalization.Tr(text), active) != active;
                     GUILayout.FlexibleSpace();
-                    _realTime = active && EditorGUILayout.Toggle(time, _realTime);
+                    _realTime = active && EditorGUILayout.Toggle(EditorLocalization.Tr(time), _realTime);
                     return isToggle;
                 }
             }
@@ -500,17 +501,17 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
             private bool _testMode;
 
             private const string Label = "Animation: ";
-            protected internal override string Name => "Test Animation";
-            protected override string Description => "Use this tool to preview any animation in your project.\n\nYou can preview Emotes or Gestures.";
+            protected internal override string Name => EditorLocalization.Tr("Test Animation");
+            protected override string Description => EditorLocalization.Tr("Use this tool to preview any animation in your project.\n\nYou can preview Emotes or Gestures.");
             protected internal override bool Active => _testMode;
-            private static bool AnimationField(ModuleBase module) => !GmgLayoutHelper.ObjectField(Label, module.CustomAnim, module.SetCustomAnimation);
+            private static bool AnimationField(ModuleBase module) => !GmgLayoutHelper.ObjectField(EditorLocalization.Tr(Label), module.CustomAnim, module.SetCustomAnimation);
 
             protected override void Gui(ModuleVrc3 module)
             {
                 _testMode = module.PlayingCustomAnimation;
                 using (new GUILayout.HorizontalScope())
                 using (new GmgLayoutHelper.GuiEnabled(!AnimationField(module)))
-                    if (GUILayout.Button(_testMode ? "Stop" : "Play", _options))
+                    if (GUILayout.Button(_testMode ? EditorLocalization.Tr("Stop") : EditorLocalization.Tr("Play"), _options))
                         Toggle(module);
             }
 
@@ -538,8 +539,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
                 "PreLateUpdate.DirectorUpdateAnimationEnd"
             };
 
-            protected internal override string Name => "Animator Performance";
-            protected override string Description => "A simple benchmark using the Unity Profiler!\n\nAimed to show animator update calls usages!";
+            protected internal override string Name => EditorLocalization.Tr("Animator Performance");
+            protected override string Description => EditorLocalization.Tr("A simple benchmark using the Unity Profiler!\n\nAimed to show animator update calls usages!");
             protected internal override bool Active => Profiler.enabled;
             public bool Watching => Active && Foldout;
 
@@ -561,14 +562,14 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
                         GUILayout.Space(10);
                     }
 
-                    GUILayout.Label($"\n[Result calculated on {_benchmark.FirstOrDefault().Value?.Frame ?? 0} frames]");
+                    GUILayout.Label(EditorLocalization.Format("\n[Result calculated on {0} frames]", _benchmark.FirstOrDefault().Value?.Frame ?? 0));
                 }
 
                 GUILayout.Space(10);
 
                 using (new GUILayout.HorizontalScope())
                 using (new GmgLayoutHelper.FlexibleScope())
-                    if (GmgLayoutHelper.DebugButton(Active ? "Stop Profiler" : "Start Profiler"))
+                    if (GmgLayoutHelper.DebugButton(Active ? EditorLocalization.Tr("Stop Profiler") : EditorLocalization.Tr("Start Profiler")))
                         Toggle(module);
             }
 
@@ -643,9 +644,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
                     var option = GUILayout.Width(Math.Min((EditorGUIUtility.currentViewWidth - 64) / 3f, 115));
                     using (new GUILayout.HorizontalScope())
                     {
-                        GUILayout.Label($"Last: {_last:F5}", option);
-                        using (new GmgLayoutHelper.FlexibleScope()) GUILayout.Label($"Average: {_average:F5}", option);
-                        GUILayout.Label($"Maximum: {_maximum:F5}", option);
+                        GUILayout.Label(EditorLocalization.Format("Last: {0:F5}", _last), option);
+                        using (new GmgLayoutHelper.FlexibleScope()) GUILayout.Label(EditorLocalization.Format("Average: {0:F5}", _average), option);
+                        GUILayout.Label(EditorLocalization.Format("Maximum: {0:F5}", _maximum), option);
                     }
                 }
             }
@@ -653,15 +654,15 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Tools
 
         private class Customization : GmgDynamicFunction
         {
-            protected internal override string Name => "Radial Menu";
-            protected override string Description => "Customize the colors of the radial menu!";
+            protected internal override string Name => EditorLocalization.Tr("Radial Menu");
+            protected override string Description => EditorLocalization.Tr("Customize the colors of the radial menu!");
             protected internal override bool Active => false;
 
             protected override void Gui(ModuleVrc3 module)
             {
-                ColorGui("Main Color: ", RadialMenuUtility.Colors.Custom.Main);
-                ColorGui("Border Color: ", RadialMenuUtility.Colors.Custom.Border);
-                ColorGui("Selected Color: ", RadialMenuUtility.Colors.Custom.Selected);
+                ColorGui(EditorLocalization.Tr("Main Color: "), RadialMenuUtility.Colors.Custom.Main);
+                ColorGui(EditorLocalization.Tr("Border Color: "), RadialMenuUtility.Colors.Custom.Border);
+                ColorGui(EditorLocalization.Tr("Selected Color: "), RadialMenuUtility.Colors.Custom.Selected);
             }
 
             private static void ColorGui(string label, RadialMenuUtility.Colors.CustomColor color) => color.Color = GmgLayoutHelper.ResetColorField(label, color.Color, color.Reset);

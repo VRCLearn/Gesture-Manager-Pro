@@ -1,10 +1,10 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEngine.UIElements.Experimental;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices
 {
     public class RadialSliceSupporter : RadialSliceBase
     {

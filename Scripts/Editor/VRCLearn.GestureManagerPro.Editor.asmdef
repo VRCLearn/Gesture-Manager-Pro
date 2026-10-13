@@ -1,0 +1,20 @@
+{
+  "name": "VRCLearn.GestureManagerPro.Editor",
+  "rootNamespace": "VRCLearn.GestureManagerPro",
+  "references": [
+    "VRCLearn.GestureManagerPro",
+    "VRC.SDK3A",
+    "VRCLearn.GestureManagerPro.Localization"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

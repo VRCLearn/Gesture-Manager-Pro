@@ -1,14 +1,14 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Linq;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Params;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialPuppets;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices.Dynamics;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices.Dynamics;
 using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using ControlType = VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionsMenu.Control.ControlType;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices
 {
     public class RadialSliceControl : RadialSliceDynamic
     {

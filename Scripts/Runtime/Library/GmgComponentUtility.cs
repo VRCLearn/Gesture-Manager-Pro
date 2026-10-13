@@ -1,9 +1,9 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace BlackStartX.GestureManager.Library
+namespace VRCLearn.GestureManagerPro.Library
 {
     public static class GmgComponentUtility
     {

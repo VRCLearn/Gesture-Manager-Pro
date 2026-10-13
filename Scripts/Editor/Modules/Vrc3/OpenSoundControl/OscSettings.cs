@@ -1,16 +1,17 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BlackStartX.GestureManager.Editor.Data;
-using BlackStartX.GestureManager.Editor.Library;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Cache;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Params;
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Library;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Cache;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
 using UnityEditor;
 using UnityEngine;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
 {
     public class OscSettings
     {
@@ -72,7 +73,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
 
         public bool Layout()
         {
-            if (GmgLayoutHelper.TitleButton("File Settings", "X", 20)) return true;
+            if (GmgLayoutHelper.TitleButton(EditorLocalization.Tr("File Settings"), "X", 20)) return true;
             if (_userProblem != null) UserProblemLayout();
             else UserLayout();
             return false;
@@ -80,7 +81,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
 
         private void UserLayout()
         {
-            if (_selectedUser != (_selectedUser = EditorGUILayout.Popup("User: ", _selectedUser, _users))) LoadUser();
+            if (_selectedUser != (_selectedUser = EditorGUILayout.Popup(EditorLocalization.Tr("User: "), _selectedUser, _users))) LoadUser();
             if (_fileProblem != null) FileProblemLayout();
             else IntegrityLayout();
         }
@@ -89,12 +90,12 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
         {
             _fileExist = File.Exists(_filePathString);
             if (_fileExist) FileLayout();
-            else UserProblemLayout(30, "The file has been deleted...", 10);
+            else UserProblemLayout(30, EditorLocalization.Tr("The file has been deleted..."), 10);
         }
 
         private void FileLayout()
         {
-            GUILayout.Label("Loaded File", GestureManagerStyles.Header);
+            GUILayout.Label(EditorLocalization.Tr("Loaded File"), GestureManagerStyles.Header);
             using (new GUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 GUILayout.Space(10);
@@ -103,9 +104,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
                 using (new GUILayout.HorizontalScope())
                 using (new GmgLayoutHelper.FlexibleScope())
                 {
-                    if (GmgLayoutHelper.DebugButton("Open in text editor!")) EditorUtility.OpenWithDefaultApp(_filePathString);
+                    if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("Open in text editor!"))) EditorUtility.OpenWithDefaultApp(_filePathString);
                     GUILayout.FlexibleSpace();
-                    if (GmgLayoutHelper.DebugButton("Show in Explorer")) EditorUtility.RevealInFinder(_filePathString);
+                    if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("Show in Explorer"))) EditorUtility.RevealInFinder(_filePathString);
                 }
 
                 GUILayout.Space(15);
@@ -119,7 +120,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
         private static void UserProblemLayout(int pixelLeft, string text, int pixelRight)
         {
             GUILayout.Space(pixelLeft);
-            GUILayout.Label(text, GestureManagerStyles.TextError);
+            GUILayout.Label(EditorLocalization.Tr(text), GestureManagerStyles.TextError);
             GUILayout.Space(pixelRight);
         }
 
@@ -162,8 +163,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
             }
             catch
             {
-                const string message = "Failed to parse Json data.\n\nCheck if your file contains invalid Json data.";
-                EditorUtility.DisplayDialog("Json Problem", message, "Ok");
+                var message = EditorLocalization.Tr("Failed to parse Json data.\n\nCheck if your file contains invalid Json data.");
+                EditorUtility.DisplayDialog(EditorLocalization.Tr("Json Problem"), message, EditorLocalization.Tr("Ok"));
                 return false;
             }
         }

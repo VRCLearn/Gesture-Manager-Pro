@@ -1,21 +1,22 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BlackStartX.GestureManager.Editor.Data;
-using BlackStartX.GestureManager.Editor.Library;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Params;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialPuppets.Base;
-using BlackStartX.GestureManager.Library;
-using BlackStartX.GestureManager.Library.VisualElements;
-using BlackStartX.GestureManager.Modules;
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Library;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets.Base;
+using VRCLearn.GestureManagerPro.Library;
+using VRCLearn.GestureManagerPro.Library.VisualElements;
+using VRCLearn.GestureManagerPro.Modules;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using UIEPosition = UnityEngine.UIElements.Position;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public class RadialMenu : Vrc3VisualRender
     {
@@ -146,14 +147,14 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
         {
             _menuPath.Clear();
             var buttons = new RadialSliceBase[6];
-            if (Module.DummyMode == null) buttons[0] = new RadialSliceButton(OptionMainMenuPrefab, "Options", ModuleVrc3Styles.Option);
+            if (Module.DummyMode == null) buttons[0] = new RadialSliceButton(OptionMainMenuPrefab, EditorLocalization.Tr("Options"), ModuleVrc3Styles.Option);
             else buttons[0] = new RadialSliceButton(Module.DummyMode.StopExecution, Module.DummyMode.ExitDummyText, running: true);
             var isDisabled = Module.DummyMode != null || !_menu;
-            buttons[1] = new RadialSliceButton(ExpressionsMenu, "Expressions", ModuleVrc3Styles.Expressions, enabled: !isDisabled);
-            buttons[2] = new RadialSliceButton(LooksMenuPrefab, "Looks", ModuleVrc3Styles.Looks);
-            buttons[3] = new RadialSliceButton(SupporterMenuPrefab, "Thanks to...", ModuleVrc3Styles.Emojis);
-            buttons[4] = new RadialSliceButton(ClonesMenuPrefab, "Clones", ModuleVrc3Styles.Clones, enabled: Module.DummyMode == null);
-            buttons[5] = new RadialSliceButton(ToolMenuPrefab, "Tools", ModuleVrc3Styles.Tools);
+            buttons[1] = new RadialSliceButton(ExpressionsMenu, EditorLocalization.Tr("Expressions"), ModuleVrc3Styles.Expressions, enabled: !isDisabled);
+            buttons[2] = new RadialSliceButton(LooksMenuPrefab, EditorLocalization.Tr("Looks"), ModuleVrc3Styles.Looks);
+            buttons[3] = new RadialSliceButton(SupporterMenuPrefab, EditorLocalization.Tr("Thanks to..."), ModuleVrc3Styles.Emojis);
+            buttons[4] = new RadialSliceButton(ClonesMenuPrefab, EditorLocalization.Tr("Clones"), ModuleVrc3Styles.Clones, enabled: Module.DummyMode == null);
+            buttons[5] = new RadialSliceButton(ToolMenuPrefab, EditorLocalization.Tr("Tools"), ModuleVrc3Styles.Tools);
             SetButtons(buttons);
             _radialDescription = Module.DummyMode?.DummyDescription();
         }
@@ -163,8 +164,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
             if (Module.DummyMode != null) return;
             OpenCustom(new RadialSliceBase[]
             {
-                new RadialSliceButton(AddNewRemote, "New Remote", ModuleVrc3Styles.SpawnRemoteUser),
-                new RadialSliceButton(AddNewFriend, "New Friend", ModuleVrc3Styles.SpawnRemoteFriend)
+                new RadialSliceButton(AddNewRemote, EditorLocalization.Tr("New Remote"), ModuleVrc3Styles.SpawnRemoteUser),
+                new RadialSliceButton(AddNewFriend, EditorLocalization.Tr("New Friend"), ModuleVrc3Styles.SpawnRemoteFriend)
             });
             _radialMenuGui = Module.CloneGui;
         }
@@ -177,9 +178,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
         {
             OpenCustom(new RadialSliceBase[]
             {
-                new RadialSliceButton(MainColorMenu, "Main", ModuleVrc3Styles.CustomColorMain),
-                new RadialSliceButton(BorderColorMenu, "Border", ModuleVrc3Styles.CustomColorBorder),
-                new RadialSliceButton(SelectedColorMenu, "Selected", ModuleVrc3Styles.CustomColorSelected)
+                new RadialSliceButton(MainColorMenu, EditorLocalization.Tr("Main"), ModuleVrc3Styles.CustomColorMain),
+                new RadialSliceButton(BorderColorMenu, EditorLocalization.Tr("Border"), ModuleVrc3Styles.CustomColorBorder),
+                new RadialSliceButton(SelectedColorMenu, EditorLocalization.Tr("Selected"), ModuleVrc3Styles.CustomColorSelected)
             });
         }
 
@@ -193,22 +194,22 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
         {
             OpenCustom(new[]
             {
-                RadialMenuUtility.Buttons.RadialFromParam(this, "Hue", color.Hue, ModuleVrc3Styles.HuePicker),
-                RadialMenuUtility.Buttons.RadialFromParam(this, "Saturation", color.Sat, ModuleVrc3Styles.SaturationPicker),
-                RadialMenuUtility.Buttons.RadialFromParam(this, "Value", color.Val, ModuleVrc3Styles.ValuePicker)
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Hue"), color.Hue, ModuleVrc3Styles.HuePicker),
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Saturation"), color.Sat, ModuleVrc3Styles.SaturationPicker),
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Value"), color.Val, ModuleVrc3Styles.ValuePicker)
             });
-            _radialDescription = new RadialDescription("Don't like the new color? ", "Reset it to default", "!", _ => color.Color = color.Reset);
+            _radialDescription = new RadialDescription(EditorLocalization.Tr("Don't like the new color? "), EditorLocalization.Tr("Reset it to default"), "!", _ => color.Color = color.Reset);
         }
 
         private void OptionMainMenuPrefab()
         {
             OpenCustom(new RadialSliceBase[]
             {
-                new RadialSliceButton(OptionExtraMenuPrefab, "Extra", ModuleVrc3Styles.Extras),
-                new RadialSliceButton(OptionTrackingMenuPrefab, "Tracking", ModuleVrc3Styles.HeadHands),
-                new RadialSliceButton(Module.EnableEditMode, "Edit-Mode", ModuleVrc3Styles.Default),
-                new RadialSliceButton(OptionStatesMenuPrefab, "States", ModuleVrc3Styles.Afk),
-                new RadialSliceButton(OptionLocomotionMenuPrefab, "Locomotion", ModuleVrc3Styles.Velocity)
+                new RadialSliceButton(OptionExtraMenuPrefab, EditorLocalization.Tr("Extra"), ModuleVrc3Styles.Extras),
+                new RadialSliceButton(OptionTrackingMenuPrefab, EditorLocalization.Tr("Tracking"), ModuleVrc3Styles.HeadHands),
+                new RadialSliceButton(Module.EnableEditMode, EditorLocalization.Tr("Edit-Mode"), ModuleVrc3Styles.Default),
+                new RadialSliceButton(OptionStatesMenuPrefab, EditorLocalization.Tr("States"), ModuleVrc3Styles.Afk),
+                new RadialSliceButton(OptionLocomotionMenuPrefab, EditorLocalization.Tr("Locomotion"), ModuleVrc3Styles.Velocity)
             });
         }
 
@@ -216,10 +217,10 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
         {
             OpenCustom(new[]
             {
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Grounded", GetParam(Vrc3DefaultParams.Grounded), ModuleVrc3Styles.Grounded),
-                RadialMenuUtility.Buttons.RadialFromParam(this, "Falling Speed", GetParam(Vrc3DefaultParams.VelocityY), ModuleVrc3Styles.FallingSpeed, amplify: -22f),
-                RadialMenuUtility.Buttons.RadialFromParam(this, "Upright", GetParam(Vrc3DefaultParams.Upright), ModuleVrc3Styles.Upright),
-                RadialMenuUtility.Buttons.AxisFromParams(this, "Velocity", GetParam(Vrc3DefaultParams.VelocityX), GetParam(Vrc3DefaultParams.VelocityZ), ModuleVrc3Styles.Velocity, amplify: 7f)
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Grounded"), GetParam(Vrc3DefaultParams.Grounded), ModuleVrc3Styles.Grounded),
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Falling Speed"), GetParam(Vrc3DefaultParams.VelocityY), ModuleVrc3Styles.FallingSpeed, amplify: -22f),
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Upright"), GetParam(Vrc3DefaultParams.Upright), ModuleVrc3Styles.Upright),
+                RadialMenuUtility.Buttons.AxisFromParams(this, EditorLocalization.Tr("Velocity"), GetParam(Vrc3DefaultParams.VelocityX), GetParam(Vrc3DefaultParams.VelocityZ), ModuleVrc3Styles.Velocity, amplify: 7f)
             });
         }
 
@@ -228,28 +229,28 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
             var param = GetParam(Vrc3DefaultParams.TrackingType);
             OpenCustom(new RadialSliceBase[]
             {
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Uninitialized", param, ModuleVrc3Styles.Uninitialized, activeValue: 0f),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Generic", param, ModuleVrc3Styles.Generic, activeValue: 1f),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Hands-only", param, ModuleVrc3Styles.HandsOnly, activeValue: 2f),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "VRMode", GetParam(Vrc3DefaultParams.VRMode), ModuleVrc3Styles.VRMode),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Head And Hands", param, ModuleVrc3Styles.HeadHands, activeValue: 3f),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "4-Point VR", param, ModuleVrc3Styles.FourPoint, activeValue: 4f),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Full Body", param, ModuleVrc3Styles.FullBody, activeValue: 6f)
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Uninitialized"), param, ModuleVrc3Styles.Uninitialized, activeValue: 0f),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Generic"), param, ModuleVrc3Styles.Generic, activeValue: 1f),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Hands-only"), param, ModuleVrc3Styles.HandsOnly, activeValue: 2f),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("VRMode"), GetParam(Vrc3DefaultParams.VRMode), ModuleVrc3Styles.VRMode),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Head And Hands"), param, ModuleVrc3Styles.HeadHands, activeValue: 3f),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("4-Point VR"), param, ModuleVrc3Styles.FourPoint, activeValue: 4f),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Full Body"), param, ModuleVrc3Styles.FullBody, activeValue: 6f)
             });
-            _radialDescription = new RadialDescription("If you don't know what those are you can check the ", "documentation!", "", Application.OpenURL, TrackingDocumentationUrl);
+            _radialDescription = new RadialDescription(EditorLocalization.Tr("If you don't know what those are you can check the "), EditorLocalization.Tr("documentation!"), "", Application.OpenURL, TrackingDocumentationUrl);
         }
 
         private void OptionStatesMenuPrefab()
         {
             OpenCustom(new[]
             {
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "T Pose", Module.PoseT, ModuleVrc3Styles.PoseT),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Head Chops", Module.HeadChop, ModuleVrc3Styles.HeadChops),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "AFK", GetParam(Vrc3DefaultParams.Afk), ModuleVrc3Styles.Afk),
-                RadialMenuUtility.Buttons.RadialFromParam(this, Vrc3DefaultParams.Vise, GetParam(Vrc3DefaultParams.Vise), ModuleVrc3Styles.Visemes, amplify: Module.ViseAmount),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Seated", GetParam(Vrc3DefaultParams.Seated), ModuleVrc3Styles.Seated),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Avatar Culling", GetParam(Vrc3DefaultParams.IsAnimatorEnabled), ModuleVrc3Styles.IsAnimatorEnabled, offValue: 1f, activeValue: 0f, enabled: !Module.Settings.simulateCulling),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "IK Pose", Module.PoseIK, ModuleVrc3Styles.PoseIK)
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("T Pose"), Module.PoseT, ModuleVrc3Styles.PoseT),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Head Chops"), Module.HeadChop, ModuleVrc3Styles.HeadChops),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("AFK"), GetParam(Vrc3DefaultParams.Afk), ModuleVrc3Styles.Afk),
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr(Vrc3DefaultParams.Vise), GetParam(Vrc3DefaultParams.Vise), ModuleVrc3Styles.Visemes, amplify: Module.ViseAmount),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Seated"), GetParam(Vrc3DefaultParams.Seated), ModuleVrc3Styles.Seated),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Avatar Culling"), GetParam(Vrc3DefaultParams.IsAnimatorEnabled), ModuleVrc3Styles.IsAnimatorEnabled, offValue: 1f, activeValue: 0f, enabled: !Module.Settings.simulateCulling),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("IK Pose"), Module.PoseIK, ModuleVrc3Styles.PoseIK)
             });
         }
 
@@ -257,13 +258,13 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
         {
             OpenCustom(new[]
             {
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "IsLocal", GetParam(Vrc3DefaultParams.IsLocal), ModuleVrc3Styles.IsLocal),
-                RadialMenuUtility.Buttons.RadialFromParam(this, "Gesture\nRight Weight", GetParam(Vrc3DefaultParams.GestureRightWeight), ModuleVrc3Styles.GestureRightWeight),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "MuteSelf", GetParam(Vrc3DefaultParams.MuteSelf), ModuleVrc3Styles.MuteSelf),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "InStation", GetParam(Vrc3DefaultParams.InStation), ModuleVrc3Styles.Seated),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "Earmuffs", GetParam(Vrc3DefaultParams.Earmuffs), ModuleVrc3Styles.Earmuffs),
-                RadialMenuUtility.Buttons.RadialFromParam(this, "Gesture\nLeft Weight", GetParam(Vrc3DefaultParams.GestureLeftWeight), ModuleVrc3Styles.GestureLeftWeight),
-                RadialMenuUtility.Buttons.ToggleFromParam(this, "IsOnFriendsList", GetParam(Vrc3DefaultParams.IsOnFriendsList), ModuleVrc3Styles.IsOnFriendsList)
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("IsLocal"), GetParam(Vrc3DefaultParams.IsLocal), ModuleVrc3Styles.IsLocal),
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Gesture\nRight Weight"), GetParam(Vrc3DefaultParams.GestureRightWeight), ModuleVrc3Styles.GestureRightWeight),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("MuteSelf"), GetParam(Vrc3DefaultParams.MuteSelf), ModuleVrc3Styles.MuteSelf),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("InStation"), GetParam(Vrc3DefaultParams.InStation), ModuleVrc3Styles.Seated),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("Earmuffs"), GetParam(Vrc3DefaultParams.Earmuffs), ModuleVrc3Styles.Earmuffs),
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Gesture\nLeft Weight"), GetParam(Vrc3DefaultParams.GestureLeftWeight), ModuleVrc3Styles.GestureLeftWeight),
+                RadialMenuUtility.Buttons.ToggleFromParam(this, EditorLocalization.Tr("IsOnFriendsList"), GetParam(Vrc3DefaultParams.IsOnFriendsList), ModuleVrc3Styles.IsOnFriendsList)
             });
         }
 
@@ -271,10 +272,10 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
         {
             OpenCustom(new[]
             {
-                new RadialSliceButton(Module.ResetAvatar, "Reset Avatar", ModuleVrc3Styles.Reset),
-                new RadialSliceButton(Module.ResetPoses, "Release Poses", ModuleVrc3Styles.ReleasePoses),
-                new RadialSliceButton(Module.ResetHeight, "Reset Height", GetParam(Vrc3DefaultParams.ScaleModified), ModuleVrc3Styles.ResetHeight),
-                RadialMenuUtility.Buttons.RadialFromParam(this, "Avatar Height", GetParam(Vrc3DefaultParams.EyeHeightAsMeters), ModuleVrc3Styles.AvatarHeight, settings: Module.HeightSettings)
+                new RadialSliceButton(Module.ResetAvatar, EditorLocalization.Tr("Reset Avatar"), ModuleVrc3Styles.Reset),
+                new RadialSliceButton(Module.ResetPoses, EditorLocalization.Tr("Release Poses"), ModuleVrc3Styles.ReleasePoses),
+                new RadialSliceButton(Module.ResetHeight, EditorLocalization.Tr("Reset Height"), GetParam(Vrc3DefaultParams.ScaleModified), ModuleVrc3Styles.ResetHeight),
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Avatar Height"), GetParam(Vrc3DefaultParams.EyeHeightAsMeters), ModuleVrc3Styles.AvatarHeight, settings: Module.HeightSettings)
             });
         }
 
@@ -286,7 +287,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
                 new RadialSliceSupporter(true, 0, 3, 400, ModuleVrc3Styles.SupportLike),
                 new RadialSliceSupporter(true, 1, 3, 800, ModuleVrc3Styles.SupportLike),
                 new RadialSliceSupporter(true, 2, 3, 1200, ModuleVrc3Styles.SupportLike),
-                new RadialSliceButton(null, "You!", ModuleVrc3Styles.SupportHeart) { SelectedCenterColor = Color.red },
+                new RadialSliceButton(null, EditorLocalization.Tr("You!"), ModuleVrc3Styles.SupportHeart) { SelectedCenterColor = Color.red },
                 new RadialSliceSupporter(false, 0, 3, 1600, ModuleVrc3Styles.SupportGold),
                 new RadialSliceSupporter(false, 1, 3, 2000, ModuleVrc3Styles.SupportGold),
                 new RadialSliceSupporter(false, 2, 3, 2400, ModuleVrc3Styles.SupportGold)
@@ -301,7 +302,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
                 new RadialSliceTool(Module, Module.AvatarTools.ContactsClickable, ModuleVrc3Styles.ToolClick),
                 new RadialSliceTool(Module, Module.AvatarTools.PoseAvatar, ModuleVrc3Styles.ToolPose)
             });
-            _radialDescription = new RadialDescription("You edit each tool settings in the \"", "Tools", "\" tab!", OpenToolPage);
+            _radialDescription = new RadialDescription(EditorLocalization.Tr("You edit each tool settings in the \""), EditorLocalization.Tr("Tools"), EditorLocalization.Tr("\" tab!"), OpenToolPage);
         }
 
         private void ExpressionsMenu()
@@ -330,8 +331,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
 
             SetButtons(intCount, intMax, intCurrent => intCurrent switch
             {
-                0 => new RadialSliceButton(GoBack, "Back", isMain ? ModuleVrc3Styles.BackHome : ModuleVrc3Styles.Back),
-                1 when isMain => new RadialSliceButton(QuickActionsMenuPrefab, "Quick Actions", ModuleVrc3Styles.Gear),
+                0 => new RadialSliceButton(GoBack, EditorLocalization.Tr("Back"), isMain ? ModuleVrc3Styles.BackHome : ModuleVrc3Styles.Back),
+                1 when isMain => new RadialSliceButton(QuickActionsMenuPrefab, EditorLocalization.Tr("Quick Actions"), ModuleVrc3Styles.Gear),
                 _ => new RadialSliceControl(this, menu.controls[intCurrent - defaultButtonsInt])
             });
         }
@@ -351,7 +352,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
             var isMain = _menuPath.Count == 1;
             SetButtons(controls.Count + 1, 10, i => i switch
             {
-                0 => new RadialSliceButton(GoBack, "Back", isMain ? ModuleVrc3Styles.BackHome : ModuleVrc3Styles.Back),
+                0 => new RadialSliceButton(GoBack, EditorLocalization.Tr("Back"), isMain ? ModuleVrc3Styles.BackHome : ModuleVrc3Styles.Back),
                 _ => controls[i - 1]
             });
         }

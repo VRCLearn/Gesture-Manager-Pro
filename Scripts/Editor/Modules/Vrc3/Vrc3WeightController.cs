@@ -1,9 +1,9 @@
-﻿#if VRC_SDK_VRCSDK3
-using BlackStartX.GestureManager.Editor.Library;
+#if VRC_SDK_VRCSDK3
+using VRCLearn.GestureManagerPro.Editor.Library;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public class Vrc3WeightController
     {

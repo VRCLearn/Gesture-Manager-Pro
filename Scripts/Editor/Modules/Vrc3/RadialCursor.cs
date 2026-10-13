@@ -1,14 +1,14 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System.Collections.Generic;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices;
-using BlackStartX.GestureManager.Library;
-using BlackStartX.GestureManager.Library.VisualElements;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices;
+using VRCLearn.GestureManagerPro.Library;
+using VRCLearn.GestureManagerPro.Library.VisualElements;
 using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.UIElements;
-using Range = BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices.RadialSliceControl.RadialSettings.Range;
+using Range = VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices.RadialSliceControl.RadialSettings.Range;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public class RadialCursor : GmgCircleElement
     {

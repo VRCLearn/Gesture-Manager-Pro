@@ -1,17 +1,18 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BlackStartX.GestureManager.Editor.Data;
-using BlackStartX.GestureManager.Editor.Library;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl.VisualElements;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Params;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar;
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Library;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl.VisualElements;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Vrc3Debug.Avatar;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
 {
     public class OscModule
     {
@@ -42,7 +43,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
         private ulong _timeTag = 1;
         private string _dateTag = OscPacket.TimeTagToDateTime(1).ToString("F");
 
-        private static string VrcReceiverPortUsed => $"The VRChat default port {VrcListenerPort} is already in use.";
+        private static string VrcReceiverPortUsed => EditorLocalization.Format("The VRChat default port {0} is already in use.", VrcListenerPort);
         internal bool Enabled => _listener != null && _sender != null;
 
         private readonly Dictionary<string, EndpointControl> _dataDictionary = new();
@@ -68,16 +69,16 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
         {
             if ((_listener != null || _sender != null) && !Enabled) Stop();
 
-            GUILayout.Label("Osc Debug", GestureManagerStyles.GuiHandTitle);
+            GUILayout.Label(EditorLocalization.Tr("Osc Debug"), GestureManagerStyles.GuiHandTitle);
             if (_module.DummyMode != null)
             {
                 GUILayout.Space(28);
-                GUILayout.Label($"Osc Debug is not available while you are in {_module.DummyMode.ModeName}-Mode!", GestureManagerStyles.Centered);
+                GUILayout.Label(EditorLocalization.Format("Osc Debug is not available while you are in {0}-Mode!", _module.DummyMode.ModeName), GestureManagerStyles.Centered);
                 GUILayout.Space(28);
             }
             else if (!Enabled)
             {
-                GUILayout.Label("Osc Debug is disabled, start it with the button bellows!", GestureManagerStyles.Centered);
+                GUILayout.Label(EditorLocalization.Tr("Osc Debug is disabled, start it with the button bellows!"), GestureManagerStyles.Centered);
 
                 GUILayout.Space(15);
                 var isCustomMode = _customSelection && _settings.Stable;
@@ -89,14 +90,14 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
                     {
                         using (new GUILayout.VerticalScope(EditorStyles.helpBox))
                         {
-                            GUILayout.Label("Listening", GestureManagerStyles.GuiDebugTitle);
+                            GUILayout.Label(EditorLocalization.Tr("Listening"), GestureManagerStyles.GuiDebugTitle);
                             _customListener = EditorGUILayout.IntField(_customListener);
                         }
 
                         using (new GmgLayoutHelper.FlexibleScope())
                         using (new GUILayout.VerticalScope(EditorStyles.helpBox))
                         {
-                            GUILayout.Label("Sending", GestureManagerStyles.GuiDebugTitle);
+                            GUILayout.Label(EditorLocalization.Tr("Sending"), GestureManagerStyles.GuiDebugTitle);
                             using (new GUILayout.HorizontalScope())
                             {
                                 _customAddress = EditorGUILayout.TextField(_customAddress);
@@ -107,9 +108,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
                         using (new GUILayout.VerticalScope())
                         {
                             var option = GUILayout.Height(20);
-                            if (GUILayout.Button("Back!", option)) _customSelection = false;
+                            if (GUILayout.Button(EditorLocalization.Tr("Back!"), option)) _customSelection = false;
                             using (new GmgLayoutHelper.GuiEnabled(_customListener >= 0 && _customSender >= 0))
-                                if (GmgLayoutHelper.Button("Start!", Color.green, option))
+                                if (GmgLayoutHelper.Button(EditorLocalization.Tr("Start!"), Color.green, option))
                                     Start(_customListener, _customAddress, _customSender);
                         }
                     }
@@ -117,9 +118,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
                     {
                         using (new GmgLayoutHelper.GuiEnabled(_settings.Stable))
                         {
-                            if (GmgLayoutHelper.DebugButton("Start on VRChat ports")) Start(VrcListenerPort, VrcReceiverAddress, VrcSenderPort);
+                            if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("Start on VRChat ports"))) Start(VrcListenerPort, VrcReceiverAddress, VrcSenderPort);
                             GUILayout.FlexibleSpace();
-                            if (GmgLayoutHelper.DebugButton("Start on custom ports")) _customSelection = true;
+                            if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("Start on custom ports"))) _customSelection = true;
                         }
                     }
                 }
@@ -128,7 +129,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
             }
             else
             {
-                GUILayout.Label("Osc Debug is running, you can stop it with the orange button!", GestureManagerStyles.Centered);
+                GUILayout.Label(EditorLocalization.Tr("Osc Debug is running, you can stop it with the orange button!"), GestureManagerStyles.Centered);
 
                 GUILayout.Space(4);
                 using (new GUILayout.HorizontalScope())
@@ -136,7 +137,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
                 {
                     using (new GUILayout.VerticalScope(EditorStyles.helpBox))
                     {
-                        GUILayout.Label("Listening To", GestureManagerStyles.GuiDebugTitle);
+                        GUILayout.Label(EditorLocalization.Tr("Listening To"), GestureManagerStyles.GuiDebugTitle);
                         GUILayout.Label($"{_listener?.Port}", GestureManagerStyles.Centered);
                     }
 
@@ -144,12 +145,12 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
                     using (new GUILayout.VerticalScope())
                     {
                         GUILayout.Space(8);
-                        if (GmgLayoutHelper.Button("Stop", RadialMenuUtility.Colors.RestartButton, GUILayout.Height(30), GUILayout.Width(60))) Stop();
+                        if (GmgLayoutHelper.Button(EditorLocalization.Tr("Stop"), RadialMenuUtility.Colors.RestartButton, GUILayout.Height(30), GUILayout.Width(60))) Stop();
                     }
 
                     using (new GUILayout.VerticalScope(EditorStyles.helpBox))
                     {
-                        GUILayout.Label("Sending To", GestureManagerStyles.GuiDebugTitle);
+                        GUILayout.Label(EditorLocalization.Tr("Sending To"), GestureManagerStyles.GuiDebugTitle);
                         GUILayout.Label($"{_sender?.Port}", GestureManagerStyles.Centered);
                     }
                 }
@@ -179,8 +180,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
             }
             catch (Exception)
             {
-                var messageString = listenerPort == VrcListenerPort ? VrcReceiverPortUsed : $"The port {listenerPort} is already in use.";
-                EditorUtility.DisplayDialog("Gesture Manager", messageString, ":c");
+                var messageString = listenerPort == VrcListenerPort ? VrcReceiverPortUsed : EditorLocalization.Format("The port {0} is already in use.", listenerPort);
+                EditorUtility.DisplayDialog(EditorLocalization.Tr("Gesture Manager Pro"), messageString, ":c");
             }
         }
 
@@ -235,15 +236,15 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
         {
             if (!_settings.Loaded)
             {
-                GUILayout.Label("Settings", GestureManagerStyles.Header);
+                GUILayout.Label(EditorLocalization.Tr("Settings"), GestureManagerStyles.Header);
                 GUILayout.Space(5);
-                GUILayout.Label("You can start the OSC debug right now and it will use wide settings!", GestureManagerStyles.Centered);
+                GUILayout.Label(EditorLocalization.Tr("You can start the OSC debug right now and it will use wide settings!"), GestureManagerStyles.Centered);
                 GUILayout.Space(10);
-                GUILayout.Label("Or you can load your OSC settings!", GestureManagerStyles.Centered);
+                GUILayout.Label(EditorLocalization.Tr("Or you can load your OSC settings!"), GestureManagerStyles.Centered);
                 GUILayout.Space(30);
                 using (new GUILayout.HorizontalScope())
                 using (new GmgLayoutHelper.FlexibleScope())
-                    if (GmgLayoutHelper.DebugButton("Load Settings"))
+                    if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("Load Settings")))
                         _settings.Load();
 
                 GUILayout.Space(20);
@@ -255,8 +256,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
         {
             GmgLayoutHelper.MyToolbar(ref ToolBar, new (string, Action)[]
             {
-                ("Receive", () => ReceiveLayout(root, holder, width)),
-                ("Send", SendLayout)
+                (EditorLocalization.Tr("Receive"), () => ReceiveLayout(root, holder, width)),
+                (EditorLocalization.Tr("Send"), SendLayout)
             });
         }
 
@@ -264,7 +265,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
         {
             holder.Render(root);
             if (holder.parent != root) root.Add(holder);
-            GUILayout.Label("Received Osc Packet Messages", GestureManagerStyles.Header);
+            GUILayout.Label(EditorLocalization.Tr("Received Osc Packet Messages"), GestureManagerStyles.Header);
 
             if (_chronological.Count != 0) GmgLayoutHelper.HorizontalGrid(holder, width, SquareSize, SquareSize, 5, _chronological, ShowData);
             else NoDataLayout();
@@ -279,7 +280,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
 
         private void SendLayout()
         {
-            if (GmgLayoutHelper.TitleButton($"Send Custom {(_sendingBundle ? "Bundle" : "Message")}", _sendingBundle ? "Message" : "Bundle")) _sendingBundle = !_sendingBundle;
+            if (GmgLayoutHelper.TitleButton(EditorLocalization.Format("Send Custom {0}", _sendingBundle ? EditorLocalization.Tr("Bundle") : EditorLocalization.Tr("Message")), _sendingBundle ? EditorLocalization.Tr("Message") : EditorLocalization.Tr("Bundle"))) _sendingBundle = !_sendingBundle;
 
             if (_messages.Count == 0) AddMessage();
             if (_sendingBundle) BundleLayout();
@@ -288,7 +289,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
             GUILayout.Space(15);
             using (new GUILayout.HorizontalScope())
             using (new GmgLayoutHelper.FlexibleScope())
-                if (GmgLayoutHelper.DebugButton("Send"))
+                if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("Send")))
                     _sender.Send(_sendingBundle ? new OscPacket(_timeTag, Messages.ToList()).GetBytes() : Messages.First().GetBytes());
         }
 
@@ -301,11 +302,11 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
 
         private void BundleLayout()
         {
-            if (_timeTag != (_timeTag = GmgLayoutHelper.ULongField("TimeTag: ", _timeTag))) OnNewTimeTag();
+            if (_timeTag != (_timeTag = GmgLayoutHelper.ULongField(EditorLocalization.Tr("TimeTag: "), _timeTag))) OnNewTimeTag();
             GUILayout.Label(_dateTag, EditorStyles.helpBox);
             for (var i = 0; i < _messages.Count; i++) MessageBundleLayout(ref i);
             using (new GUILayout.VerticalScope(EditorStyles.helpBox))
-                if (GUILayout.Button("New Osc Message"))
+                if (GUILayout.Button(EditorLocalization.Tr("New Osc Message")))
                     AddMessage();
         }
 
@@ -315,7 +316,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
         {
             using (new GUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                if (GmgLayoutHelper.TitleButton($"Osc Message [{i}]", "-", 20)) _messages.RemoveAt(i--);
+                if (GmgLayoutHelper.TitleButton(EditorLocalization.Format("Osc Message [{0}]", i), "-", 20)) _messages.RemoveAt(i--);
                 else MessageLayout(i);
             }
         }
@@ -324,7 +325,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
         {
             var (address, data) = _messages[mId];
 
-            address = EditorGUILayout.TextField("Address: ", address);
+            address = EditorGUILayout.TextField(EditorLocalization.Tr("Address: "), address);
             for (var i = 0; i < data.Count; i++)
             {
                 using (new GUILayout.HorizontalScope())
@@ -332,20 +333,20 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
                     switch (data[i])
                     {
                         case bool boolObject:
-                            data[i] = EditorGUILayout.Toggle("Bool: ", boolObject);
+                            data[i] = EditorGUILayout.Toggle(EditorLocalization.Tr("Bool: "), boolObject);
                             break;
                         case float floatObject:
-                            data[i] = EditorGUILayout.FloatField("Float: ", floatObject);
+                            data[i] = EditorGUILayout.FloatField(EditorLocalization.Tr("Float: "), floatObject);
                             break;
                         case char charObject:
-                            data[i] = (char)EditorGUILayout.IntField("Char: ", charObject);
+                            data[i] = (char)EditorGUILayout.IntField(EditorLocalization.Tr("Char: "), charObject);
                             GUILayout.Label(charObject.ToString(), GUILayout.Width(50));
                             break;
                         case string stringObject:
-                            data[i] = EditorGUILayout.TextField("String: ", stringObject);
+                            data[i] = EditorGUILayout.TextField(EditorLocalization.Tr("String: "), stringObject);
                             break;
                         case int intObject:
-                            data[i] = EditorGUILayout.IntField("Int: ", intObject);
+                            data[i] = EditorGUILayout.IntField(EditorLocalization.Tr("Int: "), intObject);
                             break;
                         default:
                             data.RemoveAt(i);
@@ -368,11 +369,11 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
                 }
                 else
                 {
-                    if (GUILayout.Button("Add Boolean")) Add(data, false);
-                    if (GUILayout.Button("Add Integer")) Add(data, new int());
-                    if (GUILayout.Button("Add Float")) Add(data, new float());
-                    if (GUILayout.Button("Add String")) Add(data, "");
-                    if (GUILayout.Button("Add Char")) Add(data, 'a');
+                    if (GUILayout.Button(EditorLocalization.Tr("Add Boolean"))) Add(data, false);
+                    if (GUILayout.Button(EditorLocalization.Tr("Add Integer"))) Add(data, new int());
+                    if (GUILayout.Button(EditorLocalization.Tr("Add Float"))) Add(data, new float());
+                    if (GUILayout.Button(EditorLocalization.Tr("Add String"))) Add(data, "");
+                    if (GUILayout.Button(EditorLocalization.Tr("Add Char"))) Add(data, 'a');
                     if (GUILayout.Button("x", GUILayout.Width(20))) _addIndex = -1;
                 }
             }
@@ -386,7 +387,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
             _addIndex = -1;
         }
 
-        private void NoDataLayout() => ErrorLayout("No data received yet!", $"Is your application sending on port {_listener.Port}?");
+        private void NoDataLayout() => ErrorLayout(EditorLocalization.Tr("No data received yet!"), EditorLocalization.Format("Is your application sending on port {0}?", _listener.Port));
 
         private static void ErrorLayout(string red, string white)
         {

@@ -1,4 +1,4 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +8,7 @@ using UnityEngine.Playables;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using VRC.SDKBase;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Params
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params
 {
     public class Vrc3Param
     {

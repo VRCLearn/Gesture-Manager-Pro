@@ -1,9 +1,9 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public abstract class Vrc3VisualRender : VisualElement
     {

@@ -1,11 +1,12 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
-using BlackStartX.GestureManager.Editor.Data;
-using BlackStartX.GestureManager.Editor.Library;
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Library;
+using VRCLearn.GestureManagerPro.Localization;
 using UnityEditor;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public class RadialDescription
     {
@@ -30,12 +31,12 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
             using (new GUILayout.HorizontalScope(GestureManagerStyles.EmoteError))
             using (new GmgLayoutHelper.FlexibleScope())
             {
-                GUILayout.Label(_text);
+                GUILayout.Label(EditorLocalization.Tr(_text));
 
                 var guiStyle = EditorGUIUtility.isProSkin ? ModuleVrc3Styles.UrlPro : ModuleVrc3Styles.Url;
-                if (GUILayout.Button(_link, guiStyle)) _action(_url);
+                if (GUILayout.Button(EditorLocalization.Tr(_link), guiStyle)) _action(_url);
                 EditorGUIUtility.AddCursorRect(GUILayoutUtility.GetLastRect(), MouseCursor.Link);
-                GUILayout.Label(_tail);
+                GUILayout.Label(EditorLocalization.Tr(_tail));
             }
         }
     }

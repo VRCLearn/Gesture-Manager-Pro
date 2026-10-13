@@ -1,12 +1,12 @@
-﻿using BlackStartX.GestureManager.Data;
+using VRCLearn.GestureManagerPro.Data;
 using GmgAvatarDescriptor =
-#if VRC_SDK_VRCSDK2 || VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
     VRC.SDKBase.VRC_AvatarDescriptor;
 #else
     UnityEngine.UI.GraphicRaycaster;
 #endif
 
-namespace BlackStartX.GestureManager.Editor.Modules
+namespace VRCLearn.GestureManagerPro.Editor.Modules
 {
     public static class ModuleHelper
     {
@@ -19,9 +19,6 @@ namespace BlackStartX.GestureManager.Editor.Modules
 
         public static ModuleBase GetModuleFor(GmgAvatarDescriptor descriptorComponent) => descriptorComponent switch
         {
-#if VRC_SDK_VRCSDK2
-            VRCSDK2.VRC_AvatarDescriptor descriptorV2 => new Vrc2.ModuleVrc2(descriptorV2),
-#endif
 #if VRC_SDK_VRCSDK3
             VRC.SDK3.Avatars.Components.VRCAvatarDescriptor descriptorV3 => new Vrc3.ModuleVrc3(descriptorV3),
 #endif

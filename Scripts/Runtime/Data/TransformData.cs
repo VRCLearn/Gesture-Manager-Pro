@@ -1,6 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-namespace BlackStartX.GestureManager.Data
+namespace VRCLearn.GestureManagerPro.Data
 {
     public class TransformData
     {

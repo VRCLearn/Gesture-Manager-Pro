@@ -1,6 +1,6 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System.Collections.Generic;
-using BlackStartX.GestureManager.Library;
+using VRCLearn.GestureManagerPro.Library;
 using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
@@ -10,7 +10,7 @@ using BlendablePlayableLayer = VRC.SDKBase.VRC_PlayableLayerControl.BlendableLay
 using BlendableAnimatorLayer = VRC.SDKBase.VRC_AnimatorLayerControl.BlendableLayer;
 using TrackingType = VRC.SDKBase.VRC_AnimatorTrackingControl.TrackingType;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public static class ModuleVrc3Styles
     {
@@ -85,75 +85,75 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
         internal static GUIStyle Url => _url ??= new GUIStyle(GUI.skin.label) { padding = new RectOffset(-6, -6, 1, 0), normal = { textColor = Color.blue } };
         internal static GUIStyle UrlPro => _urlPro ??= new GUIStyle(GUI.skin.label) { padding = new RectOffset(-6, -6, 1, 0), normal = { textColor = Color.cyan } };
 
-        internal static GameObject CullingDiamond => !_cullingDiamond ? _cullingDiamond = Resources.Load<GameObject>("Vrc3/Meshes/CullingDiamond") : _cullingDiamond;
+        internal static GameObject CullingDiamond => !_cullingDiamond ? _cullingDiamond = Resources.Load<GameObject>("GestureManagerPro/Vrc3/Meshes/CullingDiamond") : _cullingDiamond;
 
-        internal static Texture2D Emojis => !_emojis ? _emojis = Resources.Load<Texture2D>("Vrc3/BSX_GM_Emojis") : _emojis;
-        internal static Texture2D Option => !_option ? _option = Resources.Load<Texture2D>("Vrc3/BSX_GM_Option") : _option;
-        internal static Texture2D Expressions => !_expressions ? _expressions = Resources.Load<Texture2D>("Vrc3/BSX_GM_Expressions") : _expressions;
-        internal static Texture2D Tools => !_tools ? _tools = Resources.Load<Texture2D>("Vrc3/BSX_GM_Tools") : _tools;
-        internal static Texture2D Back => !_back ? _back = Resources.Load<Texture2D>("Vrc3/BSX_GM_Back") : _back;
-        internal static Texture2D BackHome => !_backHome ? _backHome = Resources.Load<Texture2D>("Vrc3/BSX_GM_BackHome") : _backHome;
-        internal static Texture2D Default => !_default ? _default = Resources.Load<Texture2D>("Vrc3/BSX_GM_Default") : _default;
-        internal static Texture2D Gear => !_gear ? _gear = Resources.Load<Texture2D>("Vrc3/BSX_GM_Gear") : _gear;
-        internal static Texture2D Reset => !_reset ? _reset = Resources.Load<Texture2D>("Vrc3/BSX_GM_Reset") : _reset;
-        internal static Texture2D TwoAxis => !_twoAxis ? _twoAxis = Resources.Load<Texture2D>("Vrc3/BSX_GM_2_Axis") : _twoAxis;
-        internal static Texture2D FourAxis => !_fourAxis ? _fourAxis = Resources.Load<Texture2D>("Vrc3/BSX_GM_4_Axis") : _fourAxis;
-        internal static Texture2D Radial => !_radial ? _radial = Resources.Load<Texture2D>("Vrc3/BSX_GM_Radial") : _radial;
-        internal static Texture2D Toggle => !_toggle ? _toggle = Resources.Load<Texture2D>("Vrc3/BSX_GM_Toggle") : _toggle;
-        internal static Texture2D ResetHeight => !_resetHeight ? _resetHeight = Resources.Load<Texture2D>("Vrc3/BSX_GM_Reset_Height") : _resetHeight;
-        internal static Texture2D AvatarHeight => !_avatarHeight ? _avatarHeight = Resources.Load<Texture2D>("Vrc3/BSX_GM_Avatar_Height") : _avatarHeight;
-        internal static Texture2D ReleasePoses => !_releasePoses ? _releasePoses = Resources.Load<Texture2D>("Vrc3/BSX_GM_Release_Poses") : _releasePoses;
-        internal static Texture2D RunningParam => !_runningParam ? _runningParam = Resources.Load<Texture2D>("Vrc3/BSX_GM_Running_Param") : _runningParam;
-        internal static Texture2D AxisUp => !_axisUp ? _axisUp = Resources.Load<Texture2D>("Vrc3/BSX_GM_Axis_Up") : _axisUp;
-        internal static Texture2D AxisRight => !_axisRight ? _axisRight = Resources.Load<Texture2D>("Vrc3/BSX_GM_Axis_Right") : _axisRight;
-        internal static Texture2D AxisDown => !_axisDown ? _axisDown = Resources.Load<Texture2D>("Vrc3/BSX_GM_Axis_Down") : _axisDown;
-        internal static Texture2D AxisLeft => !_axisLeft ? _axisLeft = Resources.Load<Texture2D>("Vrc3/BSX_GM_Axis_Left") : _axisLeft;
-        internal static Texture2D SupportLike => !_supportLike ? _supportLike = Resources.Load<Texture2D>("Vrc3/BSX_GM_Support_Like") : _supportLike;
-        internal static Texture2D SupportGold => !_supportGold ? _supportGold = Resources.Load<Texture2D>("Vrc3/BSX_GM_Support_Gold") : _supportGold;
-        internal static Texture2D SupportHeart => !_supportHeart ? _supportHeart = Resources.Load<Texture2D>("Vrc3/BSX_GM_Support_Heart") : _supportHeart;
-        internal static Texture2D ToolCamera => !_toolCamera ? _toolCamera = Resources.Load<Texture2D>("Vrc3/BSX_GM_Tool_Camera") : _toolCamera;
-        internal static Texture2D ToolClick => !_toolClick ? _toolClick = Resources.Load<Texture2D>("Vrc3/BSX_GM_Tool_Click") : _toolClick;
-        internal static Texture2D ToolPose => !_toolPose ? _toolPose = Resources.Load<Texture2D>("Vrc3/BSX_GM_Tool_Pose") : _toolPose;
-        internal static Texture2D Earmuffs => !_earmuffs ? _earmuffs = Resources.Load<Texture2D>("Vrc3/BSX_GM_Earmuffs") : _earmuffs;
-        internal static Texture2D FallingSpeed => !_fallingSpeed ? _fallingSpeed = Resources.Load<Texture2D>("Vrc3/BSX_GM_FallingSpeed") : _fallingSpeed;
-        internal static Texture2D FullBody => !_fullBody ? _fullBody = Resources.Load<Texture2D>("Vrc3/BSX_GM_FullBody") : _fullBody;
-        internal static Texture2D Generic => !_generic ? _generic = Resources.Load<Texture2D>("Vrc3/BSX_GM_Generic") : _generic;
-        internal static Texture2D GestureLeftWeight => !_gestureLeftWeight ? _gestureLeftWeight = Resources.Load<Texture2D>("Vrc3/BSX_GM_GestureLeftWeight") : _gestureLeftWeight;
-        internal static Texture2D GestureRightWeight => !_gestureRightWeight ? _gestureRightWeight = Resources.Load<Texture2D>("Vrc3/BSX_GM_GestureRightWeight") : _gestureRightWeight;
-        internal static Texture2D Grounded => !_grounded ? _grounded = Resources.Load<Texture2D>("Vrc3/BSX_GM_Grounded") : _grounded;
-        internal static Texture2D HandsOnly => !_handsOnly ? _handsOnly = Resources.Load<Texture2D>("Vrc3/BSX_GM_HandsOnly") : _handsOnly;
-        internal static Texture2D HeadHands => !_headHands ? _headHands = Resources.Load<Texture2D>("Vrc3/BSX_GM_HeadHands") : _headHands;
-        internal static Texture2D PoseIK => !_poseIk ? _poseIk = Resources.Load<Texture2D>("Vrc3/BSX_GM_Pose_IK") : _poseIk;
-        internal static Texture2D MuteSelf => !_muteSelf ? _muteSelf = Resources.Load<Texture2D>("Vrc3/BSX_GM_MuteSelf") : _muteSelf;
-        internal static Texture2D Seated => !_seated ? _seated = Resources.Load<Texture2D>("Vrc3/BSX_GM_Seated") : _seated;
-        internal static Texture2D PoseT => !_poseT ? _poseT = Resources.Load<Texture2D>("Vrc3/BSX_GM_Pose_T") : _poseT;
-        internal static Texture2D Upright => !_upright ? _upright = Resources.Load<Texture2D>("Vrc3/BSX_GM_Upright") : _upright;
-        internal static Texture2D Velocity => !_velocity ? _velocity = Resources.Load<Texture2D>("Vrc3/BSX_GM_Velocity") : _velocity;
-        internal static Texture2D Visemes => !_visemes ? _visemes = Resources.Load<Texture2D>("Vrc3/BSX_GM_Visemes") : _visemes;
-        internal static Texture2D VRMode => !_vRMode ? _vRMode = Resources.Load<Texture2D>("Vrc3/BSX_GM_VRMode") : _vRMode;
-        internal static Texture2D Afk => !_afk ? _afk = Resources.Load<Texture2D>("Vrc3/BSX_GM_AFK") : _afk;
-        internal static Texture2D HeadChops => !_headChops ? _headChops = Resources.Load<Texture2D>("Vrc3/BSX_GM_HeadChop") : _headChops;
-        internal static Texture2D FourPoint => !_fourPoint ? _fourPoint = Resources.Load<Texture2D>("Vrc3/BSX_GM_FourPoint") : _fourPoint;
-        internal static Texture2D Uninitialized => !_uninitialized ? _uninitialized = Resources.Load<Texture2D>("Vrc3/BSX_GM_Uninitialized") : _uninitialized;
-        internal static Texture2D IsLocal => !_isLocal ? _isLocal = Resources.Load<Texture2D>("Vrc3/BSX_GM_IsLocal") : _isLocal;
-        internal static Texture2D Extras => !_extras ? _extras = Resources.Load<Texture2D>("Vrc3/BSX_GM_Extras") : _extras;
-        internal static Texture2D Clones => !_clones ? _clones = Resources.Load<Texture2D>("Vrc3/BSX_GM_Clones") : _clones;
-        internal static Texture2D Looks => !_looks ? _looks = Resources.Load<Texture2D>("Vrc3/BSX_GM_Looks") : _looks;
-        internal static Texture2D HuePicker => !_huePicker ? _huePicker = Resources.Load<Texture2D>("Vrc3/BSX_GM_HuePicker") : _huePicker;
-        internal static Texture2D ValuePicker => !_valuePicker ? _valuePicker = Resources.Load<Texture2D>("Vrc3/BSX_GM_ValuePicker") : _valuePicker;
-        internal static Texture2D SaturationPicker => !_saturationPicker ? _saturationPicker = Resources.Load<Texture2D>("Vrc3/BSX_GM_SaturationPicker") : _saturationPicker;
-        internal static Texture2D CustomColorMain => !_customColorMain ? _customColorMain = Resources.Load<Texture2D>("Vrc3/BSX_GM_CustomColorMain") : _customColorMain;
-        internal static Texture2D CustomColorBorder => !_customColorBorder ? _customColorBorder = Resources.Load<Texture2D>("Vrc3/BSX_GM_CustomColorBorder") : _customColorBorder;
-        internal static Texture2D CustomColorSelected => !_customColorSelected ? _customColorSelected = Resources.Load<Texture2D>("Vrc3/BSX_GM_CustomColorSelected") : _customColorSelected;
-        internal static Texture2D IsOnFriendsList => !_isOnFriendsList ? _isOnFriendsList = Resources.Load<Texture2D>("Vrc3/BSX_GM_IsOnFriendsList") : _isOnFriendsList;
-        internal static Texture2D SpawnRemoteUser => !_spawnRemoteUser ? _spawnRemoteUser = Resources.Load<Texture2D>("Vrc3/BSX_GM_SpawnRemoteUser") : _spawnRemoteUser;
-        internal static Texture2D IsAnimatorEnabled => !_isAnimatorEnabled ? _isAnimatorEnabled = Resources.Load<Texture2D>("Vrc3/BSX_GM_IsAnimatorEnabled") : _isAnimatorEnabled;
-        internal static Texture2D SpawnRemoteFriend => !_spawnRemoteFriend ? _spawnRemoteFriend = Resources.Load<Texture2D>("Vrc3/BSX_GM_SpawnRemoteFriend") : _spawnRemoteFriend;
+        internal static Texture2D Emojis => !_emojis ? _emojis = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Emojis") : _emojis;
+        internal static Texture2D Option => !_option ? _option = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Option") : _option;
+        internal static Texture2D Expressions => !_expressions ? _expressions = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Expressions") : _expressions;
+        internal static Texture2D Tools => !_tools ? _tools = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Tools") : _tools;
+        internal static Texture2D Back => !_back ? _back = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Back") : _back;
+        internal static Texture2D BackHome => !_backHome ? _backHome = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_BackHome") : _backHome;
+        internal static Texture2D Default => !_default ? _default = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Default") : _default;
+        internal static Texture2D Gear => !_gear ? _gear = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Gear") : _gear;
+        internal static Texture2D Reset => !_reset ? _reset = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Reset") : _reset;
+        internal static Texture2D TwoAxis => !_twoAxis ? _twoAxis = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_2_Axis") : _twoAxis;
+        internal static Texture2D FourAxis => !_fourAxis ? _fourAxis = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_4_Axis") : _fourAxis;
+        internal static Texture2D Radial => !_radial ? _radial = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Radial") : _radial;
+        internal static Texture2D Toggle => !_toggle ? _toggle = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Toggle") : _toggle;
+        internal static Texture2D ResetHeight => !_resetHeight ? _resetHeight = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Reset_Height") : _resetHeight;
+        internal static Texture2D AvatarHeight => !_avatarHeight ? _avatarHeight = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Avatar_Height") : _avatarHeight;
+        internal static Texture2D ReleasePoses => !_releasePoses ? _releasePoses = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Release_Poses") : _releasePoses;
+        internal static Texture2D RunningParam => !_runningParam ? _runningParam = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Running_Param") : _runningParam;
+        internal static Texture2D AxisUp => !_axisUp ? _axisUp = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Axis_Up") : _axisUp;
+        internal static Texture2D AxisRight => !_axisRight ? _axisRight = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Axis_Right") : _axisRight;
+        internal static Texture2D AxisDown => !_axisDown ? _axisDown = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Axis_Down") : _axisDown;
+        internal static Texture2D AxisLeft => !_axisLeft ? _axisLeft = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Axis_Left") : _axisLeft;
+        internal static Texture2D SupportLike => !_supportLike ? _supportLike = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Support_Like") : _supportLike;
+        internal static Texture2D SupportGold => !_supportGold ? _supportGold = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Support_Gold") : _supportGold;
+        internal static Texture2D SupportHeart => !_supportHeart ? _supportHeart = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Support_Heart") : _supportHeart;
+        internal static Texture2D ToolCamera => !_toolCamera ? _toolCamera = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Tool_Camera") : _toolCamera;
+        internal static Texture2D ToolClick => !_toolClick ? _toolClick = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Tool_Click") : _toolClick;
+        internal static Texture2D ToolPose => !_toolPose ? _toolPose = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Tool_Pose") : _toolPose;
+        internal static Texture2D Earmuffs => !_earmuffs ? _earmuffs = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Earmuffs") : _earmuffs;
+        internal static Texture2D FallingSpeed => !_fallingSpeed ? _fallingSpeed = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_FallingSpeed") : _fallingSpeed;
+        internal static Texture2D FullBody => !_fullBody ? _fullBody = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_FullBody") : _fullBody;
+        internal static Texture2D Generic => !_generic ? _generic = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Generic") : _generic;
+        internal static Texture2D GestureLeftWeight => !_gestureLeftWeight ? _gestureLeftWeight = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_GestureLeftWeight") : _gestureLeftWeight;
+        internal static Texture2D GestureRightWeight => !_gestureRightWeight ? _gestureRightWeight = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_GestureRightWeight") : _gestureRightWeight;
+        internal static Texture2D Grounded => !_grounded ? _grounded = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Grounded") : _grounded;
+        internal static Texture2D HandsOnly => !_handsOnly ? _handsOnly = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_HandsOnly") : _handsOnly;
+        internal static Texture2D HeadHands => !_headHands ? _headHands = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_HeadHands") : _headHands;
+        internal static Texture2D PoseIK => !_poseIk ? _poseIk = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Pose_IK") : _poseIk;
+        internal static Texture2D MuteSelf => !_muteSelf ? _muteSelf = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_MuteSelf") : _muteSelf;
+        internal static Texture2D Seated => !_seated ? _seated = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Seated") : _seated;
+        internal static Texture2D PoseT => !_poseT ? _poseT = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Pose_T") : _poseT;
+        internal static Texture2D Upright => !_upright ? _upright = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Upright") : _upright;
+        internal static Texture2D Velocity => !_velocity ? _velocity = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Velocity") : _velocity;
+        internal static Texture2D Visemes => !_visemes ? _visemes = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Visemes") : _visemes;
+        internal static Texture2D VRMode => !_vRMode ? _vRMode = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_VRMode") : _vRMode;
+        internal static Texture2D Afk => !_afk ? _afk = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_AFK") : _afk;
+        internal static Texture2D HeadChops => !_headChops ? _headChops = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_HeadChop") : _headChops;
+        internal static Texture2D FourPoint => !_fourPoint ? _fourPoint = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_FourPoint") : _fourPoint;
+        internal static Texture2D Uninitialized => !_uninitialized ? _uninitialized = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Uninitialized") : _uninitialized;
+        internal static Texture2D IsLocal => !_isLocal ? _isLocal = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_IsLocal") : _isLocal;
+        internal static Texture2D Extras => !_extras ? _extras = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Extras") : _extras;
+        internal static Texture2D Clones => !_clones ? _clones = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Clones") : _clones;
+        internal static Texture2D Looks => !_looks ? _looks = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Looks") : _looks;
+        internal static Texture2D HuePicker => !_huePicker ? _huePicker = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_HuePicker") : _huePicker;
+        internal static Texture2D ValuePicker => !_valuePicker ? _valuePicker = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_ValuePicker") : _valuePicker;
+        internal static Texture2D SaturationPicker => !_saturationPicker ? _saturationPicker = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_SaturationPicker") : _saturationPicker;
+        internal static Texture2D CustomColorMain => !_customColorMain ? _customColorMain = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_CustomColorMain") : _customColorMain;
+        internal static Texture2D CustomColorBorder => !_customColorBorder ? _customColorBorder = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_CustomColorBorder") : _customColorBorder;
+        internal static Texture2D CustomColorSelected => !_customColorSelected ? _customColorSelected = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_CustomColorSelected") : _customColorSelected;
+        internal static Texture2D IsOnFriendsList => !_isOnFriendsList ? _isOnFriendsList = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_IsOnFriendsList") : _isOnFriendsList;
+        internal static Texture2D SpawnRemoteUser => !_spawnRemoteUser ? _spawnRemoteUser = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_SpawnRemoteUser") : _spawnRemoteUser;
+        internal static Texture2D IsAnimatorEnabled => !_isAnimatorEnabled ? _isAnimatorEnabled = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_IsAnimatorEnabled") : _isAnimatorEnabled;
+        internal static Texture2D SpawnRemoteFriend => !_spawnRemoteFriend ? _spawnRemoteFriend = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_SpawnRemoteFriend") : _spawnRemoteFriend;
 
         public static class Data
         {
-            private const string VrcSdk3ControllerPath = "Vrc3/Controllers/";
-            private const string VrcSdk3RestorePath = "Vrc3/Controllers/Restore/";
+            private const string VrcSdk3ControllerPath = "GestureManagerPro/Vrc3/Controllers/";
+            private const string VrcSdk3RestorePath = "GestureManagerPro/Vrc3/Controllers/Restore/";
 
             private static AnimatorController ControllerOfPath(string path) => Resources.Load<AnimatorController>(VrcSdk3ControllerPath + path);
 

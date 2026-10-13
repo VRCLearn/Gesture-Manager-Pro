@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -6,9 +6,9 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UIEPosition = UnityEngine.UIElements.Position;
-using This = BlackStartX.GestureManager.Library.VisualElements.GmgTmpRichTextElement;
+using This = VRCLearn.GestureManagerPro.Library.VisualElements.GmgTmpRichTextElement;
 
-namespace BlackStartX.GestureManager.Library.VisualElements
+namespace VRCLearn.GestureManagerPro.Library.VisualElements
 {
     public class GmgTmpRichTextElement : VisualElement
     {

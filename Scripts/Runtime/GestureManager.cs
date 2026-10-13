@@ -1,15 +1,15 @@
-﻿using System.Collections.Generic;
-using BlackStartX.GestureManager.Data;
-using BlackStartX.GestureManager.Library;
-using BlackStartX.GestureManager.Modules;
+using System.Collections.Generic;
+using VRCLearn.GestureManagerPro.Data;
+using VRCLearn.GestureManagerPro.Library;
+using VRCLearn.GestureManagerPro.Modules;
 using JetBrains.Annotations;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager
+namespace VRCLearn.GestureManagerPro
 {
     public class GestureManager : MonoBehaviour
     {
-        public const string Version = "Gesture Manager 3.9";
+        public const string Version = "Gesture Manager Pro 0.1";
         public static readonly Dictionary<GameObject, ModuleBase> ControlledAvatars = new();
         public static List<ModuleBase> LastCheckedActiveModules = new();
         public static bool InWebClientRequest;
@@ -19,6 +19,7 @@ namespace BlackStartX.GestureManager
 
         public ModuleBase Module;
         public ModuleSettings settings;
+        public bool IsPlayerControlled { get; set; }
 
         private void OnDisable()
         {
@@ -44,7 +45,7 @@ namespace BlackStartX.GestureManager
 
         private void ModuleUpdate()
         {
-            if (_drag) _managerTransform.Difference(transform).AddTo(Module.Avatar.transform);
+            if (_drag && !IsPlayerControlled) _managerTransform.Difference(transform).AddTo(Module.Avatar.transform);
             _managerTransform = new TransformData(transform);
             Module.Update();
         }
@@ -55,7 +56,7 @@ namespace BlackStartX.GestureManager
             Module?.LateUpdate();
         }
 
-        public void SetDrag(bool drag) => _drag = drag;
+        public void SetDrag(bool drag) => _drag = drag && !IsPlayerControlled;
 
         public void UnlinkModule()
         {

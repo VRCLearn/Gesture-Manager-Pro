@@ -1,0 +1,10 @@
+Tools~/UnityValidation~/
+Tools~/FixturePackages~/
+Tools~/Downloads/
+Tools~/*.log
+Output~/
+Tools~/Validation/*~/
+Tools~/Validation/ControllerReferenceReport.*
+**/bin/
+**/obj/
+.DS_Store

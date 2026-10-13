@@ -1,17 +1,20 @@
-﻿#if VRC_SDK_VRCSDK3
-using BlackStartX.GestureManager.Editor.Library;
-using BlackStartX.GestureManager.Library;
+#if VRC_SDK_VRCSDK3
+using VRCLearn.GestureManagerPro.Editor.Library;
+using VRCLearn.GestureManagerPro.Library;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UIEPosition = UnityEngine.UIElements.Position;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public class Vrc3FloatingMenu : EditorWindow
     {
         private ModuleVrc3 _module;
+        private string _titleSource;
+        private bool _localizedTitle;
 
         private RadialMenu _menu;
         private RadialMenu Menu => _menu ??= _module.GetOrCreateRadial(this, true);
@@ -22,15 +25,14 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
         private TextElement _focusElement;
         private TextElement FocusElement => _focusElement ??= rootVisualElement.MyAdd(TextElement);
 
-        private static TextElement TextElement => new()
+        private static TextElement TextElement => EditorLocalization.Bind(new TextElement
         {
-            text = "The window is not focused!",
             style =
             {
                 fontSize = 25, unityTextAlign = TextAnchor.MiddleCenter, position = UIEPosition.Absolute, visibility = Visibility.Hidden,
                 unityBackgroundImageTintColor = new Color(1f, 1f, 1f, 0.5f), backgroundColor = Color.black
             }
-        };
+        }, EditorLocalization.Tr("The window is not focused!"));
 
         private bool _focused = true;
 
@@ -80,6 +82,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
 
         private void OnGUI()
         {
+            if (_localizedTitle) titleContent.text = EditorLocalization.Tr(_titleSource);
             if (_module is not { Active: true } || _module.Broken) Close();
             else if (Focused) Gui();
         }
@@ -90,10 +93,12 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3
             Menu.Render(rootVisualElement, GmgLayoutHelper.GetLastRect(ref Menu.Rect));
         }
 
-        public static void Create(ModuleVrc3 module, string text = "Radial Menu")
+        public static void Create(ModuleVrc3 module, string text = null)
         {
             var instance = CreateInstance<Vrc3FloatingMenu>();
-            instance.titleContent = new GUIContent(text);
+            instance._localizedTitle = text == null || EditorLocalization.TryGetSource(text, out _);
+            instance._titleSource = EditorLocalization.TryGetSource(text, out var source) ? source : text ?? "Radial Menu";
+            instance.titleContent = new GUIContent(instance._localizedTitle ? EditorLocalization.Tr(instance._titleSource) : text);
             instance._module = module;
             instance.Show();
         }

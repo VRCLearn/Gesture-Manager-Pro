@@ -1,24 +1,25 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using BlackStartX.GestureManager.Data;
-using BlackStartX.GestureManager.Editor.Data;
-using BlackStartX.GestureManager.Editor.Library;
-using BlackStartX.GestureManager.Editor.Modules;
+using VRCLearn.GestureManagerPro.Data;
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Library;
+using VRCLearn.GestureManagerPro.Editor.Modules;
 using UnityEditor;
 using UnityEngine;
 using GmgAvatarDescriptor =
-#if VRC_SDK_VRCSDK2 || VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
     VRC.SDKBase.VRC_AvatarDescriptor;
 #else
     UnityEngine.UI.GraphicRaycaster;
 #endif
 using UnityEngine.UIElements;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor
+namespace VRCLearn.GestureManagerPro.Editor
 {
     [CustomEditor(typeof(GestureManager))]
     public class GestureManagerEditor : UnityEditor.Editor
@@ -35,16 +36,16 @@ namespace BlackStartX.GestureManager.Editor
         private const int AntiAliasing = 4;
 
         private const string Discord = "blackstartx";
-        private const string StringPath = "Packages/vrchat.blackstartx.gesture-manager/GestureManager.prefab";
+        private const string StringPath = "Packages/com.vrclearn.gesture-manager-pro/GestureManagerPro.prefab";
 
         private const string DiscordURL = "https://raw.githubusercontent.com/BlackStartx/VRC-Gesture-Manager/master/.discord";
         private const string SupportURL = "https://raw.githubusercontent.com/BlackStartx/VRC-Gesture-Manager/master/.support";
 
-        [MenuItem("Tools/Gesture Manager Emulator", false, -42)]
+        [MenuItem("Tools/Gesture Manager Pro/Add Emulator", false, -42)]
         public static void AddNewEmulator()
         {
             var asset = AssetDatabase.LoadAssetAtPath<GameObject>(StringPath);
-            if (!asset) asset = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.FindAssets("t:prefab GestureManager").Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault());
+            if (!asset) asset = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.FindAssets("t:prefab GestureManagerPro").Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault());
             AddNewEmulator(asset);
         }
 
@@ -62,7 +63,7 @@ namespace BlackStartX.GestureManager.Editor
 
         public static void CreateAndPing(GestureManager manager = null)
         {
-            if (!manager) manager = new GameObject("GestureManager").AddComponent<GestureManager>();
+            if (!manager) manager = new GameObject("GestureManagerPro").AddComponent<GestureManager>();
             Selection.activeObject = manager;
             EditorGUIUtility.PingObject(manager);
         }
@@ -119,7 +120,7 @@ namespace BlackStartX.GestureManager.Editor
 
         private void ModuleGui()
         {
-            GmgLayoutHelper.ObjectField("Controlling Avatar: ", Manager.Module.AvatarDescriptor, OnAvatarSwitch);
+            GmgLayoutHelper.ObjectField(EditorLocalization.Tr("Controlling Avatar: "), Manager.Module.AvatarDescriptor, OnAvatarSwitch);
             if (Manager.Module == null) return;
             Manager.Module.EditorHeader();
             Manager.Module.EditorContent(this, _root);
@@ -129,19 +130,19 @@ namespace BlackStartX.GestureManager.Editor
         {
             if (!isActive || !isEnabled || !isPlaying || isPrefab)
             {
-                if (!isEnabled || !isActive) GUILayout.Label("I'm disabled!", GestureManagerStyles.MiddleError);
-                else GUILayout.Label(isPrefab ? "Drag & Drop me into the scene to start testing! ♥" : "I'm a useless script if you aren't in play mode :D", GestureManagerStyles.MiddleStyle);
+                if (!isEnabled || !isActive) GUILayout.Label(EditorLocalization.Tr("I'm disabled!"), GestureManagerStyles.MiddleError);
+                else GUILayout.Label(isPrefab ? EditorLocalization.Tr("Drag & Drop me into the scene to start testing! ♥") : EditorLocalization.Tr("I'm a useless script if you aren't in play mode :D"), GestureManagerStyles.MiddleStyle);
 
                 GUILayout.Space(10);
                 using (new GUILayout.HorizontalScope())
                 using (new GmgLayoutHelper.FlexibleScope())
                 using (new GmgLayoutHelper.GuiEnabled(!GestureManager.InWebClientRequest))
                 {
-                    if (GmgLayoutHelper.DebugButton(isPlaying ? "Exit Play-Mode" : "Enter Play-Mode")) TogglePlaymode(isPlaying);
+                    if (GmgLayoutHelper.DebugButton(isPlaying ? EditorLocalization.Tr("Exit Play-Mode") : EditorLocalization.Tr("Enter Play-Mode"))) TogglePlaymode(isPlaying);
 
                     GUILayout.Space(20);
 
-                    if (GmgLayoutHelper.DebugButton("My Discord Name")) CheckDiscordName();
+                    if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("My Discord Name"))) CheckDiscordName();
                 }
 
                 GUILayout.Space(5);
@@ -156,7 +157,7 @@ namespace BlackStartX.GestureManager.Editor
                 var eligibleList = GestureManager.LastCheckedActiveModules.Where(module => module.IsValidDesc()).ToList();
                 var nonEligibleList = GestureManager.LastCheckedActiveModules.Where(module => !module.IsValidDesc()).ToList();
 
-                GUILayout.Label(eligibleList.Count == 0 ? "No one of your VRC_AvatarDescriptor are eligible." : "Eligible VRC_AvatarDescriptors:", GestureManagerStyles.Centered);
+                GUILayout.Label(eligibleList.Count == 0 ? EditorLocalization.Tr("No one of your VRC_AvatarDescriptor are eligible.") : EditorLocalization.Tr("Eligible VRC_AvatarDescriptors:"), GestureManagerStyles.Centered);
 
                 foreach (var module in eligibleList)
                 {
@@ -165,27 +166,27 @@ namespace BlackStartX.GestureManager.Editor
                         using (new GUILayout.HorizontalScope())
                         {
                             GUILayout.Label($"{module.Name}:", GUILayout.Width(EditorGUIUtility.currentViewWidth - 133));
-                            if (GUILayout.Button("Set As Avatar", GUILayout.Width(100))) Manager.SetModule(module);
+                            if (GUILayout.Button(EditorLocalization.Tr("Set As Avatar"), GUILayout.Width(100))) Manager.SetModule(module);
                         }
 
-                        foreach (var warningString in module.GetWarnings()) GUILayout.Label(warningString, GestureManagerStyles.TextWarning);
+                        foreach (var warningString in module.GetWarnings()) GUILayout.Label(EditorLocalization.Tr(warningString), GestureManagerStyles.TextWarning);
                     }
                 }
 
-                if (eligibleList.Count != 0 && nonEligibleList.Count != 0) GUILayout.Label("Non-Eligible VRC_AvatarDescriptors:", GestureManagerStyles.Centered);
+                if (eligibleList.Count != 0 && nonEligibleList.Count != 0) GUILayout.Label(EditorLocalization.Tr("Non-Eligible VRC_AvatarDescriptors:"), GestureManagerStyles.Centered);
 
                 foreach (var module in nonEligibleList)
                 {
                     using (new GUILayout.VerticalScope(GestureManagerStyles.EmoteError))
                     {
                         GUILayout.Label($"{module.Name}:");
-                        foreach (var errorString in module.GetErrors()) GUILayout.Label(errorString, GestureManagerStyles.TextError);
+                        foreach (var errorString in module.GetErrors()) GUILayout.Label(EditorLocalization.Tr(errorString), GestureManagerStyles.TextError);
                     }
                 }
             }
-            else GUILayout.Label("There are no VRC_AvatarDescriptors in your scene. \nPlease consider adding one to your avatar before entering PlayMode.", GestureManagerStyles.TextError);
+            else GUILayout.Label(EditorLocalization.Tr("There are no VRC_AvatarDescriptors in your scene. \nPlease consider adding one to your avatar before entering PlayMode."), GestureManagerStyles.TextError);
 
-            if (GUILayout.Button("Check Again")) CheckActiveModules();
+            if (GUILayout.Button(EditorLocalization.Tr("Check Again"))) CheckActiveModules();
         }
 
         private void OnAvatarSwitch(GmgAvatarDescriptor descriptor)
@@ -204,7 +205,7 @@ namespace BlackStartX.GestureManager.Editor
 
         private static void DiscordPopup(string discord)
         {
-            if (EditorUtility.DisplayDialog("It's me!", discord, "Copy To Clipboard!", "Ok!"))
+            if (EditorUtility.DisplayDialog(EditorLocalization.Tr("It's me!"), discord, EditorLocalization.Tr("Copy To Clipboard!"), EditorLocalization.Tr("Ok!")))
                 EditorGUIUtility.systemCopyBuffer = discord;
         }
 
@@ -222,7 +223,11 @@ namespace BlackStartX.GestureManager.Editor
 
         private static bool OnCheckBoxGuiHandAnimation(ModuleBase module, int i, int position, Action<int> click, out bool isOn, Func<int, bool> overridden)
         {
-            GUILayout.Label(module.GetGestureTextNameByIndex(i));
+            var gestureName = module.GetGestureTextNameByIndex(i);
+#if VRC_SDK_VRCSDK3
+            if (module is Modules.Vrc3.ModuleVrc3) gestureName = EditorLocalization.Tr(gestureName);
+#endif
+            GUILayout.Label(gestureName);
             GUILayout.FlexibleSpace();
             isOn = position == i;
             var isDifferent = isOn != (isOn = GUILayout.Toggle(isOn, ""));

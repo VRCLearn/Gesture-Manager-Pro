@@ -1,11 +1,12 @@
-﻿#if VRC_SDK_VRCSDK3
-using BlackStartX.GestureManager.Editor.Data;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl.VisualElements;
+#if VRC_SDK_VRCSDK3
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl.VisualElements;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Osc
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Vrc3Debug.Osc
 {
     public class Vrc3OscDebugWindow : EditorWindow
     {
@@ -18,7 +19,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Osc
         internal static Vrc3OscDebugWindow Create(ModuleVrc3 source)
         {
             var instance = CreateInstance<Vrc3OscDebugWindow>();
-            instance.titleContent = new GUIContent("[Debug Window] Gesture Manager");
+            instance.titleContent = new GUIContent(EditorLocalization.Tr("[Debug Window] Gesture Manager Pro"));
             instance._source = source;
             instance.Show();
             return instance;
@@ -38,10 +39,12 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Osc
 
         private void DebugGUI()
         {
+            titleContent.text = EditorLocalization.Tr("[Debug Window] Gesture Manager Pro");
+            titleContent.text = EditorLocalization.Tr("[Debug Window] Gesture Manager Pro");
             var isFullScreen = EditorGUIUtility.currentViewWidth > 1279;
 
             _scroll = GUILayout.BeginScrollView(_scroll);
-            GUILayout.Label("Gesture Manager - Osc Debug Window", GestureManagerStyles.Header);
+            GUILayout.Label(EditorLocalization.Tr("Gesture Manager Pro - Osc Debug Window"), GestureManagerStyles.Header);
             _source.DebugContext(rootVisualElement, Holder, 1, EditorGUIUtility.currentViewWidth - 60, isFullScreen);
             GUILayout.Space(25);
             GUILayout.EndScrollView();

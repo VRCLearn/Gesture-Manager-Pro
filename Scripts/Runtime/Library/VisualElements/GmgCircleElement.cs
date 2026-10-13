@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.UIElements;
-using CR = BlackStartX.GestureManager.Library.GmgVisualMesh.CenterRelative;
+using CR = VRCLearn.GestureManagerPro.Library.GmgVisualMesh.CenterRelative;
 
-namespace BlackStartX.GestureManager.Library.VisualElements
+namespace VRCLearn.GestureManagerPro.Library.VisualElements
 {
     public class GmgCircleElement : VisualElement
     {

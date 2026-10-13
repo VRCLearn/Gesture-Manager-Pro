@@ -1,0 +1,13 @@
+{
+    "vendor": "Meta / Facebook Technologies, LLC",
+    "sdkVersion": "29.0.0",
+    "downloadPage": "https://developers.meta.com/vr/downloads/package/oculus-lipsync-unity/",
+    "downloadUrl": "https://securecdn-nrt1-1.oculus.com/binaries/download/?id=3760833650692932",
+    "archiveSHA256": "c706de1f3ab449fff438a59ee441842b08edb47d7a0a8312bff23db65883b280",
+    "originalAsset": "Assets/Oculus/LipSync/Plugins/Win64/OVRLipSync.dll",
+    "bundledAsset": "Plugins/Win64/VRCLearnOVRLipSync.dll",
+    "binarySHA256": "2318c42eb806753e340b426d0b83dd3278f5b8d3b851ccf90a5be0ea8e1d2cd3",
+    "binaryBytes": 29784504,
+    "changes": "Binary content is unchanged. The filename and Unity importer metadata are changed to isolate the plugin and enable it only in the Windows x86_64 editor.",
+    "licenseUrl": "https://developers.meta.com/vr/licenses/oculussdk/"
+}

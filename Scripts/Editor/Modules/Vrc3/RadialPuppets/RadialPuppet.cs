@@ -1,15 +1,15 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialPuppets.Base;
-using BlackStartX.GestureManager.Library;
-using BlackStartX.GestureManager.Library.VisualElements;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets.Base;
+using VRCLearn.GestureManagerPro.Library;
+using VRCLearn.GestureManagerPro.Library.VisualElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UIEPosition = UnityEngine.UIElements.Position;
-using Range = BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices.RadialSliceControl.RadialSettings.Range;
+using Range = VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices.RadialSliceControl.RadialSettings.Range;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialPuppets
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets
 {
     public class RadialPuppet : BasePuppet
     {

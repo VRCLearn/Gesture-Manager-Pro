@@ -1,6 +1,7 @@
 MIT License
 
 Copyright © 2019-2023 BlackStartx
+Copyright © 2026 VRCLearn contributors (Gesture Manager Pro changes)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

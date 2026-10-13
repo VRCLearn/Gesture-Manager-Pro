@@ -1,16 +1,17 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BlackStartX.GestureManager.Editor.Data;
-using BlackStartX.GestureManager.Editor.Library;
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.Params;
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Library;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
 using UnityEditor;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDKBase;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Vrc3Debug.Avatar
 {
     internal class Vrc3AvatarDebugWindow : EditorWindow
     {
@@ -23,7 +24,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
         internal static Vrc3AvatarDebugWindow Create(ModuleVrc3 source)
         {
             var instance = CreateInstance<Vrc3AvatarDebugWindow>();
-            instance.titleContent = new GUIContent("[Debug Window] Gesture Manager");
+            instance.titleContent = new GUIContent(EditorLocalization.Tr("[Debug Window] Gesture Manager Pro"));
             instance._source = source;
             instance.Show();
             return instance;
@@ -45,7 +46,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
 
         private void DebugGUI()
         {
-            GUILayout.Label("Gesture Manager - Avatar Debug Window", GestureManagerStyles.Header);
+            titleContent.text = EditorLocalization.Tr("[Debug Window] Gesture Manager Pro");
+            titleContent.text = EditorLocalization.Tr("[Debug Window] Gesture Manager Pro");
+            GUILayout.Label(EditorLocalization.Tr("Gesture Manager Pro - Avatar Debug Window"), GestureManagerStyles.Header);
             var isFullScreen = EditorGUIUtility.currentViewWidth > 1279;
             if (!isFullScreen) _source.DebugToolBar = Static.DebugToolbar(_source.DebugToolBar);
             _scroll = GUILayout.BeginScrollView(_scroll);
@@ -55,7 +58,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
 
         internal static class Static
         {
-            internal static int DebugToolbar(int toolbar) => GUILayout.Toolbar(toolbar, new[] { "Parameters", "Tracking Control", "Animator States" });
+            internal static int DebugToolbar(int toolbar) => GUILayout.Toolbar(toolbar, new[] { EditorLocalization.Tr("Parameters"), EditorLocalization.Tr("Tracking Control"), EditorLocalization.Tr("Animator States") });
 
             internal static void DebugLayout(ModuleVrc3 module, float width, bool fullscreen, Dictionary<VRCAvatarDescriptor.AnimLayerType, ModuleVrc3.LayerData> data)
             {
@@ -95,9 +98,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
                 using (new GmgLayoutHelper.FlexibleScope())
                 {
                     GUILayout.Space(100);
-                    GUILayout.Label($"Debug mode is disabled in {mode}-Mode!", GestureManagerStyles.TextError);
+                    GUILayout.Label(EditorLocalization.Format("Debug mode is disabled in {0}-Mode!", mode), GestureManagerStyles.TextError);
                     GUILayout.Space(20);
-                    GUILayout.Label($"Exit {mode}-Mode to show the debug information of your avatar!", GestureManagerStyles.Centered);
+                    GUILayout.Label(EditorLocalization.Format("Exit {0}-Mode to show the debug information of your avatar!", mode), GestureManagerStyles.Centered);
                     GUILayout.Space(100);
                 }
             }
@@ -110,19 +113,19 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
 
                 using (new GUILayout.VerticalScope())
                 {
-                    if (GmgLayoutHelper.TitleButton("Parameters", module.Edit ? "View-Mode" : "Edit-Mode")) module.Edit = !module.Edit;
+                    if (GmgLayoutHelper.TitleButton(EditorLocalization.Tr("Parameters"), module.Edit ? EditorLocalization.Tr("View-Mode") : EditorLocalization.Tr("Edit-Mode"))) module.Edit = !module.Edit;
                     module.ParamFilterSearch();
                     GUILayout.Space(5);
                     using (new GUILayout.HorizontalScope(wOption))
                     {
-                        GUILayout.Label("Parameter", GestureManagerStyles.GuiDebugTitle, iOption);
-                        GUILayout.Label("Type", GestureManagerStyles.GuiDebugTitle, iOption);
-                        GUILayout.Label("Value", GestureManagerStyles.GuiDebugTitle, iOption);
+                        GUILayout.Label(EditorLocalization.Tr("Parameter"), GestureManagerStyles.GuiDebugTitle, iOption);
+                        GUILayout.Label(EditorLocalization.Tr("Type"), GestureManagerStyles.GuiDebugTitle, iOption);
+                        GUILayout.Label(EditorLocalization.Tr("Value"), GestureManagerStyles.GuiDebugTitle, iOption);
                     }
 
                     var intTime = Vrc3Param.Time;
-                    ParametersCategory(module.UserFilteredParams, "[User Parameters]", width, wOption, iOption, dOption, intTime, module);
-                    ParametersCategory(module.VrcFilteredParams, "[VRC Defaults]", width, wOption, iOption, dOption, intTime, module);
+                    ParametersCategory(module.UserFilteredParams, EditorLocalization.Tr("[User Parameters]"), width, wOption, iOption, dOption, intTime, module);
+                    ParametersCategory(module.VrcFilteredParams, EditorLocalization.Tr("[VRC Defaults]"), width, wOption, iOption, dOption, intTime, module);
                 }
             }
 
@@ -169,45 +172,45 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
 
                 using (new GUILayout.VerticalScope())
                 {
-                    GUILayout.Label("Tracking Control", GestureManagerStyles.GuiHandTitle, widthOption);
+                    GUILayout.Label(EditorLocalization.Tr("Tracking Control"), GestureManagerStyles.GuiHandTitle, widthOption);
                     using (new GUILayout.HorizontalScope())
                     {
                         using (new GUILayout.VerticalScope())
                         {
-                            GUILayout.Label("Name", GestureManagerStyles.GuiDebugTitle, innerOption);
-                            foreach (var trackingPair in trackingControls) GUILayout.Label(trackingPair.Key, innerOption);
+                            GUILayout.Label(EditorLocalization.Tr("Name"), GestureManagerStyles.GuiDebugTitle, innerOption);
+                            foreach (var trackingPair in trackingControls) GUILayout.Label(EditorLocalization.Tr(trackingPair.Key), innerOption);
                         }
 
                         using (new GUILayout.VerticalScope())
                         {
-                            GUILayout.Label("Value", GestureManagerStyles.GuiDebugTitle, innerOption);
+                            GUILayout.Label(EditorLocalization.Tr("Value"), GestureManagerStyles.GuiDebugTitle, innerOption);
                             foreach (var trackingPair in trackingControls) GmgLayoutHelper.GuiLabel(TrackingTuple(trackingPair.Value), innerOption);
                         }
                     }
 
-                    GUILayout.Label("Animation Controllers", GestureManagerStyles.GuiHandTitle, widthOption);
+                    GUILayout.Label(EditorLocalization.Tr("Animation Controllers"), GestureManagerStyles.GuiHandTitle, widthOption);
                     using (new GUILayout.HorizontalScope())
                     {
                         using (new GUILayout.VerticalScope())
                         {
-                            GUILayout.Label("Name", GestureManagerStyles.GuiDebugTitle, innerOption);
+                            GUILayout.Label(EditorLocalization.Tr("Name"), GestureManagerStyles.GuiDebugTitle, innerOption);
                             foreach (var controllerPair in data) GUILayout.Label(controllerPair.Key.ToString(), innerOption);
                         }
 
                         using (new GUILayout.VerticalScope())
                         {
-                            GUILayout.Label("Weight", GestureManagerStyles.GuiDebugTitle, innerOption);
+                            GUILayout.Label(EditorLocalization.Tr("Weight"), GestureManagerStyles.GuiDebugTitle, innerOption);
                             foreach (var controllerPair in data) GUILayout.Label(controllerPair.Value.Weight.Weight.ToString("0.00"), innerOption);
                         }
                     }
 
-                    GUILayout.Label("Miscellaneous", GestureManagerStyles.GuiHandTitle, widthOption);
+                    GUILayout.Label(EditorLocalization.Tr("Miscellaneous"), GestureManagerStyles.GuiHandTitle, widthOption);
                     using (new GUILayout.HorizontalScope())
                     {
                         using (new GUILayout.VerticalScope())
                         {
-                            GUILayout.Label("Locomotion", innerOption);
-                            GUILayout.Label("Pose Space", innerOption);
+                            GUILayout.Label(EditorLocalization.Tr("Locomotion"), innerOption);
+                            GUILayout.Label(EditorLocalization.Tr("Pose Space"), innerOption);
                         }
 
                         using (new GUILayout.VerticalScope())
@@ -226,7 +229,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
 
                 using (new GUILayout.VerticalScope())
                 {
-                    GUILayout.Label("Animator States", GestureManagerStyles.GuiHandTitle, widthOption);
+                    GUILayout.Label(EditorLocalization.Tr("Animator States"), GestureManagerStyles.GuiHandTitle, widthOption);
                     foreach (var sortPair in ModuleVrc3Styles.Data.SortValue.Where(sortPair => data.ContainsKey(sortPair.Key)))
                     {
                         GUILayout.Label(sortPair.Key.ToString(), GestureManagerStyles.GuiDebugTitle, widthOption);
@@ -237,21 +240,21 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
                         {
                             using (new GUILayout.VerticalScope())
                             {
-                                GUILayout.Label("Name", GestureManagerStyles.Centered, innerOption);
+                                GUILayout.Label(EditorLocalization.Tr("Name"), GestureManagerStyles.Centered, innerOption);
                                 foreach (var intLayer in layerList) GUILayout.Label(animator.GetLayerName(intLayer), innerOption);
                             }
 
                             using (new GUILayout.VerticalScope())
                             {
-                                GUILayout.Label("Weight", GestureManagerStyles.Centered, innerOption);
+                                GUILayout.Label(EditorLocalization.Tr("Weight"), GestureManagerStyles.Centered, innerOption);
                                 foreach (var intLayer in layerList) GUILayout.Label(animator.GetLayerWeight(intLayer).ToString("0.00"), innerOption);
                             }
 
                             using (new GUILayout.VerticalScope())
                             {
-                                GUILayout.Label("State", GestureManagerStyles.Centered, innerOption);
+                                GUILayout.Label(EditorLocalization.Tr("State"), GestureManagerStyles.Centered, innerOption);
                                 foreach (var state in layerList.Select(intLayer => animator.GetCurrentAnimatorStateInfo(intLayer)))
-                                    GUILayout.Label(debugDic.TryGetValue(state.fullPathHash, out var hash) ? hash.name : "[UNKNOWN]");
+                                    GUILayout.Label(debugDic.TryGetValue(state.fullPathHash, out var hash) ? hash.name : EditorLocalization.Tr("[UNKNOWN]"));
                             }
                         }
                     }
@@ -260,9 +263,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
 
             private static (Color? color, string text) TrackingTuple(VRC_AnimatorTrackingControl.TrackingType trackingType) => trackingType switch
             {
-                VRC_AnimatorTrackingControl.TrackingType.NoChange => (Color.yellow, "No Change"),
-                VRC_AnimatorTrackingControl.TrackingType.Tracking => (Color.green, "Tracking"),
-                VRC_AnimatorTrackingControl.TrackingType.Animation => (Color.red, "Animation"),
+                VRC_AnimatorTrackingControl.TrackingType.NoChange => (Color.yellow, EditorLocalization.Tr("No Change")),
+                VRC_AnimatorTrackingControl.TrackingType.Tracking => (Color.green, EditorLocalization.Tr("Tracking")),
+                VRC_AnimatorTrackingControl.TrackingType.Animation => (Color.red, EditorLocalization.Tr("Animation")),
                 _ => throw new ArgumentOutOfRangeException(nameof(trackingType), trackingType, null)
             };
 
@@ -270,8 +273,8 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
             {
                 AnimatorControllerParameterType.Float => (null, param.FloatValue().ToString("0.00")),
                 AnimatorControllerParameterType.Int => (null, param.IntValue().ToString()),
-                AnimatorControllerParameterType.Bool => param.BoolValue() ? (Color.green, "True") : (Color.red, "False"),
-                AnimatorControllerParameterType.Trigger => param.BoolValue() ? (Color.green, "True") : (Color.red, "False"),
+                AnimatorControllerParameterType.Bool => param.BoolValue() ? (Color.green, EditorLocalization.Tr("True")) : (Color.red, EditorLocalization.Tr("False")),
+                AnimatorControllerParameterType.Trigger => param.BoolValue() ? (Color.green, EditorLocalization.Tr("True")) : (Color.red, EditorLocalization.Tr("False")),
                 _ => throw new ArgumentOutOfRangeException()
             };
 
@@ -304,9 +307,9 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.Vrc3Debug.Avatar
                 }
             }
 
-            private static (Color? color, string text) LocomotionTuple(bool locomotion) => locomotion ? (Color.green, "Enabled") : (Color.red, "Disabled");
+            private static (Color? color, string text) LocomotionTuple(bool locomotion) => locomotion ? (Color.green, EditorLocalization.Tr("Enabled")) : (Color.red, EditorLocalization.Tr("Disabled"));
 
-            private static (Color? color, string text) PoseSpaceTuple(bool poseSpace) => poseSpace ? (Color.green, "Pose") : (null, "Default");
+            private static (Color? color, string text) PoseSpaceTuple(bool poseSpace) => poseSpace ? (Color.green, EditorLocalization.Tr("Pose")) : (null, EditorLocalization.Tr("Default"));
         }
 
         internal static class Text

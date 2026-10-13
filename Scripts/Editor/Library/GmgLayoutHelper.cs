@@ -1,11 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using BlackStartX.GestureManager.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Data;
 using UnityEditor;
 using UnityEngine;
+using VRCLearn.GestureManagerPro.Localization;
 
-namespace BlackStartX.GestureManager.Editor.Library
+namespace VRCLearn.GestureManagerPro.Editor.Library
 {
     public static class GmgLayoutHelper
     {
@@ -13,7 +14,13 @@ namespace BlackStartX.GestureManager.Editor.Library
         {
             private GUIContent[] _contents;
 
-            public GUIContent[] Contents(IEnumerable<(string, Action)> field) => _contents ??= field.Select(tuple => new GUIContent(tuple.Item1)).ToArray();
+            public GUIContent[] Contents(IEnumerable<(string, Action)> field)
+            {
+                var labels = field.Select(tuple => tuple.Item1).ToArray();
+                if (_contents == null || _contents.Length != labels.Length) _contents = labels.Select(text => new GUIContent(text)).ToArray();
+                else for (var i = 0; i < labels.Length; i++) _contents[i].text = labels[i];
+                return _contents;
+            }
             public int Selected;
         }
 
@@ -313,7 +320,7 @@ namespace BlackStartX.GestureManager.Editor.Library
             var toggleRect = new Rect(rect.xMax - EditorGUIUtility.fieldWidth, rect.y, EditorGUIUtility.fieldWidth, rect.height);
             if (Event.current.type == EventType.MouseDown && buttonRect.Contains(Event.current.mousePosition)) GUIUtility.keyboardControl = 0;
             value = GUI.Toggle(buttonRect, value, value ? "✓" : "✗", EditorStyles.miniButton);
-            value = GUI.Toggle(toggleRect, value, value ? "True" : "False", EditorStyles.textField);
+            value = GUI.Toggle(toggleRect, value, value ? EditorLocalization.Tr("True") : EditorLocalization.Tr("False"), EditorStyles.textField);
             return value;
         }
 

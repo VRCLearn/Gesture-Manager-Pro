@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Library
+namespace VRCLearn.GestureManagerPro.Library
 {
     public static class GmgGizmosHelper
     {

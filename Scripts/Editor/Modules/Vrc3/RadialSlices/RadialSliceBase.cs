@@ -1,10 +1,11 @@
-﻿#if VRC_SDK_VRCSDK3
-using BlackStartX.GestureManager.Library.VisualElements;
+#if VRC_SDK_VRCSDK3
+using VRCLearn.GestureManagerPro.Library.VisualElements;
+using VRCLearn.GestureManagerPro.Localization;
 using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices
 {
     public abstract class RadialSliceBase : GmgCircleElement
     {
@@ -70,7 +71,7 @@ namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices
         {
             DataHolder = RadialMenuUtility.Prefabs.NewData(100, 100);
             Texture = new VisualElement { pickingMode = PickingMode.Ignore, style = { width = 50, height = 50, backgroundImage = !icon ? ModuleVrc3Styles.Default : icon } };
-            Text = new GmgTmpRichTextElement { pickingMode = PickingMode.Ignore, Text = text, style = { unityTextAlign = TextAnchor.MiddleCenter } };
+            Text = EditorLocalization.Bind(new GmgTmpRichTextElement { pickingMode = PickingMode.Ignore, style = { unityTextAlign = TextAnchor.MiddleCenter } }, text);
             RadialMenuUtility.Prefabs.SetSlice(this, RadialMenu.Size, IdleCenterColor, IdleBorderColor, RadialMenuUtility.Colors.CustomBorder);
             if (subIcon) _sub = RadialMenuUtility.Prefabs.NewSubIcon(subIcon);
             Enabled = enabled;

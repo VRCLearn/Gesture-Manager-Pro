@@ -1,10 +1,10 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using UnityEngine;
 using UnityEngine.UIElements;
-using BlackStartX.GestureManager.Library;
+using VRCLearn.GestureManagerPro.Library;
 using UIEPosition = UnityEngine.UIElements.Position;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl.VisualElements
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl.VisualElements
 {
     public static class VisualEpStyles
     {

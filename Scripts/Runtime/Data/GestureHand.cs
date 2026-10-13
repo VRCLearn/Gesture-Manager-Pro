@@ -1,4 +1,4 @@
-﻿namespace BlackStartX.GestureManager.Data
+namespace VRCLearn.GestureManagerPro.Data
 {
     public enum GestureHand
     {

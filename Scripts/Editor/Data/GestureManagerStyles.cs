@@ -1,7 +1,7 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
-namespace BlackStartX.GestureManager.Editor.Data
+namespace VRCLearn.GestureManagerPro.Editor.Data
 {
     public static class GestureManagerStyles
     {
@@ -161,8 +161,8 @@ namespace BlackStartX.GestureManager.Editor.Data
         internal static Texture BackTexture => !_backTexture ? _backTexture = EditorGUIUtility.IconContent("d_tab_prev").image : _backTexture;
         internal static Texture CloseTexture => !_closeTexture ? _closeTexture = EditorGUIUtility.IconContent("d_clear").image : _closeTexture;
         internal static Texture PlusTexture => EditorGUIUtility.isProSkin ? PlusTexturePro : PlusTextureLgt;
-        private static Texture PlusTextureLgt => !_plusTextureLgt ? _plusTextureLgt = Resources.Load<Texture>("Gm/BSX_GM_PlusSign") : _plusTextureLgt;
-        private static Texture PlusTexturePro => !_plusTexturePro ? _plusTexturePro = Resources.Load<Texture>("Gm/BSX_GM_PlusSign[Pro]") : _plusTexturePro;
+        private static Texture PlusTextureLgt => !_plusTextureLgt ? _plusTextureLgt = Resources.Load<Texture>("GestureManagerPro/Gm/BSX_GM_PlusSign") : _plusTextureLgt;
+        private static Texture PlusTexturePro => !_plusTexturePro ? _plusTexturePro = Resources.Load<Texture>("GestureManagerPro/Gm/BSX_GM_PlusSign[Pro]") : _plusTexturePro;
 
         internal static Color IconContentColor => EditorGUIUtility.isProSkin ? IconContentPro : IconContentLgt;
         private static Color IconContentLgt => _iconContentLgt ??= Color.gray;
@@ -211,7 +211,7 @@ namespace BlackStartX.GestureManager.Editor.Data
         {
             public static class Gesture
             {
-                private const string Path = "Gm/Animations/Gesture/";
+                private const string Path = "GestureManagerPro/Gm/Animations/Gesture/";
 
                 private static AnimationClip _fist;
                 private static AnimationClip _open;
@@ -232,7 +232,7 @@ namespace BlackStartX.GestureManager.Editor.Data
 
             public static class Emote
             {
-                private const string Path = "Gm/Animations/Emote/";
+                private const string Path = "GestureManagerPro/Gm/Animations/Emote/";
 
                 public static class Standing
                 {

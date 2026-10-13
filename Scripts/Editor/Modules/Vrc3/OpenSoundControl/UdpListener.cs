@@ -1,9 +1,9 @@
-﻿#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3
 using System;
 using System.Net;
 using System.Net.Sockets;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.OpenSoundControl
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
 {
     public class UdpListener
     {

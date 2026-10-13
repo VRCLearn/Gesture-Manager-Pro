@@ -1,13 +1,13 @@
-﻿#if VRC_SDK_VRCSDK3
-using BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialSlices;
-using BlackStartX.GestureManager.Library;
-using BlackStartX.GestureManager.Library.VisualElements;
+#if VRC_SDK_VRCSDK3
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices;
+using VRCLearn.GestureManagerPro.Library;
+using VRCLearn.GestureManagerPro.Library.VisualElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using UIEPosition = UnityEngine.UIElements.Position;
 
-namespace BlackStartX.GestureManager.Editor.Modules.Vrc3.RadialPuppets.Base
+namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets.Base
 {
     public abstract class BaseAxisPuppet : BasePuppet
     {

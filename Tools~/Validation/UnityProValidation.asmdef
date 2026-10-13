@@ -1,0 +1,14 @@
+{
+    "name": "VRCLearn.GestureManagerPro.Validation",
+    "references": [
+        "VRCLearn.GestureManagerPro",
+        "VRCLearn.GestureManagerPro.Editor",
+        "VRCLearn.GestureManagerPro.Localization",
+        "VRCLearn.GestureManagerPro.Tools",
+        "VRCLearn.GestureManagerPro.Control",
+        "VRCLearn.GestureManagerPro.Control.Editor",
+        "VRC.SDK3A"
+    ],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": true
+}
