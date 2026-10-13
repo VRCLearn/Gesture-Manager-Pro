@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Declare the original VPM Gesture Manager package (`vrchat.blackstartx.gesture-manager`) as a legacy package. Installing or updating Pro through VPM removes that package to prevent simultaneous simulator use.
+- Document replacing existing original GM scene emulators with Pro. VPM package removal does not convert scene components or remove a manually imported original GM Assets folder; UnityPackage and UPM installs do not perform this VPM replacement.
+
 ## 0.1.0
 
 - Start a standalone VRCLearn VPM package based on Gesture Manager 3.9.9.

@@ -78,6 +78,23 @@ class PackageFixture(unittest.TestCase):
 
 
 class DistributionTests(PackageFixture):
+    def test_vpm_replacement_targets_only_original_gm_and_survives_both_archives(self):
+        original_gm = "vrchat.blackstartx.gesture-manager"
+        actual = json.loads((ROOT / "package.json").read_text(encoding="utf-8-sig"))
+        self.assertEqual(actual["legacyPackages"], [original_gm])
+        self.assertNotIn(original_gm, actual["vpmDependencies"])
+        self.manifest["legacyPackages"] = [original_gm]
+        (self.package / "package.json").write_bytes(builder.encode_json(self.manifest))
+        result = self.build()
+        manifest = json.loads(Path(result["manifest"]).read_bytes())
+        files = builder.validate_zip(Path(result["archive"]), manifest)
+        assets = builder.validate_unitypackage(Path(result["unitypackage"]), manifest)
+        for content in (Path(result["manifest"]).read_bytes(), files["package.json"],
+                        assets[builder.UNITY_ROOT + "/package.json"]["asset"]):
+            metadata = json.loads(content)
+            self.assertEqual(metadata["legacyPackages"], [original_gm])
+            self.assertEqual(metadata["vpmDependencies"], self.manifest["vpmDependencies"])
+
     def test_archive_roots_content_source_and_checksum_contracts(self):
         result = self.build()
         output = self.root / "output"

@@ -94,6 +94,12 @@ class ListingTests(unittest.TestCase):
         self.assertEqual(manifest["vpmDependencies"], {"com.example.dependency": ">=10.3.0 <11.0.0"})
         self.assertIn("\n", manifest["description"])
 
+    def test_vpm_replacement_is_preserved_in_the_repository_index(self):
+        content = package_zip(legacyPackages=["vrchat.blackstartx.gesture-manager"])
+        with patch.object(listing, "fetch_bytes", return_value=content):
+            manifest = listing.package_manifest(asset(), PACKAGE)
+        self.assertEqual(manifest["legacyPackages"], ["vrchat.blackstartx.gesture-manager"])
+
     def test_rejects_wrong_identity_version_metadata_and_embedded_url(self):
         cases = [{"name": "unexpected.package"}, {"version": "0.2.0"}, {"author": {"name": "VRCLearn"}},
                  {"url": "file:///local.zip"}, {"url": "https://example.test/other.zip"}]
