@@ -1,0 +1,56 @@
+name: Publish VPM release
+
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    uses: ./.github/workflows/package.yml
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Verify version and prepare release artifacts
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_REVISION: ${{ github.sha }}
+        run: python Tools~/Publishing/prepare_release.py
+      - name: Publish the release if it does not already exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" > "$RUNNER_TEMP/release.json" 2> "$RUNNER_TEMP/release-error.log"; then
+            echo 'This release already exists; keeping its published assets.'
+            exit 0
+          elif ! grep -q '(HTTP 404)' "$RUNNER_TEMP/release-error.log"; then
+            cat "$RUNNER_TEMP/release-error.log" >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" Output~/Release/*.zip Output~/Release/*.unitypackage Output~/Release/package.json Output~/Release/SHA256SUMS.txt \
+            --verify-tag --target "$RELEASE_REVISION" \
+            --title "Gesture Manager Pro $RELEASE_TAG" --notes-file Output~/Release/release-notes.md
+      - name: Refresh the default-branch VPM website
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run vpm-listing.yml --ref main

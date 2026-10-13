@@ -1,0 +1,6 @@
+
+/* Fit the original 3:1 artwork within the official 5:1 banner. */
+.bannerImage {
+    background-size: contain;
+    background-color: #ffffff;
+}

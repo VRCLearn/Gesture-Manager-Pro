@@ -1,26 +1,40 @@
-name: Package archive
+name: Validate VPM package
 
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
 jobs:
-  package:
-    runs-on: ubuntu-latest
+  validate:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        python: ['3.10', '3.12']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Build development archive
-        shell: pwsh
-        run: ./Tools~/Build-Package.ps1
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          name: gesture-manager-pro-package
-          path: Output~/*.zip
-          if-no-files-found: error
+          python-version: ${{ matrix.python }}
+      - name: Verify publishing and update behavior
+        run: python -m unittest discover -s Tests~ -v
+      - name: Build and validate release archives
+        shell: pwsh
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_REVISION: ${{ github.sha }}
+        run: |
+          $manifest = Get-Content -Raw package.json | ConvertFrom-Json
+          $url = "https://github.com/$env:RELEASE_REPOSITORY/releases/download/$($manifest.version)/$($manifest.name)-$($manifest.version).zip"
+          python Tools~/Publishing/build_package.py --output Output~/Release --download-url $url --repository $env:RELEASE_REPOSITORY --revision $env:RELEASE_REVISION
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

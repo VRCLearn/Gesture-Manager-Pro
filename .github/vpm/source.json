@@ -1,0 +1,22 @@
+{
+  "name": "Gesture Manager Pro | VRCLearn",
+  "id": "com.vrclearn.gesture-manager-pro",
+  "url": "https://vrclearn.github.io/Gesture-Manager-Pro/index.json",
+  "author": {
+    "url": "https://github.com/VRCLearn",
+    "name": "VRCLearn"
+  },
+  "description": "Standalone avatar testing with English/Chinese UI, audio-driven lip sync and keyboard movement. Audio analysis requires Windows x86_64 Unity Editor.",
+  "bannerUrl": "vrclearn-banner.png",
+  "infoLink": {
+    "url": "https://github.com/VRCLearn/Gesture-Manager-Pro",
+    "text": "Source and documentation"
+  },
+  "repository": "VRCLearn/Gesture-Manager-Pro",
+  "packages": {
+    "com.vrclearn.gesture-manager-pro": "VRCLearn/Gesture-Manager-Pro"
+  },
+  "githubRepos": [
+    "VRCLearn/Gesture-Manager-Pro"
+  ]
+}

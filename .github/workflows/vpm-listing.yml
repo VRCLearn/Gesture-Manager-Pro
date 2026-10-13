@@ -1,0 +1,137 @@
+name: Build VPM repository listing
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - .github/vpm/**
+      - .github/workflows/vpm-listing.yml
+      - Tools~/Publishing/build_listing.py
+      - Tools~/Publishing/check_listing.py
+      - Tools~/Publishing/patch_vpm_template.py
+      - Tools~/Publishing/prepare_vpm_source.py
+  release:
+    types: [published, edited, deleted]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vpm-pages
+  cancel-in-progress: true
+
+jobs:
+  check-updates:
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.updates.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - name: Check for new package releases
+        id: updates
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = schedule ]; then
+            python Tools~/Publishing/check_listing.py --bootstrap
+          else
+            python Tools~/Publishing/check_listing.py --force --bootstrap
+          fi
+      - name: Keep scheduled updates active after extended inactivity
+        if: github.event_name == 'schedule'
+        run: |
+          set -euo pipefail
+          idle_seconds="$(( $(date +%s) - $(git log -1 --format=%ct) ))"
+          if [ "$idle_seconds" -lt "$((45 * 24 * 60 * 60))" ]; then
+            exit 0
+          fi
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > .github/keepalive
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/keepalive
+          git commit -m 'Keep scheduled VPM updates active'
+          git push origin HEAD:main
+  request-refresh:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Refresh on the default branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: gh workflow run vpm-listing.yml --ref "$DEFAULT_BRANCH"
+  build-and-deploy:
+    needs: check-updates
+    if: needs.check-updates.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Check out the official VRChat website template
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: vrchat-community/template-package
+          ref: 591e23fe5175b8279cc3998f65e81add604aabc9
+          path: official-template
+          persist-credentials: false
+      - name: Check out the official VRChat listing renderer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: vrchat-community/package-list-action
+          ref: cb31c3b5d17d1070d7741c61de2ca1b219224039
+          path: ci
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Render the official VPM website
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python Tools~/Publishing/prepare_vpm_source.py .github/vpm/source.json official-template/source.json
+          python Tools~/Publishing/patch_vpm_template.py official-template/Website
+          cp .github/vpm/vrclearn-banner.png official-template/Website/vrclearn-banner.png
+          cat .github/vpm/banner.css >> official-template/Website/styles.css
+          dotnet run --project ci/PackageBuilder/PackageBuilder.csproj --framework net8.0 -- BuildRepoListing \
+            --root ci --package-listing-source-folder "$GITHUB_WORKSPACE/official-template" \
+            --list-publish-directory "$GITHUB_WORKSPACE/official-template/Website" \
+            --current-package-name com.vrclearn.gesture-manager-pro \
+            --current-listing-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/.github/vpm/empty-index.json"
+          node --input-type=module --check < official-template/Website/app.js
+      - name: Build and verify the release listing
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python Tools~/Publishing/build_listing.py --site-path official-template/Website --output dist/vpm-site
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist/vpm-site
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
