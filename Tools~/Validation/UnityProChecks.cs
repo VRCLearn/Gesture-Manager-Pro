@@ -65,6 +65,7 @@ public static class UnityProChecks
         GameObject avatar = null;
         LipSyncTestWindow window = null;
         ControlledModeWindow controlledWindow = null;
+        StyleSheet externalWindowStyle = null;
         GestureManager manager = null;
         UnityEditor.Editor inspector = null;
         VRCExpressionsMenu expressionMenu = null;
@@ -116,7 +117,22 @@ public static class UnityProChecks
             Check(window.rootVisualElement.Q<Button>("start")?.text == "开始测试", "Bundled UXML and Chinese lip sync caption load");
             Check(window.rootVisualElement.Q<DropdownField>("language") != null, "Lip sync language selector exists");
             controlledWindow = ScriptableObject.CreateInstance<ControlledModeWindow>();
+            var defaultWindowStyles = Enumerable.Range(0, controlledWindow.rootVisualElement.styleSheets.count)
+                .Select(index => controlledWindow.rootVisualElement.styleSheets[index]).ToArray();
+            Check(defaultWindowStyles.Length > 0, "Game simulation window starts with Unity's default editor theme");
+            externalWindowStyle = ScriptableObject.CreateInstance<StyleSheet>();
+            externalWindowStyle.name = "External window stylesheet sentinel";
+            controlledWindow.rootVisualElement.styleSheets.Add(externalWindowStyle);
+            controlledWindow.Show();
             controlledWindow.CreateGUI();
+            Check(controlledWindow.rootVisualElement.panel != null, "Game simulation root attaches to the native window panel");
+            Check(defaultWindowStyles.All(controlledWindow.rootVisualElement.styleSheets.Contains) && controlledWindow.rootVisualElement.styleSheets.Contains(externalWindowStyle), "Game simulation creation preserves the Unity theme and external stylesheets");
+            var controlScriptPath = AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(controlledWindow));
+            var controlStyle = AssetDatabase.LoadAssetAtPath<StyleSheet>(Path.ChangeExtension(controlScriptPath, ".uss"));
+            Check(controlStyle && Enumerable.Range(0, controlledWindow.rootVisualElement.styleSheets.count).Count(index => controlledWindow.rootVisualElement.styleSheets[index] == controlStyle) == 1, "Game simulation adds its own stylesheet exactly once");
+            var windowStyleCount = controlledWindow.rootVisualElement.styleSheets.count;
+            controlledWindow.CreateGUI();
+            Check(WindowStylesPreserved(controlledWindow, defaultWindowStyles, externalWindowStyle, windowStyleCount), "Repeated CreateGUI preserves the editor theme and does not duplicate the window stylesheet");
             Check(controlledWindow.titleContent.text == "游戏模拟", "Game simulation window uses the registered Chinese translations");
             Check(controlledWindow.rootVisualElement.Query<Button>().ToList().Any(button => button.text == "进入游戏模拟"), "Game simulation entry button is translated");
             Check(((HelpBox)typeof(ControlledModeWindow).GetField("_status", Any).GetValue(controlledWindow)).text == "游戏模拟已停止。进入播放模式后可开始。", "Game simulation stopped status renders in Chinese");
@@ -167,6 +183,7 @@ public static class UnityProChecks
             Check(controlledWindow.rootVisualElement.Q<DropdownField>("viewMode").choices.SequenceEqual(new[] { "First Person", "Third Person" }), "View choices refresh live after language switch");
             Check(((HelpBox)typeof(ControlledModeWindow).GetField("_status", Any).GetValue(controlledWindow)).text == "Game Simulation is stopped. Enter Play Mode to begin.", "Game simulation stopped status refreshes live to English");
             Check(controlledWindow.rootVisualElement.Query<HelpBox>().ToList().Any(help => help.text.StartsWith("Scene view: WASD and < / > move and turn the avatar without moving the Scene camera.", StringComparison.Ordinal)), "Scene input help refreshes live to English");
+            Check(WindowStylesPreserved(controlledWindow, defaultWindowStyles, externalWindowStyle, windowStyleCount), "Switching to English preserves the editor theme and stylesheet count");
             Check(Caption(grounded) == "Grounded", "Existing built-in radial control switches live to English");
             Check(Caption(state) == "State" && Caption(states) == "States", "Equal Chinese captions retain their distinct original source keys");
             Check(focusLabel.text == "The window is not focused!", "Existing focus notice switches live to English");
@@ -177,6 +194,7 @@ public static class UnityProChecks
             Check(avatar.name == "Tools" && module.Name == "Tools", "Live switching leaves avatar metadata unchanged");
             Check(module.GetGestureTextNameByIndex(1) == "[GESTURE] Fist", "Gesture animation resource identifier is preserved");
             EditorLocalization.Language = ProLanguage.SimplifiedChinese;
+            Check(WindowStylesPreserved(controlledWindow, defaultWindowStyles, externalWindowStyle, windowStyleCount), "Switching back to Chinese preserves the editor theme and stylesheet count");
             Check(Caption(grounded) == EditorLocalization.Tr("Grounded"), "Existing radial control switches back to Chinese");
             Check(Caption(state) == EditorLocalization.Tr("State") && Caption(states) == EditorLocalization.Tr("States"), "Distinct sources survive a second language switch");
 
@@ -206,6 +224,7 @@ public static class UnityProChecks
             if (manager) UnityEngine.Object.DestroyImmediate(manager.gameObject);
             if (window) UnityEngine.Object.DestroyImmediate(window);
             if (controlledWindow) UnityEngine.Object.DestroyImmediate(controlledWindow);
+            if (externalWindowStyle) UnityEngine.Object.DestroyImmediate(externalWindowStyle);
             if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
             if (expressionMenu) UnityEngine.Object.DestroyImmediate(expressionMenu);
             if (onLanguageChange != null) EditorLocalization.Changed -= onLanguageChange;
@@ -229,6 +248,10 @@ public static class UnityProChecks
         Check(entries.Length == 1 && entries[0].menuItem == path,
             owner.Name + " exposes one direct Tools action: " + path);
     }
+
+    private static bool WindowStylesPreserved(EditorWindow window, StyleSheet[] defaults, StyleSheet external, int count) =>
+        defaults.All(window.rootVisualElement.styleSheets.Contains) && window.rootVisualElement.styleSheets.Contains(external) &&
+        window.rootVisualElement.styleSheets.count == count;
 
     private static void CheckBuiltInControllers()
     {

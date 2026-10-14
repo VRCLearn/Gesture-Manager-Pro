@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+- Keep Unity's default editor styles when rebuilding the Game Simulation window, fixing its blank controls in Unity 2022.3.
+- Use editor application focus for Scene input. Unity's player focus flag only follows the Game view and previously kept Scene movement and turning suspended.
+- Retain short Scene movement and turning presses until the motor samples them, even when Unity delivers key down and key up between player updates.
+
 ## 0.2.1
 
 - Place the emulator, Game Simulation, lip sync and language actions directly in the Tools menu.

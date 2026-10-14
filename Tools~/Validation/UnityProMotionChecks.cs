@@ -233,6 +233,44 @@ public static class UnityProMotionChecks
                 var frame = read();
                 check(frame.Move == Vector2.zero && frame.Turn == 0f, "Scene key release clears movement and turning");
 
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.W });
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.W });
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.Period });
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.Period });
+                input.Frame = read();
+                before = avatar.transform.position;
+                beforeYaw = avatar.transform.eulerAngles.y;
+                motor.Step(0.1f);
+                check(input.Frame.Move == Vector2.up && input.Frame.Turn == 1f &&
+                    Mathf.Abs(Vector3.Distance(before, avatar.transform.position) - 0.2f) < 0.0001f &&
+                    Mathf.Abs(Mathf.DeltaAngle(beforeYaw, avatar.transform.eulerAngles.y) - 12f) < 0.001f,
+                    "Scene movement and turn taps completed before a motor update still produce one input frame");
+                input.Frame = read();
+                before = avatar.transform.position;
+                beforeYaw = avatar.transform.eulerAngles.y;
+                motor.Step(0.1f);
+                check(input.Frame.Move == Vector2.zero && input.Frame.Turn == 0f &&
+                    avatar.transform.position == before && Mathf.Abs(Mathf.DeltaAngle(beforeYaw, avatar.transform.eulerAngles.y)) < 0.001f,
+                    "A completed Scene tap is consumed once and cannot replay on the next motor update");
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.W });
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.W });
+                send(new Event { type = EventType.MouseDown, button = 1 });
+                send(new Event { type = EventType.MouseUp, button = 1 });
+                check(read().Move == Vector2.zero && !keyboard.Suspended,
+                    "Starting Scene navigation before sampling discards a queued movement tap");
+                send(new Event { type = EventType.MouseDown, button = 1 });
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.W });
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.W });
+                send(new Event { type = EventType.MouseUp, button = 1 });
+                check(read().Move == Vector2.zero && !keyboard.Suspended,
+                    "A movement tap reserved for Scene navigation is never queued for later avatar movement");
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.Period });
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.Period });
+                keyboard.Reset();
+                send(new Event { type = EventType.Repaint });
+                check(read().Turn == 0f && !keyboard.Suspended,
+                    "Reset discards unsampled Scene turn taps so focus recovery cannot replay them");
+
                 var right = new Event { type = EventType.MouseDown, button = 1 };
                 var rightType = right.type;
                 send(right);

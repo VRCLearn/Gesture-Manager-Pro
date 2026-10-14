@@ -14,6 +14,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private CursorLockMode _previousCursorLock;
         private bool _previousCursorVisible;
         private readonly HashSet<KeyCode> _sceneKeys = new HashSet<KeyCode>();
+        private readonly HashSet<KeyCode> _scenePressedKeys = new HashSet<KeyCode>();
         private readonly HashSet<KeyCode> _sceneReleaseKeys = new HashSet<KeyCode>();
         private EditorWindow _focusedWindow;
         private int _sceneNavigationButtons;
@@ -33,7 +34,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public event Action ViewToggleRequested;
         public static bool HasGameViewFocus => Application.isFocused && !EditorGUIUtility.editingTextField && EditorWindow.focusedWindow &&
             EditorWindow.focusedWindow.GetType().FullName == "UnityEditor.GameView";
-        public static bool HasSceneViewFocus => Application.isFocused && !EditorGUIUtility.editingTextField &&
+        public static bool HasSceneViewFocus => UnityEditorInternal.InternalEditorUtility.isApplicationActive && !EditorGUIUtility.editingTextField &&
             EditorWindow.focusedWindow is SceneView;
 
         public static void EnsureAvailable() => Input.GetKey(KeyCode.W);
@@ -101,6 +102,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _captured = false;
             }
             _sceneKeys.Clear();
+            _scenePressedKeys.Clear();
             _sceneReleaseKeys.Clear();
             _focusedWindow = null;
             _sceneNavigationButtons = 0;
@@ -170,7 +172,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                     }
                     else if (!_sceneReleaseKeys.Contains(current.keyCode) && current.type != EventType.Used)
                     {
-                        _sceneKeys.Add(current.keyCode);
+                        if (_sceneKeys.Add(current.keyCode)) _scenePressedKeys.Add(current.keyCode);
                         current.Use();
                     }
                 }
@@ -183,13 +185,18 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             // Scene View owns its camera and mouse navigation. Only model movement
             // keys captured from duringSceneGui are sampled here; legacy Input is Game-only.
             Suspended = _sceneNavigation || _sceneReleaseKeys.Count != 0;
-            return Suspended ? default : new MotionInputFrame(
+            var frame = Suspended ? default : new MotionInputFrame(
                 new Vector2(SceneAxis(KeyCode.A, KeyCode.D), SceneAxis(KeyCode.S, KeyCode.W)),
                 SceneAxis(KeyCode.Comma, KeyCode.Period));
+            // Scene GUI can deliver a complete short press between player updates.
+            // Keep its first press until one motor sample, then consume it once.
+            _scenePressedKeys.Clear();
+            return frame;
         }
 
         private float SceneAxis(KeyCode negative, KeyCode positive) =>
-            (_sceneKeys.Contains(positive) ? 1f : 0f) - (_sceneKeys.Contains(negative) ? 1f : 0f);
+            (_sceneKeys.Contains(positive) || _scenePressedKeys.Contains(positive) ? 1f : 0f) -
+            (_sceneKeys.Contains(negative) || _scenePressedKeys.Contains(negative) ? 1f : 0f);
 
         private static bool IsSceneMovementKey(KeyCode key) => key == KeyCode.W || key == KeyCode.A ||
             key == KeyCode.S || key == KeyCode.D || key == KeyCode.Comma || key == KeyCode.Period;
@@ -198,6 +205,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         {
             foreach (var key in _sceneKeys) _sceneReleaseKeys.Add(key);
             _sceneKeys.Clear();
+            _scenePressedKeys.Clear();
         }
 
         private static float Axis(KeyCode negative, KeyCode positive) => (Input.GetKey(positive) ? 1f : 0f) - (Input.GetKey(negative) ? 1f : 0f);

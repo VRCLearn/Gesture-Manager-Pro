@@ -55,11 +55,10 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             titleContent = new GUIContent(EditorLocalization.Tr("Game Simulation"));
             minSize = new Vector2(360f, 440f);
             rootVisualElement.Clear();
-            rootVisualElement.styleSheets.Clear();
             var scriptPath = AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(this));
             var stylePath = Path.Combine(Path.GetDirectoryName(scriptPath) ?? "", "ControlledModeWindow.uss").Replace('\\', '/');
             var style = AssetDatabase.LoadAssetAtPath<StyleSheet>(stylePath);
-            if (style) rootVisualElement.styleSheets.Add(style);
+            if (style && !rootVisualElement.styleSheets.Contains(style)) rootVisualElement.styleSheets.Add(style);
             var scroll = new ScrollView();
             scroll.AddToClassList("control-panel");
             rootVisualElement.Add(scroll);
