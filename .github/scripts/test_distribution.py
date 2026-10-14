@@ -12,8 +12,8 @@ from unittest.mock import patch
 import uuid
 import zipfile
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "Tools~/Publishing"))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / ".github/scripts"))
 import build_package as builder
 sys.path.pop(0)
 
@@ -40,7 +40,6 @@ class PackageFixture(unittest.TestCase):
             "GestureManagerPro.prefab": b"%YAML 1.1\n",
             "Scripts/Runtime/GestureManager.cs": b"public class Fixture { }\n",
             "Resources/Preview.txt": b"Keep source bytes and GUID identity.\n",
-            "Documentation~/VALIDATION.md": b"# Validation\n",
             self.vendor + "LICENSE.txt": b"Original Meta SDK license fixture.\n",
             self.vendor + "THIRD_PARTY_NOTICES.txt": b"Original Meta third-party notice fixture.\n",
             self.vendor + "Plugins/Win64/VRCLearnOVRLipSync.dll": binary,
@@ -55,8 +54,6 @@ class PackageFixture(unittest.TestCase):
             path.write_bytes(content)
         for path in list(self.package.rglob("*")):
             relative = path.relative_to(self.package).as_posix()
-            if relative.startswith("Documentation~"):
-                continue
             guid = uuid.uuid5(builder.GUID_NAMESPACE, "test:" + relative).hex
             metadata = "fileFormatVersion: 2\nguid: " + guid + "\n"
             if path.is_dir():
@@ -155,7 +152,7 @@ class DistributionTests(PackageFixture):
         self.assertNotIn("Documentation~.meta", after)
 
     def test_development_fixtures_and_python_caches_are_excluded(self):
-        excluded = ("Tools~/private.txt", "Tests~/fixture.txt", "Output~/old.zip", ".git/config", ".github/workflows/private.yml", "Scripts/fixtures/fake.cs", "Scripts/__pycache__/x.pyc", "Scripts/x.pyc.meta", "Scripts/__pycache__.meta")
+        excluded = (".github/scripts/test_private.py", ".github/scripts/UnityPrivateChecks.cs", ".github/docs/VALIDATION.md", "Output~/old.zip", ".git/config", ".github/workflows/private.yml", "Scripts/fixtures/fake.cs", "Scripts/__pycache__/x.pyc", "Scripts/x.pyc.meta", "Scripts/__pycache__.meta")
         for name in excluded:
             path = self.package / name
             path.parent.mkdir(parents=True, exist_ok=True)

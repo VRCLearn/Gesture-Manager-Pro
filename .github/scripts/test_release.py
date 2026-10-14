@@ -8,7 +8,7 @@ import unittest
 
 from test_distribution import PackageFixture, builder
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Tools~/Publishing"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / ".github/scripts"))
 import prepare_release
 sys.path.pop(0)
 

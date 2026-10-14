@@ -32,7 +32,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_REPOSITORY: ${{ github.repository }}
           RELEASE_REVISION: ${{ github.sha }}
-        run: python Tools~/Publishing/prepare_release.py
+        run: python .github/scripts/prepare_release.py
       - name: Publish the release if it does not already exist
         env:
           GH_TOKEN: ${{ github.token }}

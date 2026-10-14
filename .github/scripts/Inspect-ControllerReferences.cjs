@@ -8,7 +8,7 @@ const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name)
 const root = path.resolve(option('--package-root', path.join(__dirname, '../..')));
 const sdkOption = option('--sdk-root', null);
 if (!sdkOption) {
-    console.error('Usage: node Tools~/Validation/Inspect-ControllerReferences.cjs --sdk-root <com.vrchat.avatars-directory> [--package-root <package-directory>] [--output <report.json>]');
+    console.error('Usage: node .github/scripts/Inspect-ControllerReferences.cjs --sdk-root <com.vrchat.avatars-directory> [--package-root <package-directory>] [--output <report.json>]');
     process.exit(2);
 }
 const sdk = path.resolve(sdkOption);

@@ -9,10 +9,10 @@ on:
     paths:
       - .github/vpm/**
       - .github/workflows/vpm-listing.yml
-      - Tools~/Publishing/build_listing.py
-      - Tools~/Publishing/check_listing.py
-      - Tools~/Publishing/patch_vpm_template.py
-      - Tools~/Publishing/prepare_vpm_source.py
+      - .github/scripts/build_listing.py
+      - .github/scripts/check_listing.py
+      - .github/scripts/patch_vpm_template.py
+      - .github/scripts/prepare_vpm_source.py
   release:
     types: [published, edited, deleted]
 
@@ -43,9 +43,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" = schedule ]; then
-            python Tools~/Publishing/check_listing.py --bootstrap
+            python .github/scripts/check_listing.py --bootstrap
           else
-            python Tools~/Publishing/check_listing.py --force --bootstrap
+            python .github/scripts/check_listing.py --force --bootstrap
           fi
       - name: Keep scheduled updates active after extended inactivity
         if: github.event_name == 'schedule'
@@ -112,8 +112,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python Tools~/Publishing/prepare_vpm_source.py .github/vpm/source.json official-template/source.json
-          python Tools~/Publishing/patch_vpm_template.py official-template/Website
+          python .github/scripts/prepare_vpm_source.py .github/vpm/source.json official-template/source.json
+          python .github/scripts/patch_vpm_template.py official-template/Website
           cp .github/vpm/vrclearn-banner.png official-template/Website/vrclearn-banner.png
           cat .github/vpm/banner.css >> official-template/Website/styles.css
           dotnet run --project ci/PackageBuilder/PackageBuilder.csproj --framework net8.0 -- BuildRepoListing \
@@ -125,7 +125,7 @@ jobs:
       - name: Build and verify the release listing
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python Tools~/Publishing/build_listing.py --site-path official-template/Website --output dist/vpm-site
+        run: python .github/scripts/build_listing.py --site-path official-template/Website --output dist/vpm-site
       - name: Configure GitHub Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - name: Upload the Pages artifact

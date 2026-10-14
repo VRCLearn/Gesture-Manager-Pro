@@ -9,8 +9,8 @@ from unittest.mock import patch
 import urllib.request
 import zipfile
 
-ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("build_listing", ROOT / "Tools~/Publishing/build_listing.py")
+ROOT = Path(__file__).resolve().parents[2]
+spec = importlib.util.spec_from_file_location("build_listing", ROOT / ".github/scripts/build_listing.py")
 listing = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(listing)
 SOURCE = json.loads((ROOT / ".github/vpm/source.json").read_text(encoding="utf-8"))

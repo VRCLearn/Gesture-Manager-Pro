@@ -22,7 +22,7 @@ UNITY_ROOT = "Assets/VRCLearn/GestureManagerPro"
 GUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/" + REPOSITORY)
 ROOT_GUID = uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/" + REPOSITORY + "#" + UNITY_ROOT).hex
 OVR_BINARY_SHA256 = "2318c42eb806753e340b426d0b83dd3278f5b8d3b851ccf90a5be0ea8e1d2cd3"
-DIRECTORIES = ("Scripts", "Resources", "ThirdParty", "Documentation~")
+DIRECTORIES = ("Scripts", "Resources", "ThirdParty")
 ROOT_FILES = ("package.json", "GestureManagerPro.prefab", "LICENSE.md", "README.md", "CHANGELOG.md")
 EXCLUDED = {"Tools~", "Tests~", "Output~", "__pycache__", "fixtures", "testfixtures", "UnityValidation~", "FixturePackages~"}
 
@@ -124,8 +124,6 @@ def source_assets(manifest: dict, repository: str | None, revision: str | None) 
         meta_path = entry.with_name(entry.name + ".meta")
         if meta_path.is_file():
             metadata = meta_path.read_bytes()
-        elif relative.startswith("Documentation~"):
-            metadata = generated_metadata(relative, folder)
         else:
             raise ValueError("Package asset is missing existing Unity metadata: " + relative)
         is_folder = re.search(rb"^folderAsset:\s*yes\s*$", metadata, re.MULTILINE) is not None

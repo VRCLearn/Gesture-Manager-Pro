@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Verify publishing and update behavior
-        run: python -m unittest discover -s Tests~ -v
+        run: python -m unittest discover -s .github/scripts -v
       - name: Build and validate release archives
         shell: pwsh
         env:
@@ -36,5 +36,5 @@ jobs:
         run: |
           $manifest = Get-Content -Raw package.json | ConvertFrom-Json
           $url = "https://github.com/$env:RELEASE_REPOSITORY/releases/download/$($manifest.version)/$($manifest.name)-$($manifest.version).zip"
-          python Tools~/Publishing/build_package.py --output Output~/Release --download-url $url --repository $env:RELEASE_REPOSITORY --revision $env:RELEASE_REVISION
+          python .github/scripts/build_package.py --output Output~/Release --download-url $url --repository $env:RELEASE_REPOSITORY --revision $env:RELEASE_REVISION
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

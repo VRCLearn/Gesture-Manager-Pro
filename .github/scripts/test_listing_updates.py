@@ -10,8 +10,8 @@ import unittest
 from unittest.mock import patch
 import urllib.error
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "Tools~/Publishing"))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / ".github/scripts"))
 checker = importlib.import_module("check_listing")
 sys.path.pop(0)
 SOURCE = json.loads((ROOT / ".github/vpm/source.json").read_text(encoding="utf-8"))

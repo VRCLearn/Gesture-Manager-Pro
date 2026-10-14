@@ -1,13 +1,13 @@
-param([string]$OutputDirectory = (Join-Path $PSScriptRoot '..\Output~'))
+param([string]$OutputDirectory = (Join-Path $PSScriptRoot '..\..\Output~'))
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
-$packageRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$packageRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $manifest = Get-Content -LiteralPath (Join-Path $packageRoot 'package.json') -Raw | ConvertFrom-Json
 $outputRoot = [IO.Path]::GetFullPath($OutputDirectory)
 [IO.Directory]::CreateDirectory($outputRoot) | Out-Null
 $archivePath = Join-Path $outputRoot ($manifest.name + '-' + $manifest.version + '.zip')
-$includedDirectories = @('Scripts', 'Resources', 'ThirdParty', 'Documentation~')
+$includedDirectories = @('Scripts', 'Resources', 'ThirdParty')
 $includedFiles = @('package.json', 'GestureManagerPro.prefab', 'LICENSE.md', 'README.md', 'CHANGELOG.md')
 $files = [Collections.Generic.List[string]]::new()
 foreach ($directory in $includedDirectories) {

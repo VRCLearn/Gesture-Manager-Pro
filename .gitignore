@@ -3,8 +3,7 @@ Tools~/FixturePackages~/
 Tools~/Downloads/
 Tools~/*.log
 Output~/
-Tools~/Validation/*~/
-Tools~/Validation/ControllerReferenceReport.*
+.github/scripts/ControllerReferenceReport.*
 **/bin/
 **/obj/
 .DS_Store
