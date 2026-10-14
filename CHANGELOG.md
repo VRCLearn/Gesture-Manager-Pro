@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Replace the Inspector's Discord-name button with **Model Statistics**, also available directly under Tools and while an avatar is connected.
+- Show read-only VRChat SDK performance metrics and ratings for PC and Mobile, including triangles, materials, texture memory, PhysBones, contacts and constraints.
+- Retain the latest 12 Editor-session snapshots with avatar identity, platform, timestamp and capture stage. Separate current-state scans, pre-simulator Play Mode previews, SDK preprocessing and SDK-confirmed successful builds without triggering extra builds.
+- Exclude the active simulator's temporary components from manual scans. Keep unavailable download/uncompressed sizes and constraint depth explicit; local bundle file size is shown separately after SDK build success.
+- Localize the new window in English and Simplified Chinese. Platform selection changes rating thresholds; texture memory still reflects the currently imported assets.
+
 ## 0.2.2
 
 - Keep Unity's default editor styles when rebuilding the Game Simulation window, fixing its blank controls in Unity 2022.3.

@@ -7,6 +7,8 @@
         "VRCLearn.GestureManagerPro.Tools",
         "VRCLearn.GestureManagerPro.Control",
         "VRCLearn.GestureManagerPro.Control.Editor",
+        "VRCLearn.GestureManagerPro.Diagnostics.Editor",
+        "VRC.SDKBase",
         "VRC.SDK3A"
     ],
     "includePlatforms": ["Editor"],

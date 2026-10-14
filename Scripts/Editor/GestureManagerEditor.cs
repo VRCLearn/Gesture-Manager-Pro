@@ -18,6 +18,7 @@ using GmgAvatarDescriptor =
 #endif
 using UnityEngine.UIElements;
 using VRCLearn.GestureManagerPro.Localization;
+using VRCLearn.GestureManagerPro.Diagnostics;
 
 namespace VRCLearn.GestureManagerPro.Editor
 {
@@ -35,10 +36,8 @@ namespace VRCLearn.GestureManagerPro.Editor
 
         private const int AntiAliasing = 4;
 
-        private const string Discord = "blackstartx";
         private const string StringPath = "Packages/com.vrclearn.gesture-manager-pro/GestureManagerPro.prefab";
 
-        private const string DiscordURL = "https://raw.githubusercontent.com/BlackStartx/VRC-Gesture-Manager/master/.discord";
         private const string SupportURL = "https://raw.githubusercontent.com/BlackStartx/VRC-Gesture-Manager/master/.support";
 
         [MenuItem("Tools/Gesture Manager Pro", false, -42)]
@@ -122,6 +121,7 @@ namespace VRCLearn.GestureManagerPro.Editor
         {
             GmgLayoutHelper.ObjectField(EditorLocalization.Tr("Controlling Avatar: "), Manager.Module.AvatarDescriptor, OnAvatarSwitch);
             if (Manager.Module == null) return;
+            if (GUILayout.Button(EditorLocalization.Tr("Model Statistics"))) OpenStatistics();
             Manager.Module.EditorHeader();
             Manager.Module.EditorContent(this, _root);
         }
@@ -136,13 +136,12 @@ namespace VRCLearn.GestureManagerPro.Editor
                 GUILayout.Space(10);
                 using (new GUILayout.HorizontalScope())
                 using (new GmgLayoutHelper.FlexibleScope())
-                using (new GmgLayoutHelper.GuiEnabled(!GestureManager.InWebClientRequest))
                 {
                     if (GmgLayoutHelper.DebugButton(isPlaying ? EditorLocalization.Tr("Exit Play-Mode") : EditorLocalization.Tr("Enter Play-Mode"))) TogglePlaymode(isPlaying);
 
                     GUILayout.Space(20);
 
-                    if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("My Discord Name"))) CheckDiscordName();
+                    if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("Model Statistics"))) OpenStatistics();
                 }
 
                 GUILayout.Space(5);
@@ -203,10 +202,11 @@ namespace VRCLearn.GestureManagerPro.Editor
 
         private static List<ModuleBase> CheckActiveModules() => GestureManager.LastCheckedActiveModules = Modules.ToList();
 
-        private static void DiscordPopup(string discord)
+        private void OpenStatistics()
         {
-            if (EditorUtility.DisplayDialog(EditorLocalization.Tr("It's me!"), discord, EditorLocalization.Tr("Copy To Clipboard!"), EditorLocalization.Tr("Ok!")))
-                EditorGUIUtility.systemCopyBuffer = discord;
+            var avatar = Manager.Module?.Avatar;
+            if (!avatar && Manager.settings?.favourite) avatar = Manager.settings.favourite.gameObject;
+            ModelStatisticsWindow.OpenForAvatar(avatar);
         }
 
         /* ╭────────────────────────────╮ *
@@ -247,17 +247,6 @@ namespace VRCLearn.GestureManagerPro.Editor
          * │         Async Call         │ *
          * ╰────────────────────────────╯ */
 
-        private static async void CheckDiscordName()
-        {
-            if (GestureManager.InWebClientRequest) return;
-
-            GestureManager.InWebClientRequest = true;
-            var discordString = await GetDiscord();
-            GestureManager.InWebClientRequest = false;
-
-            DiscordPopup(discordString ?? Discord);
-        }
-
         internal static async void CheckSupporters(Action<string> supporters)
         {
             if (GestureManager.InWebClientRequest) return;
@@ -284,7 +273,6 @@ namespace VRCLearn.GestureManagerPro.Editor
             }
         }
 
-        private static Task<string> GetDiscord() => Get(DiscordURL);
         private static Task<string> GetSupport() => Get(SupportURL);
     }
 }

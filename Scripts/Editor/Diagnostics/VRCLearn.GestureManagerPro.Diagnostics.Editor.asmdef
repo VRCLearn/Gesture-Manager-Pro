@@ -1,0 +1,16 @@
+{
+    "name": "VRCLearn.GestureManagerPro.Diagnostics.Editor",
+    "rootNamespace": "VRCLearn.GestureManagerPro.Diagnostics",
+    "references": [
+        "VRCLearn.GestureManagerPro",
+        "VRCLearn.GestureManagerPro.Localization",
+        "VRC.SDK3A",
+        "VRC.SDK3A.Editor",
+        "VRC.SDKBase",
+        "VRC.SDKBase.Editor",
+        "VRC.SDKBase.Editor.BuildPipeline"
+    ],
+    "includePlatforms": ["Editor"],
+    "defineConstraints": ["VRC_SDK_VRCSDK3"],
+    "autoReferenced": true
+}

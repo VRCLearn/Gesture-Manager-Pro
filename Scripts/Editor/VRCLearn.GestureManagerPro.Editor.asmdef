@@ -4,7 +4,8 @@
   "references": [
     "VRCLearn.GestureManagerPro",
     "VRC.SDK3A",
-    "VRCLearn.GestureManagerPro.Localization"
+    "VRCLearn.GestureManagerPro.Localization",
+    "VRCLearn.GestureManagerPro.Diagnostics.Editor"
   ],
   "includePlatforms": [
     "Editor"

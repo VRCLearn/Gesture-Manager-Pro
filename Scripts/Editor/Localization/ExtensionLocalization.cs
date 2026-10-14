@@ -13,7 +13,7 @@ namespace VRCLearn.GestureManagerPro.Localization
     public static class EditorLocalization
     {
         private const string PreferenceKey = "com.vrclearn.gesture-manager-pro.language";
-        private static readonly TranslationCatalog Catalog = new TranslationCatalog(GestureManagerChinese.Entries, LipSyncChinese.Entries, SettingsChinese.Entries);
+        private static readonly TranslationCatalog Catalog = new TranslationCatalog(GestureManagerChinese.Entries, LipSyncChinese.Entries, SettingsChinese.Entries, ModelStatisticsChinese.Entries);
         private static ProLanguage _language = ReadLanguage();
         private static readonly List<CaptionBinding> Captions = new List<CaptionBinding>();
 

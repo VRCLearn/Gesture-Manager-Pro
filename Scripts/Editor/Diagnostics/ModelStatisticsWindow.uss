@@ -1,0 +1,64 @@
+.statistics-panel {
+    padding: 12px;
+    flex-grow: 1;
+}
+
+.statistics-title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    margin-bottom: 6px;
+}
+
+.statistics-note {
+    white-space: normal;
+    margin-bottom: 10px;
+}
+
+.statistics-panel .unity-base-field {
+    margin-top: 4px;
+}
+
+.statistics-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.statistics-buttons > Button {
+    flex-grow: 1;
+    min-height: 24px;
+}
+
+.statistics-summary {
+    font-size: 16px;
+    -unity-font-style: bold;
+    margin-top: 10px;
+    margin-bottom: 6px;
+}
+
+.statistics-row, .statistics-header {
+    flex-direction: row;
+    min-height: 24px;
+    padding: 4px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(128, 128, 128, 0.2);
+}
+
+.statistics-header {
+    -unity-font-style: bold;
+    background-color: rgba(128, 128, 128, 0.15);
+}
+
+.statistics-metric {
+    flex-grow: 2;
+    flex-basis: 0;
+    white-space: normal;
+}
+
+.statistics-value, .statistics-rating {
+    flex-grow: 1;
+    flex-basis: 0;
+    white-space: normal;
+    margin-left: 8px;
+}

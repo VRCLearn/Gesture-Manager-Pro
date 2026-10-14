@@ -1,5 +1,17 @@
 # Development validation
 
+## Model Statistics (0.3.0)
+
+Validated on 2026-10-15 in the existing disposable Windows fixture with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5.
+
+- Editor integration: 267 assertions passed, including 62 new statistics checks. Known geometry and PC/Mobile grades match the installed SDK calculator. Checks cover shared asset/component state, temporary simulator Contacts, same-name avatar isolation, bounded SessionState history, interrupted build records, localized window controls and stylesheet preservation.
+- Play Mode integration: 146 assertions passed. Actual simulator initialization records both platform previews before temporary contacts/animator changes; existing graph, input, camera rendering and cleanup checks still pass.
+- Desktop UI: clicked the actual Inspector's replacement Model Statistics button and confirmed the Chinese window renders the selected test avatar, SDK metrics and source labels. First-open sizing keeps statistics visible; detailed platform/data caveats are collapsed below the table.
+- Compatibility: Diagnostics sources compile with Unity's Roslyn against SDK 3.10.4 and 3.10.5 binaries. The referenced builder/control-panel source contracts are byte-identical between those versions; full Unity integration was performed on 3.10.5 only.
+- Distribution: 42 Python tests and 1,733 static package checks passed; VPM ZIP and UnityPackage asset/GUID parity checks passed. No new package dependency was added.
+
+SDK build lifecycle tests inject SDK event payloads and invoke the observer; they do not execute an actual bundle build, upload, or third-party optimizer pipeline. Production humanoid avatars, NDMF/MA/AAO processing combinations, Android imports/builds and macOS/Linux editor UI remain unverified. Download/uncompressed sizes and constraint depth stay explicitly unavailable; SDK-confirmed bundle file size is separate from download size.
+
 ## Window styles and Scene focus (0.2.2)
 
 Validated on 2026-10-15 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in a disposable Windows project containing the real simulator graph and a generic test avatar.
