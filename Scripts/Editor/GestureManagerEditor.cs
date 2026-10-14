@@ -41,7 +41,7 @@ namespace VRCLearn.GestureManagerPro.Editor
         private const string DiscordURL = "https://raw.githubusercontent.com/BlackStartx/VRC-Gesture-Manager/master/.discord";
         private const string SupportURL = "https://raw.githubusercontent.com/BlackStartx/VRC-Gesture-Manager/master/.support";
 
-        [MenuItem("Tools/Gesture Manager Pro/Add Emulator", false, -42)]
+        [MenuItem("Tools/Gesture Manager Pro", false, -42)]
         public static void AddNewEmulator()
         {
             var asset = AssetDatabase.LoadAssetAtPath<GameObject>(StringPath);

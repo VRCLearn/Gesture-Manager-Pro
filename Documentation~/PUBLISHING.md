@@ -18,7 +18,7 @@ The workflow builds from the tagged revision and uploads the VPM ZIP, UnityPacka
 ## Build locally
 
 ```powershell
-python Tools~/Publishing/build_package.py --output Output~/Release --download-url "https://github.com/VRCLearn/Gesture-Manager-Pro/releases/download/0.2.0/com.vrclearn.gesture-manager-pro-0.2.0.zip" --repository "VRCLearn/Gesture-Manager-Pro" --revision "<full-source-commit-sha>"
+python Tools~/Publishing/build_package.py --output Output~/Release --download-url "https://github.com/VRCLearn/Gesture-Manager-Pro/releases/download/0.2.1/com.vrclearn.gesture-manager-pro-0.2.1.zip" --repository "VRCLearn/Gesture-Manager-Pro" --revision "<full-source-commit-sha>"
 ```
 
 The `.unitypackage` is a separate installation format. VPM can migrate its specifically identified Pro folder. Since 0.1.1, `legacyPackages` also removes the original VPM package `vrchat.blackstartx.gesture-manager` when Pro is installed or updated. It does not remove an original GM folder manually imported under `Assets`, modify unrelated Assets folders, or convert original GM scene components. Replace the old scene emulator with Pro before switching. UnityPackage and direct UPM installs do not process this VPM replacement. Install only one Pro distribution format per project.

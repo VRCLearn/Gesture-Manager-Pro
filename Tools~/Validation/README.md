@@ -14,9 +14,9 @@ For a read-only report of external controller references, run `node Tools~/Valid
 
 ## Unity integration checks
 
-Use a disposable Unity avatar project with the target SDK and this package installed. Copy `UnityProChecks.cs`, `UnityProMotionChecks.cs`, `UnityProPlayChecks.cs`, `UnityProGraphChecks.cs`, and `UnityProValidation.asmdef` into its `Assets/Editor` folder. Do not copy these scripts into a user's working avatar project for batch testing.
+Use a disposable Unity avatar project with the target SDK and this package installed. Copy `UnityProChecks.cs`, `UnityProMotionChecks.cs`, `UnityProPlayChecks.cs`, `UnityProGraphChecks.cs`, `UnityProCameraChecks.cs`, `UnityProSimulationRenderChecks.cs`, and `UnityProValidation.asmdef` into its `Assets/Editor` folder. Do not copy these scripts into a user's working avatar project for batch testing.
 
-Run Unity with `-batchmode -nographics -projectPath <fixture> -executeMethod UnityProChecks.Run -logFile <log>`. For actual Play Mode session checks, use a second invocation with `-executeMethod UnityProPlayChecks.Run`. These runners exit Unity themselves; do not add `-quit` to the Play runner.
+Run Unity with `-batchmode -nographics -projectPath <fixture> -executeMethod UnityProChecks.Run -logFile <log>`. For actual Play Mode session checks and GPU-rendered camera images, use a second invocation with `-executeMethod UnityProPlayChecks.Run` and omit `-nographics`. These runners exit Unity themselves; do not add `-quit` to the Play runner. Rendered validation images are saved beneath the fixture's `Temp/GestureManagerProValidation/SimulationViews` folder.
 
 The editor runner creates a temporary GUI context to check localized UI caches, resource ownership, native analyzer initialization and preservation of user names/parameter identities. The motion checks inject deterministic input. Play checks exercise session ownership, movement publication, stop/pause/unlink/failure cleanup and restoration. The graph checks initialize a valid generic avatar through the actual simulator connection path and eight default animation layers. They do not automate physical key presses, microphone hardware, VR hardware, humanoid body IK or visual layout inspection.
 

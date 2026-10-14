@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,23 +13,37 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private bool _disposed;
         private CursorLockMode _previousCursorLock;
         private bool _previousCursorVisible;
+        private readonly HashSet<KeyCode> _sceneKeys = new HashSet<KeyCode>();
+        private readonly HashSet<KeyCode> _sceneReleaseKeys = new HashSet<KeyCode>();
+        private EditorWindow _focusedWindow;
+        private int _sceneNavigationButtons;
+        private bool _sceneNavigation;
 
-        public KeyboardMotionInputSource(bool gameSimulation = false) => GameSimulation = gameSimulation;
+        public KeyboardMotionInputSource(bool gameSimulation = false)
+        {
+            GameSimulation = gameSimulation;
+            if (gameSimulation) SceneView.duringSceneGui += OnSceneGUI;
+        }
 
         public bool GameSimulation { get; }
         public bool Captured => _captured;
         public float LookSensitivity { get; set; } = 2f;
         public bool Suspended { get; private set; } = true;
+        public bool HasInputFocus => HasGameViewFocus || (GameSimulation && HasSceneViewFocus);
         public event Action ViewToggleRequested;
         public static bool HasGameViewFocus => Application.isFocused && !EditorGUIUtility.editingTextField && EditorWindow.focusedWindow &&
             EditorWindow.focusedWindow.GetType().FullName == "UnityEditor.GameView";
+        public static bool HasSceneViewFocus => Application.isFocused && !EditorGUIUtility.editingTextField &&
+            EditorWindow.focusedWindow is SceneView;
 
         public static void EnsureAvailable() => Input.GetKey(KeyCode.W);
 
         public MotionInputFrame Sample()
         {
             if (_disposed) return default;
-            if (!HasGameViewFocus) { Reset(); return default; }
+            if (!HasInputFocus) { Reset(); return default; }
+            ObserveFocus(EditorWindow.focusedWindow);
+            if (GameSimulation && HasSceneViewFocus) return SampleSceneInput();
             if (GameSimulation)
             {
                 if (Input.GetKey(KeyCode.Escape)) { Reset(); return default; }
@@ -44,6 +59,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                     Cursor.visible = false;
                     _captureRequested = false;
                     _needsRelease = false;
+                    _sceneReleaseKeys.Clear();
+                    _sceneNavigationButtons = 0;
                     Suspended = false;
                     // Capture changes the cursor position. Discard this frame's axes
                     // so the click or warp cannot rotate the avatar.
@@ -83,6 +100,11 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 Cursor.visible = _previousCursorVisible;
                 _captured = false;
             }
+            _sceneKeys.Clear();
+            _sceneReleaseKeys.Clear();
+            _focusedWindow = null;
+            _sceneNavigationButtons = 0;
+            _sceneNavigation = false;
             _captureRequested = false;
             _needsRelease = true;
             Suspended = true;
@@ -91,8 +113,91 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public void Dispose()
         {
             Reset();
+            if (GameSimulation) SceneView.duringSceneGui -= OnSceneGUI;
             _disposed = true;
             ViewToggleRequested = null;
+        }
+
+        private void ObserveFocus(EditorWindow window)
+        {
+            if (_focusedWindow == window) return;
+            // Never carry held keys or captured Game mouse input into another view.
+            // Preserve a request made by the Enter / Resume button before its first sample.
+            var requested = _captureRequested;
+            Reset();
+            _focusedWindow = window;
+            _captureRequested = requested && HasGameViewFocus;
+        }
+
+        private void OnSceneGUI(SceneView view)
+        {
+            if (_disposed) return;
+            if (!HasSceneViewFocus || EditorWindow.focusedWindow != view)
+            {
+                if (_focusedWindow == view) ObserveFocus(HasGameViewFocus ? EditorWindow.focusedWindow : null);
+                return;
+            }
+            ObserveFocus(view);
+            if (Event.current != null) ProcessSceneEvent(Event.current);
+        }
+
+        private void ProcessSceneEvent(Event current)
+        {
+            var type = current.rawType;
+            if (current.button == 1 || current.button == 2)
+            {
+                var bit = 1 << current.button;
+                if (type == EventType.MouseDown) _sceneNavigationButtons |= bit;
+                else if (type == EventType.MouseUp) _sceneNavigationButtons &= ~bit;
+            }
+            var navigation = _sceneNavigationButtons != 0 || current.alt || current.control || current.command;
+            if (navigation && !_sceneNavigation) BlockSceneKeysUntilRelease();
+            _sceneNavigation = navigation;
+            if (IsSceneMovementKey(current.keyCode))
+            {
+                if (type == EventType.KeyUp)
+                {
+                    _sceneKeys.Remove(current.keyCode);
+                    _sceneReleaseKeys.Remove(current.keyCode);
+                    if (!navigation && current.type != EventType.Used) current.Use();
+                }
+                else if (type == EventType.KeyDown)
+                {
+                    if (navigation || _sceneReleaseKeys.Count != 0)
+                    {
+                        _sceneReleaseKeys.Add(current.keyCode);
+                        if (!navigation && current.type != EventType.Used) current.Use();
+                    }
+                    else if (!_sceneReleaseKeys.Contains(current.keyCode) && current.type != EventType.Used)
+                    {
+                        _sceneKeys.Add(current.keyCode);
+                        current.Use();
+                    }
+                }
+            }
+            Suspended = _sceneNavigation || _sceneReleaseKeys.Count != 0;
+        }
+
+        private MotionInputFrame SampleSceneInput()
+        {
+            // Scene View owns its camera and mouse navigation. Only model movement
+            // keys captured from duringSceneGui are sampled here; legacy Input is Game-only.
+            Suspended = _sceneNavigation || _sceneReleaseKeys.Count != 0;
+            return Suspended ? default : new MotionInputFrame(
+                new Vector2(SceneAxis(KeyCode.A, KeyCode.D), SceneAxis(KeyCode.S, KeyCode.W)),
+                SceneAxis(KeyCode.Comma, KeyCode.Period));
+        }
+
+        private float SceneAxis(KeyCode negative, KeyCode positive) =>
+            (_sceneKeys.Contains(positive) ? 1f : 0f) - (_sceneKeys.Contains(negative) ? 1f : 0f);
+
+        private static bool IsSceneMovementKey(KeyCode key) => key == KeyCode.W || key == KeyCode.A ||
+            key == KeyCode.S || key == KeyCode.D || key == KeyCode.Comma || key == KeyCode.Period;
+
+        private void BlockSceneKeysUntilRelease()
+        {
+            foreach (var key in _sceneKeys) _sceneReleaseKeys.Add(key);
+            _sceneKeys.Clear();
         }
 
         private static float Axis(KeyCode negative, KeyCode positive) => (Input.GetKey(positive) ? 1f : 0f) - (Input.GetKey(negative) ? 1f : 0f);

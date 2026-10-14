@@ -48,7 +48,7 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
         private readonly float[] _weights = new float[PcmSignal.VisemeCount];
         private double _nextRefresh;
 
-        [MenuItem("Tools/Gesture Manager Pro/Lip Sync Test")]
+        [MenuItem("Tools/Lip Sync Test")]
         public static void Open() => GetWindow<LipSyncTestWindow>(EditorLocalization.Tr("Lip Sync Test"));
 
         private void OnEnable()

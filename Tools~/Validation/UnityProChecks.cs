@@ -84,6 +84,10 @@ public static class UnityProChecks
             }
             Check(core != simulator && simulator != localization && localization != audioTools, "Core, simulator, localization, and audio tools use separate assemblies");
             Check(!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName().Name == "vrchat.blackstartx.gesture-manager"), "Fixture does not contain the original Gesture Manager");
+            CheckToolsMenu(typeof(GestureManagerEditor), "AddNewEmulator", "Tools/Gesture Manager Pro");
+            CheckToolsMenu(typeof(ControlledModeWindow), "Open", "Tools/Game Simulation");
+            CheckToolsMenu(typeof(LipSyncTestWindow), "Open", "Tools/Lip Sync Test");
+            CheckToolsMenu(localization.GetType("VRCLearn.GestureManagerPro.Localization.LocalizationSettings", true), "Open", "Tools/Language Settings");
 
             Check(Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Default"), "Pro radial icon loads from scoped resource path");
             Check(Resources.Load<GameObject>("GestureManagerPro/Vrc3/Meshes/CullingDiamond"), "Pro culling prefab loads from scoped resource path");
@@ -115,6 +119,8 @@ public static class UnityProChecks
             controlledWindow.CreateGUI();
             Check(controlledWindow.titleContent.text == "游戏模拟", "Game simulation window uses the registered Chinese translations");
             Check(controlledWindow.rootVisualElement.Query<Button>().ToList().Any(button => button.text == "进入游戏模拟"), "Game simulation entry button is translated");
+            Check(((HelpBox)typeof(ControlledModeWindow).GetField("_status", Any).GetValue(controlledWindow)).text == "游戏模拟已停止。进入播放模式后可开始。", "Game simulation stopped status renders in Chinese");
+            Check(controlledWindow.rootVisualElement.Query<HelpBox>().ToList().Any(help => help.text.Contains("WASD 和 < / > 控制角色移动和转向，Scene 相机保持不动")), "Chinese Scene input help distinguishes avatar motion from Scene camera navigation");
             var viewMode = controlledWindow.rootVisualElement.Q<DropdownField>("viewMode");
             Check(viewMode != null && viewMode.index == 0 && viewMode.choices.SequenceEqual(new[] { "第一人称", "第三人称" }), "Game simulation defaults to first person and translates both views");
 
@@ -159,6 +165,8 @@ public static class UnityProChecks
             Check(controlledWindow.titleContent.text == "Game Simulation", "Existing game simulation window switches live to English");
             Check(controlledWindow.rootVisualElement.Query<Button>().ToList().Any(button => button.text == "Enter Game Simulation"), "Game simulation button refreshes after language switch");
             Check(controlledWindow.rootVisualElement.Q<DropdownField>("viewMode").choices.SequenceEqual(new[] { "First Person", "Third Person" }), "View choices refresh live after language switch");
+            Check(((HelpBox)typeof(ControlledModeWindow).GetField("_status", Any).GetValue(controlledWindow)).text == "Game Simulation is stopped. Enter Play Mode to begin.", "Game simulation stopped status refreshes live to English");
+            Check(controlledWindow.rootVisualElement.Query<HelpBox>().ToList().Any(help => help.text.StartsWith("Scene view: WASD and < / > move and turn the avatar without moving the Scene camera.", StringComparison.Ordinal)), "Scene input help refreshes live to English");
             Check(Caption(grounded) == "Grounded", "Existing built-in radial control switches live to English");
             Check(Caption(state) == "State" && Caption(states) == "States", "Equal Chinese captions retain their distinct original source keys");
             Check(focusLabel.text == "The window is not focused!", "Existing focus notice switches live to English");
@@ -212,6 +220,14 @@ public static class UnityProChecks
         var textField = typeof(RadialSliceBase).GetField("Text", Any);
         var text = textField.GetValue(slice);
         return (string)textField.FieldType.GetField("_text", Any).GetValue(text);
+    }
+
+    private static void CheckToolsMenu(Type owner, string methodName, string path)
+    {
+        var method = owner.GetMethod(methodName, Any, null, Type.EmptyTypes, null);
+        var entries = method.GetCustomAttributes(typeof(MenuItem), false).Cast<MenuItem>().ToArray();
+        Check(entries.Length == 1 && entries[0].menuItem == path,
+            owner.Name + " exposes one direct Tools action: " + path);
     }
 
     private static void CheckBuiltInControllers()

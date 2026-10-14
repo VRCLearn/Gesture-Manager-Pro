@@ -123,7 +123,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 Stop();
                 return;
             }
-            if (_input is KeyboardMotionInputSource && !KeyboardMotionInputSource.HasGameViewFocus)
+            if (_input is KeyboardMotionInputSource keyboard && !keyboard.HasInputFocus)
             {
                 _input.Reset();
                 Motor.Halt();

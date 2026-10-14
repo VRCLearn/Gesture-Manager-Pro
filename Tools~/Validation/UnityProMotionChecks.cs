@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using VRCLearn.GestureManagerPro.Control;
 using VRCLearn.GestureManagerPro.Control.Editor;
 using UnityEngine;
@@ -155,11 +156,11 @@ public static class UnityProMotionChecks
                 var cursorVisible = Cursor.visible;
                 keyboard.RequestCapture();
                 check(keyboard.GameSimulation && keyboard.Suspended && !keyboard.Captured, "Requesting capture defers input until a focused Game View sample");
-                if (!KeyboardMotionInputSource.HasGameViewFocus)
+                if (!keyboard.HasInputFocus)
                 {
                     var frame = keyboard.Sample();
                     check(frame.Move == Vector2.zero && frame.LookDelta == Vector2.zero && !frame.Jump &&
-                        keyboard.Suspended && !keyboard.Captured, "An unfocused Game View cannot move, look, jump, or capture the cursor");
+                        keyboard.Suspended && !keyboard.Captured, "An unfocused supported view cannot move, look, jump, or capture the cursor");
                 }
                 keyboard.Reset();
                 check(keyboard.Suspended && !keyboard.Captured && Cursor.lockState == cursorLock && Cursor.visible == cursorVisible, "Resetting inactive game input preserves the original cursor state");
@@ -167,6 +168,7 @@ public static class UnityProMotionChecks
                 keyboard.RequestCapture();
                 check(keyboard.Sample().Move == Vector2.zero && !keyboard.Captured, "Disposed keyboard input cannot capture or resume movement");
             }
+            CheckSceneInput(check);
             CheckJump(check);
             using (var session = new ControlledModeSession())
             {
@@ -180,6 +182,126 @@ public static class UnityProMotionChecks
         {
             if (motorObject) UnityEngine.Object.DestroyImmediate(motorObject);
             if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+        }
+    }
+
+    private static void CheckSceneInput(Action<bool, string> check)
+    {
+        // Inject Scene GUI events into the same state machine used by
+        // SceneView.duringSceneGui. This checks event ownership and motor behavior,
+        // without claiming to reproduce physical input or editor focus changes.
+        GameObject avatar = null;
+        GameObject motorObject = null;
+        var cursorLock = Cursor.lockState;
+        var cursorVisible = Cursor.visible;
+        using (var keyboard = new KeyboardMotionInputSource(true))
+        {
+            try
+            {
+                var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+                var process = typeof(KeyboardMotionInputSource).GetMethod("ProcessSceneEvent", flags);
+                var sample = typeof(KeyboardMotionInputSource).GetMethod("SampleSceneInput", flags);
+                Action<Event> send = current => process.Invoke(keyboard, new object[] { current });
+                Func<MotionInputFrame> read = () => (MotionInputFrame)sample.Invoke(keyboard, null);
+                avatar = new GameObject("Pro Scene input avatar");
+                motorObject = new GameObject("Pro Scene input motor");
+                var motor = motorObject.AddComponent<CharacterMotionMotor>();
+                motor.Collisions = false;
+                var input = new TestMotionInput();
+                motor.Initialize(avatar.transform, input, 1.8f, 0.2f, 0f, () => !keyboard.Suspended, _ => { });
+                var forward = new Event { type = EventType.KeyDown, keyCode = KeyCode.W };
+                send(forward);
+                input.Frame = read();
+                motor.Step(0.1f);
+                check(forward.type == EventType.Used && Vector3.Distance(avatar.transform.position, Vector3.forward * 0.2f) < 0.0001f,
+                    "Scene WASD consumes the model movement key and moves the actual avatar through its motor");
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.D });
+                input.Frame = read();
+                var before = avatar.transform.position;
+                motor.Step(0.1f);
+                check(Mathf.Abs(Vector3.Distance(before, avatar.transform.position) - 0.2f) < 0.0001f,
+                    "Scene diagonal input retains the configured cardinal movement speed");
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.Period });
+                input.Frame = read();
+                var beforeYaw = avatar.transform.eulerAngles.y;
+                motor.Step(0.1f);
+                check(Mathf.Abs(Mathf.DeltaAngle(beforeYaw, avatar.transform.eulerAngles.y) - 12f) < 0.001f,
+                    "Scene period input turns the avatar using the configured turn rate");
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.W });
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.D });
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.Period });
+                var frame = read();
+                check(frame.Move == Vector2.zero && frame.Turn == 0f, "Scene key release clears movement and turning");
+
+                var right = new Event { type = EventType.MouseDown, button = 1 };
+                var rightType = right.type;
+                send(right);
+                var flyKey = new Event { type = EventType.KeyDown, keyCode = KeyCode.W };
+                send(flyKey);
+                check(right.type == rightType && right.rawType == EventType.MouseDown && flyKey.type == EventType.KeyDown && read().Move == Vector2.zero && keyboard.Suspended,
+                    "Right-mouse Scene navigation retains its mouse and WASD events while pausing avatar input");
+                send(new Event { type = EventType.MouseUp, button = 1 });
+                check(read().Move == Vector2.zero && keyboard.Suspended,
+                    "Ending Scene fly navigation cannot resume an avatar key that is still held");
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.W });
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.W });
+                check(read().Move == Vector2.up && !keyboard.Suspended, "Releasing and pressing the fly key again resumes Scene avatar input");
+                var pan = new Event { type = EventType.MouseDown, button = 2 };
+                var panType = pan.type;
+                send(pan);
+                check(pan.type == panType && pan.rawType == EventType.MouseDown && read().Move == Vector2.zero && keyboard.Suspended,
+                    "Middle-mouse Scene panning keeps its event and pauses existing avatar movement");
+                send(new Event { type = EventType.MouseUp, button = 2 });
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.W });
+
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.W });
+                var orbit = new Event { type = EventType.KeyDown, keyCode = KeyCode.LeftAlt, modifiers = EventModifiers.Alt };
+                send(orbit);
+                var orbitKey = new Event { type = EventType.KeyDown, keyCode = KeyCode.D, modifiers = EventModifiers.Alt };
+                send(orbitKey);
+                check(orbit.type == EventType.KeyDown && orbitKey.type == EventType.KeyDown && read().Move == Vector2.zero,
+                    "Alt Scene orbit leaves navigation events untouched and suspends avatar movement");
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.LeftAlt });
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.W });
+                check(read().Move == Vector2.zero && keyboard.Suspended, "Every movement key used during navigation must be released before Scene control resumes");
+                send(new Event { type = EventType.KeyUp, keyCode = KeyCode.D });
+                check(!keyboard.Suspended && read().Move == Vector2.zero, "Scene control rearms after all navigation movement keys are released");
+                var shortcut = new Event { type = EventType.KeyDown, keyCode = KeyCode.W, modifiers = EventModifiers.Control };
+                send(shortcut);
+                check(shortcut.type == EventType.KeyDown && read().Move == Vector2.zero, "Modified editor shortcuts are not consumed as Scene avatar movement");
+
+                // The release may occur in another window, so reset must drop both
+                // held keys and navigation buttons rather than waiting indefinitely.
+                send(new Event { type = EventType.MouseDown, button = 1 });
+                keyboard.Reset();
+                check(keyboard.Suspended && !keyboard.Captured, "A focus reset immediately suspends Scene input without capturing the mouse");
+                send(new Event { type = EventType.Repaint });
+                check(!keyboard.Suspended && read().Move == Vector2.zero,
+                    "Scene focus recovery clears a missed off-view key or mouse release without getting stuck");
+                send(new Event { type = EventType.KeyDown, keyCode = KeyCode.D });
+                check(read().Move == Vector2.right, "A fresh Scene key works after focus recovery and does not retain the previous forward key");
+                var toggle = new Event { type = EventType.KeyDown, keyCode = KeyCode.V };
+                var jump = new Event { type = EventType.KeyDown, keyCode = KeyCode.Space };
+                var look = new Event { type = EventType.MouseDrag, button = 0, delta = new Vector2(30f, 20f) };
+                var lookType = look.type;
+                send(toggle);
+                send(jump);
+                send(look);
+                frame = read();
+                check(toggle.type == EventType.KeyDown && jump.type == EventType.KeyDown && look.type == lookType && look.rawType == EventType.MouseDrag &&
+                    frame.LookDelta == Vector2.zero && !frame.Jump && frame.SpeedMultiplier == 1f && !keyboard.Captured,
+                    "Scene control does not consume Game-only controls or produce mouse look, sprint, jump, or cursor capture");
+                keyboard.Dispose();
+                check(keyboard.Sample().Move == Vector2.zero && keyboard.Suspended && !keyboard.Captured,
+                    "Disposing Scene input clears latched movement and prevents further sampling");
+                check(Cursor.lockState == cursorLock && Cursor.visible == cursorVisible,
+                    "Scene model movement and navigation leave the original cursor state unchanged");
+            }
+            finally
+            {
+                if (motorObject) UnityEngine.Object.DestroyImmediate(motorObject);
+                if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            }
         }
     }
 

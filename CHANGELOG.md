@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Place the emulator, Game Simulation, lip sync and language actions directly in the Tools menu.
+- Control the avatar with WASD and comma/period in the Scene view while Game Simulation is active. Keep Scene camera navigation unchanged; right/middle mouse and Alt navigation suspend avatar input.
+- Keep mouse look, cursor capture, view switching, sprint and jump controls in the Game view. Clear Scene input when focus changes, simulation pauses or the session ends.
+
 ## 0.2.0
 
 - Add an explicit Game Simulation mode while preserving the normal Gesture Manager inspector and Scene Camera workflow. Enter or exit through Tools > Gesture Manager Pro > Game Simulation.

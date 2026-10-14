@@ -6,7 +6,7 @@ namespace VRCLearn.GestureManagerPro.Localization
 {
     internal static class LocalizationSettings
     {
-        [MenuItem("Tools/Gesture Manager Pro/Language Settings")]
+        [MenuItem("Tools/Language Settings")]
         private static void Open() => SettingsService.OpenUserPreferences("Preferences/Gesture Manager Pro");
 
         [SettingsProvider]

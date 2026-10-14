@@ -29,7 +29,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private DropdownField _view;
         private ObjectField _managerField;
 
-        [MenuItem("Tools/Gesture Manager Pro/Game Simulation")]
+        [MenuItem("Tools/Game Simulation")]
         public static void Open() => GetWindow<ControlledModeWindow>();
 
         private void OnEnable()
@@ -66,7 +66,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             var title = new Label(EditorLocalization.Tr("Game Simulation"));
             title.AddToClassList("control-title");
             scroll.Add(title);
-            scroll.Add(new HelpBox(EditorLocalization.Tr("Enter Play Mode with an initialized Pro avatar, then enter Game Simulation. Esc releases the mouse and suspends input."), HelpBoxMessageType.Info));
+            scroll.Add(new HelpBox(EditorLocalization.Tr("Enter Play Mode with an initialized Pro avatar, then enter Game Simulation. WASD controls the avatar in Game or Scene view. Esc releases the Game-view mouse."), HelpBoxMessageType.Info));
             var buttons = new VisualElement();
             buttons.AddToClassList("control-buttons");
             _start = new Button(StartControl) { text = EditorLocalization.Tr("Enter Game Simulation") };
@@ -134,8 +134,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 if (_session?.Motor) _session.Motor.TurnSpeed = _turnSpeed;
             });
             scroll.Add(turn);
-            scroll.Add(new HelpBox(EditorLocalization.Tr("Enter Play Mode, then enter Game Simulation to control the avatar in the Game view. WASD moves, the mouse looks, < / > turns, V switches first / third person, and Shift sprints. Space jumps when gravity is enabled and the avatar is grounded."), HelpBoxMessageType.Info));
-            var note = new Label(EditorLocalization.Tr("Esc releases the mouse and suspends input. Click the Game view or use Resume Input to continue. First person hides the local avatar from the simulation camera; the Scene view and third person still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor."));
+            scroll.Add(new HelpBox(EditorLocalization.Tr("Game view: WASD moves, the mouse looks, < / > turns, V switches first / third person, and Shift sprints. Space jumps when gravity is enabled and the avatar is grounded."), HelpBoxMessageType.Info));
+            scroll.Add(new HelpBox(EditorLocalization.Tr("Scene view: WASD and < / > move and turn the avatar without moving the Scene camera. Alt or right / middle mouse preserves Scene camera navigation and suspends avatar input."), HelpBoxMessageType.Info));
+            var note = new Label(EditorLocalization.Tr("Esc releases the Game-view mouse and suspends input. Click the Game view or use Resume Input to continue. First person hides the local avatar from the simulation camera; the Scene view and third person still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor."));
             note.AddToClassList("control-note");
             scroll.Add(note);
             var limitations = new Label(EditorLocalization.Tr("Keyboard input requires Active Input Handling: Input Manager (Old) or Both. The motion input interface is ready for future VR adapters; headset tracking and IK are not implemented yet."));
@@ -157,6 +158,11 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             {
                 EditorApplication.ExecuteMenuItem("Window/General/Game");
                 _keyboard.RequestCapture();
+            }
+            else
+            {
+                _keyboard.Dispose();
+                _keyboard = null;
             }
             RefreshStatus();
         }
@@ -194,11 +200,16 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             if (!string.IsNullOrEmpty(_session.Error)) _status.text = EditorLocalization.Tr(_session.Error);
             else if (!running) _status.text = EditorLocalization.Tr("Game Simulation is stopped. Enter Play Mode to begin.");
             else if (_session.LocomotionBlocked) _status.text = EditorLocalization.Tr("Movement is blocked by avatar locomotion or pose settings.");
-            else if (_keyboard != null && (_keyboard.Suspended || !_keyboard.Captured)) _status.text = EditorLocalization.Tr("Input suspended: click the Game view or use Resume Input, then release all control keys.");
+            else if (_keyboard != null && (_keyboard.Suspended || (!_keyboard.Captured && !KeyboardMotionInputSource.HasSceneViewFocus)))
+                _status.text = EditorLocalization.Tr(KeyboardMotionInputSource.HasSceneViewFocus
+                    ? "Scene input suspended: release control keys, Alt and the mouse buttons."
+                    : "Input suspended: click the Game view or use Resume Input, or focus the Scene view, then release all control keys.");
             else
             {
                 var result = _session.Motor.LastResult;
-                _status.text = EditorLocalization.Format("Game Simulation — speed {0:F2} m/s, turn {1:F1} degrees/s, grounded {2}",
+                _status.text = EditorLocalization.Format(KeyboardMotionInputSource.HasSceneViewFocus
+                    ? "Scene avatar control — speed {0:F2} m/s, turn {1:F1} degrees/s, grounded {2}; Scene camera unchanged"
+                    : "Game Simulation — speed {0:F2} m/s, turn {1:F1} degrees/s, grounded {2}",
                     result.LocalVelocity.magnitude, result.AngularDegreesPerSecond, EditorLocalization.Tr(result.Grounded ? "Yes" : "No"));
             }
         }
@@ -212,8 +223,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         static ControlledModeTranslations() => EditorLocalization.RegisterTranslations(new Dictionary<string, string>
         {
             { "Game Simulation", "游戏模拟" },
-            { "Enter Play Mode with an initialized Pro avatar, then enter Game Simulation. Esc releases the mouse and suspends input.", "进入播放模式，等待 Pro 角色初始化后即可进入游戏模拟。Esc 释放鼠标并暂停输入。" },
-            { "Enter Play Mode, then enter Game Simulation to control the avatar in the Game view. WASD moves, the mouse looks, < / > turns, V switches first / third person, and Shift sprints. Space jumps when gravity is enabled and the avatar is grounded.", "进入播放模式，再进入游戏模拟，即可在 Game 视图中控制角色。WASD 移动，鼠标环顾，< / > 转向，V 切换第一 / 第三人称，Shift 加速。启用重力且角色着地时，Space 跳跃。" },
+            { "Enter Play Mode with an initialized Pro avatar, then enter Game Simulation. WASD controls the avatar in Game or Scene view. Esc releases the Game-view mouse.", "进入播放模式，等待 Pro 角色初始化后即可进入游戏模拟。WASD 可在 Game 或 Scene 视图控制角色。Esc 释放 Game 视图中的鼠标。" },
+            { "Game view: WASD moves, the mouse looks, < / > turns, V switches first / third person, and Shift sprints. Space jumps when gravity is enabled and the avatar is grounded.", "Game 视图：WASD 移动，鼠标环顾，< / > 转向，V 切换第一 / 第三人称，Shift 加速。启用重力且角色着地时，Space 跳跃。" },
+            { "Scene view: WASD and < / > move and turn the avatar without moving the Scene camera. Alt or right / middle mouse preserves Scene camera navigation and suspends avatar input.", "Scene 视图：WASD 和 < / > 控制角色移动和转向，Scene 相机保持不动。按 Alt 或鼠标右键 / 中键时保留 Scene 相机导航，并暂停角色输入。" },
             { "Gesture Manager Pro", "Gesture Manager Pro" },
             { "Use Selected / Active Manager", "使用选中 / 活跃的管理器" },
             { "Move Speed (m/s)", "移动速度（米/秒）" },
@@ -225,14 +237,16 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             { "Third Person", "第三人称" },
             { "Third-Person Distance (avatar heights)", "第三人称距离（角色身高倍数）" },
             { "Mouse Look Sensitivity", "鼠标环顾灵敏度" },
-            { "Esc releases the mouse and suspends input. Click the Game view or use Resume Input to continue. First person hides the local avatar from the simulation camera; the Scene view and third person still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor.", "Esc 释放鼠标并暂停输入。点击 Game 视图或使用“继续控制”恢复。第一人称仅在模拟相机中隐藏本地角色，Scene 视图和第三人称仍会显示角色。尚未实现第一人称可见的身体 / 手臂。退出后恢复角色姿态、运动参数、相机和光标。" },
+            { "Esc releases the Game-view mouse and suspends input. Click the Game view or use Resume Input to continue. First person hides the local avatar from the simulation camera; the Scene view and third person still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor.", "Esc 释放 Game 视图中的鼠标并暂停输入。点击 Game 视图或使用“继续控制”恢复。第一人称仅在模拟相机中隐藏本地角色，Scene 视图和第三人称仍会显示角色。尚未实现第一人称可见的身体 / 手臂。退出后恢复角色姿态、运动参数、相机和光标。" },
             { "Enter Game Simulation", "进入游戏模拟" },
             { "Exit and Restore", "退出并恢复" },
             { "Resume Input", "继续控制" },
             { "Keyboard input requires Active Input Handling: Input Manager (Old) or Both. The motion input interface is ready for future VR adapters; headset tracking and IK are not implemented yet.", "键盘输入需要将 Active Input Handling 设置为 Input Manager (Old) 或 Both。已预留运动输入接口；头显跟踪和 IK 尚未实现。" },
             { "Game Simulation is stopped. Enter Play Mode to begin.", "游戏模拟已停止。进入播放模式后可开始。" },
             { "Movement is blocked by avatar locomotion or pose settings.", "角色的移动或姿态设置已阻止移动。" },
-            { "Input suspended: click the Game view or use Resume Input, then release all control keys.", "输入已暂停：请点击 Game 视图或使用“继续控制”，然后松开所有控制按键。" },
+            { "Input suspended: click the Game view or use Resume Input, or focus the Scene view, then release all control keys.", "输入已暂停：请点击 Game 视图或使用“继续控制”，或聚焦 Scene 视图，然后松开所有控制按键。" },
+            { "Scene input suspended: release control keys, Alt and the mouse buttons.", "Scene 输入已暂停：请松开控制按键、Alt 和鼠标按键。" },
+            { "Scene avatar control — speed {0:F2} m/s, turn {1:F1} degrees/s, grounded {2}; Scene camera unchanged", "Scene 角色控制 — 速度 {0:F2} 米/秒，转向 {1:F1} 度/秒，着地 {2}；Scene 相机保持不动" },
             { "Game Simulation — speed {0:F2} m/s, turn {1:F1} degrees/s, grounded {2}", "游戏模拟 — 速度 {0:F2} 米/秒，转向 {1:F1} 度/秒，着地 {2}" },
             { "Yes", "是" },
             { "No", "否" },
