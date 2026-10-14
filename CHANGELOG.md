@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Add an explicit Game Simulation mode while preserving the normal Gesture Manager inspector and Scene Camera workflow. Enter or exit through Tools > Gesture Manager Pro > Game Simulation.
+- Add first-person descriptor viewpoints, live first/third-person switching with V, mouse look, WASD movement, comma/period turning, Shift sprint, and grounded Space jumping when gravity is enabled. Esc releases the cursor and suspends input; click the Game view or use Resume Input to continue.
+- Add third-person camera obstruction avoidance and bind simulator culling/contact rays to the simulation camera. Exit, pause, unlink, input failure and camera loss restore prior motion/camera/cursor ownership; restoration callback failures no longer retain control.
+- Hide the entire local avatar only during first-person simulation-camera rendering, preserving its visibility for other cameras. Client-style head clipping, visible first-person body/arms, VR tracking and IK are not implemented.
+
 ## 0.1.1
 
 - Declare the original VPM Gesture Manager package (`vrchat.blackstartx.gesture-manager`) as a legacy package. Installing or updating Pro through VPM removes that package to prevent simultaneous simulator use.

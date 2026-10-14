@@ -99,6 +99,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
             protected override void Update(ModuleVrc3 module)
             {
+                if (_camera && (_camera.gameObject.hideFlags & HideFlags.DontSave) != 0) return;
                 var sceneView = SceneView.lastActiveSceneView;
                 if (!sceneView) return;
                 var camera = sceneView.camera;
@@ -258,8 +259,9 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
             private void OnClick(ModuleVrc3 module)
             {
-                if (!Camera) return;
-                CheckRay(module, Camera.ScreenPointToRay(Input.mousePosition));
+                var camera = module.SimulationCamera ? module.SimulationCamera : Camera;
+                if (!camera) return;
+                CheckRay(module, camera.ScreenPointToRay(Input.mousePosition));
             }
 
             private void OnContactValue(ContactReceiver receiver, float value)

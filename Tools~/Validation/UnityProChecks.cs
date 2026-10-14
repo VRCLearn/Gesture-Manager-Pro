@@ -113,8 +113,10 @@ public static class UnityProChecks
             Check(window.rootVisualElement.Q<DropdownField>("language") != null, "Lip sync language selector exists");
             controlledWindow = ScriptableObject.CreateInstance<ControlledModeWindow>();
             controlledWindow.CreateGUI();
-            Check(controlledWindow.titleContent.text == "受控模式", "Controlled mode window uses the registered Chinese translations");
-            Check(controlledWindow.rootVisualElement.Query<Button>().ToList().Any(button => button.text == "启用控制"), "Controlled mode start button is translated");
+            Check(controlledWindow.titleContent.text == "游戏模拟", "Game simulation window uses the registered Chinese translations");
+            Check(controlledWindow.rootVisualElement.Query<Button>().ToList().Any(button => button.text == "进入游戏模拟"), "Game simulation entry button is translated");
+            var viewMode = controlledWindow.rootVisualElement.Q<DropdownField>("viewMode");
+            Check(viewMode != null && viewMode.index == 0 && viewMode.choices.SequenceEqual(new[] { "第一人称", "第三人称" }), "Game simulation defaults to first person and translates both views");
 
             avatar = new GameObject("Tools");
             avatar.AddComponent<Animator>();
@@ -154,8 +156,9 @@ public static class UnityProChecks
 
             EditorLocalization.Language = ProLanguage.English;
             Check(window.rootVisualElement.Q<Button>("start")?.text == "Start test", "Existing lip sync window switches live to English");
-            Check(controlledWindow.titleContent.text == "Controlled Mode", "Existing controlled mode window switches live to English");
-            Check(controlledWindow.rootVisualElement.Query<Button>().ToList().Any(button => button.text == "Enable Control"), "Controlled mode button refreshes after language switch");
+            Check(controlledWindow.titleContent.text == "Game Simulation", "Existing game simulation window switches live to English");
+            Check(controlledWindow.rootVisualElement.Query<Button>().ToList().Any(button => button.text == "Enter Game Simulation"), "Game simulation button refreshes after language switch");
+            Check(controlledWindow.rootVisualElement.Q<DropdownField>("viewMode").choices.SequenceEqual(new[] { "First Person", "Third Person" }), "View choices refresh live after language switch");
             Check(Caption(grounded) == "Grounded", "Existing built-in radial control switches live to English");
             Check(Caption(state) == "State" && Caption(states) == "States", "Equal Chinese captions retain their distinct original source keys");
             Check(focusLabel.text == "The window is not focused!", "Existing focus notice switches live to English");
@@ -175,6 +178,7 @@ public static class UnityProChecks
             Check(((GestureManagerEditor)inspector).CreateInspectorGUI() != null, "Pro custom inspector creates its visual root");
 
             UnityProMotionChecks.Run(Check);
+            UnityProCameraChecks.Run(Check);
 
             Check(Application.platform == RuntimePlatform.WindowsEditor && IntPtr.Size == 8, "Native validation runs on supported Windows x64 Editor");
             var analyzerType = audioTools.GetType("VRCLearn.GestureManagerPro.Extensions.Editor.OvrLipSyncAnalyzer", true);

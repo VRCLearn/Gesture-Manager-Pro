@@ -39,9 +39,11 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 {
     public class ModuleVrc3 : ModuleBase
     {
-        private static bool CameraRule(Camera camera) => camera.isActiveAndEnabled && camera.targetDisplay == 0;
+        private static bool CameraRule(Camera camera) => camera.isActiveAndEnabled && camera.targetDisplay == 0 &&
+            (camera.gameObject.hideFlags & HideFlags.DontSave) == 0;
         internal static Camera MainCamera => Camera.allCameras.FirstOrDefault(CameraRule);
-        private Camera Camera => !_camera ? _camera = MainCamera : _camera;
+        public Camera SimulationCamera { get; set; }
+        private Camera Camera => SimulationCamera ? SimulationCamera : !_camera ? _camera = MainCamera : _camera;
 
         [PublicAPI] public new readonly VRCAvatarDescriptor AvatarDescriptor;
 

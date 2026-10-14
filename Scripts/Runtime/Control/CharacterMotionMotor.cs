@@ -19,8 +19,10 @@ namespace VRCLearn.GestureManagerPro.Control
 
         public float MoveSpeed { get; set; } = 2f;
         public float TurnSpeed { get; set; } = 120f;
+        public float JumpHeight { get; set; } = 1f;
         public bool Collisions { get; set; } = true;
         public bool UseGravity { get; set; }
+        public float ViewPitch { get; private set; }
         public MotionResult LastResult { get; private set; }
         public CharacterController Controller => _controller;
         public event Action<Exception> Failed;
@@ -79,24 +81,31 @@ namespace VRCLearn.GestureManagerPro.Control
             if (_canMove != null && !_canMove()) { Halt(); ApplyAvatarTransform(); return; }
             var before = transform.position;
             var beforeYaw = transform.eulerAngles.y;
-            var yaw = beforeYaw + input.Turn * SafeSpeed(TurnSpeed, 720f) * deltaTime;
+            var yawDelta = input.Turn * SafeSpeed(TurnSpeed, 720f) * deltaTime + input.LookDelta.x;
+            var yaw = beforeYaw + yawDelta;
+            ViewPitch = Mathf.Clamp(ViewPitch + input.LookDelta.y, -85f, 85f);
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-            var movement = transform.rotation * new Vector3(input.Move.x, 0f, input.Move.y) * SafeSpeed(MoveSpeed, 20f);
+            var movement = transform.rotation * new Vector3(input.Move.x, 0f, input.Move.y) *
+                SafeSpeed(MoveSpeed, 20f) * Mathf.Clamp(input.SpeedMultiplier, 1f, 3f);
             _controller.enabled = Collisions;
             if (UseGravity && Collisions)
             {
-                if (_controller.isGrounded && _verticalVelocity < 0f) _verticalVelocity = -2f;
-                _verticalVelocity = Mathf.Max(_verticalVelocity + Physics.gravity.y * deltaTime, -50f);
+                var gravity = float.IsNaN(Physics.gravity.y) || float.IsInfinity(Physics.gravity.y) ? 0f : Physics.gravity.y;
+                var groundedBeforeMove = _controller.isGrounded || ProbeGround();
+                if (groundedBeforeMove && _verticalVelocity < 0f) _verticalVelocity = -2f;
+                if (input.Jump && groundedBeforeMove && _verticalVelocity <= 0f && gravity < 0f)
+                    _verticalVelocity = Mathf.Sqrt(-2f * gravity * SafeSpeed(JumpHeight, 5f));
+                _verticalVelocity = Mathf.Max(_verticalVelocity + gravity * deltaTime, -50f);
                 movement.y = _verticalVelocity;
             }
             else _verticalVelocity = 0f;
             var flags = Collisions ? _controller.Move(movement * deltaTime) : CollisionFlags.None;
             if (!Collisions) transform.position += movement * deltaTime;
-            var grounded = (flags & CollisionFlags.Below) != 0 || ProbeGround();
+            var grounded = _verticalVelocity <= 0f && ((flags & CollisionFlags.Below) != 0 || ProbeGround());
             if ((flags & CollisionFlags.Above) != 0 && _verticalVelocity > 0f) _verticalVelocity = 0f;
             if (grounded && _verticalVelocity < 0f) _verticalVelocity = -2f;
             var localVelocity = Quaternion.Inverse(transform.rotation) * ((transform.position - before) / deltaTime);
-            LastResult = new MotionResult(localVelocity, Mathf.DeltaAngle(beforeYaw, transform.eulerAngles.y) / deltaTime, grounded);
+            LastResult = new MotionResult(localVelocity, yawDelta / deltaTime, grounded);
             ApplyAvatarTransform();
             _publish?.Invoke(LastResult);
         }

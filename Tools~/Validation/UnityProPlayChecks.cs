@@ -58,7 +58,9 @@ public static class UnityProPlayChecks
         {
             _assertions = 0;
             ExecuteChecks();
+            UnityProCameraChecks.Run(Check);
             UnityProGraphChecks.RunChecks(Check);
+            UnityProSimulationRenderChecks.RunChecks(Check);
             Debug.Log("[Pro Play validation] PASS: " + _assertions + " assertions. Injected motion input, simulator parameter publishing, exclusive ownership, failure/pause/unlink handling, and restoration.");
             exitCode = 0;
         }
@@ -84,6 +86,8 @@ public static class UnityProPlayChecks
         GestureManager secondManager = null;
         ControlledModeSession session = null;
         ControlledModeSession competing = null;
+        GameObject originalCameraObject = null;
+        GameObject otherAvatar = null;
         var paused = EditorApplication.isPaused;
         try
         {
@@ -112,6 +116,14 @@ public static class UnityProPlayChecks
             secondManager = new GameObject("Pro session validation second manager").AddComponent<GestureManager>();
             secondManager.Module = module;
             var input = new SessionMotionInput();
+            originalCameraObject = new GameObject("Pro original camera snapshot");
+            var originalCamera = originalCameraObject.AddComponent<Camera>();
+            originalCamera.transform.SetPositionAndRotation(new Vector3(30f, 8f, 20f), Quaternion.Euler(15f, 22f, 0f));
+            var originalCameraPosition = originalCamera.transform.position;
+            var originalCameraRotation = originalCamera.transform.rotation;
+            originalCamera.fieldOfView = 47f;
+            originalCamera.depth = 7f;
+            module.SimulationCamera = originalCamera;
             session = new ControlledModeSession();
             Check(session.Start(manager, input, 2f, 120f, false, false, true), "Session starts for an active simulator: " + session.Error);
             Check(session.Running && manager.IsPlayerControlled && session.Motor, "Session owns manager and creates a motor");
@@ -120,6 +132,24 @@ public static class UnityProPlayChecks
             var camera = Resources.FindObjectsOfTypeAll<MotionPreviewCamera>().Single(component => component.Target == avatar.transform);
             var cameraObject = camera.gameObject;
             Check(cameraObject.GetComponent<Camera>(), "Preview creates a temporary follow camera");
+            Check(module.SimulationCamera == camera.PreviewCamera && camera.PreviewCamera.depth > originalCamera.depth,
+                "The simulation camera takes Game view priority and owns the module camera override");
+            session.SetViewMode(SimulationViewMode.FirstPerson);
+            Check(session.ViewMode == SimulationViewMode.FirstPerson && camera.Mode == SimulationViewMode.FirstPerson,
+                "An active session switches to first person without rebuilding its motor");
+            Check(Vector3.Distance(camera.transform.position, avatar.transform.TransformPoint(descriptor.ViewPosition)) < 0.0001f,
+                "First person uses the descriptor's actual viewpoint");
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, new Vector2(12f, -18f));
+            session.Motor.Step(0.1f);
+            camera.ApplyView();
+            Check(camera.Pitch == -18f && Mathf.Abs(Mathf.DeltaAngle(camera.transform.eulerAngles.y, avatar.transform.eulerAngles.y)) < 0.001f,
+                "Mouse input publishes pitch to the simulation camera and yaw to the avatar");
+            session.SetViewMode(SimulationViewMode.ThirdPerson);
+            session.SetCameraDistance(3f);
+            camera.ApplyView();
+            Check(session.ViewMode == SimulationViewMode.ThirdPerson && camera.Distance > 4f &&
+                Vector3.Distance(camera.transform.position, avatar.transform.TransformPoint(descriptor.ViewPosition)) > 4f,
+                "Third person switches live and respects the configurable distance");
 
             competing = new ControlledModeSession();
             Check(!competing.Start(manager, new SessionMotionInput(), collisions: false), "A second session cannot take the same manager");
@@ -155,6 +185,9 @@ public static class UnityProPlayChecks
             Check(!session.Running && !manager.IsPlayerControlled && session.Motor == null, "Stop releases session and manager ownership");
             Check(module.Settings.vrMode, "Stop restores the simulator's original VR mode setting");
             Check(!motionObject && !cameraObject, "Stop destroys temporary motor and camera");
+            Check(module.SimulationCamera == originalCamera, "Stop restores the module's original camera selection");
+            Check(originalCamera.transform.position == originalCameraPosition && originalCamera.transform.rotation == originalCameraRotation &&
+                originalCamera.fieldOfView == 47f && originalCamera.depth == 7f, "The simulation does not change the original scene camera");
             Check(Vector3.Distance(avatar.transform.position, originalPosition) < 0.0001f && Quaternion.Angle(avatar.transform.rotation, originalRotation) < 0.001f, "Stop restores the avatar's original position and rotation");
             foreach (var pair in values)
                 Check(Mathf.Abs(module.GetParam(pair.Key).FloatValue() - pair.Value) < 0.0001f, "Stop restores parameter " + pair.Key);
@@ -188,6 +221,61 @@ public static class UnityProPlayChecks
             Check(Vector3.Distance(avatar.transform.position, originalPosition) < 0.0001f, "Input adapter failure restores avatar position");
             Check(!Resources.FindObjectsOfTypeAll<CharacterMotionMotor>().Any(component => component.gameObject.name == "Gesture Manager Pro Motion"), "No temporary movement motor remains after all scenarios");
             Check(!Resources.FindObjectsOfTypeAll<MotionPreviewCamera>().Any(component => component.Target == avatar.transform), "No temporary follow camera remains after all scenarios");
+
+            input.Error = null;
+            Check(session.Start(manager, input, collisions: false, previewCamera: true), "Session restarts for lost-camera cleanup");
+            var ownedCamera = session.ViewCamera.PreviewCamera;
+            var cameraRule = typeof(ModuleVrc3).GetMethod("CameraRule", BindingFlags.NonPublic | BindingFlags.Static);
+            Check(!(bool)cameraRule.Invoke(null, new object[] { ownedCamera }), "Scene Camera auto-selection excludes the temporary game camera");
+            UnityEngine.Object.DestroyImmediate(session.ViewCamera.gameObject);
+            session.Poll();
+            Check(!session.Running && module.SimulationCamera == originalCamera && !manager.IsPlayerControlled,
+                "Losing the preview camera stops simulation and restores the original camera reference");
+            var velocityZ = module.GetParam("VelocityZ");
+            var reentrantStartRejected = false;
+            velocityZ.SetOnChange((parameter, value) =>
+            {
+                if (!session.Running)
+                {
+                    reentrantStartRejected = !session.Start(manager, input, collisions: false);
+                    throw new InvalidOperationException("Injected restore callback failure");
+                }
+            });
+            Check(session.Start(manager, input, collisions: false, previewCamera: true), "Session restarts for callback-failure cleanup");
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            session.Motor.Step(0.1f);
+            session.Stop();
+            Check(!session.Running && !manager.IsPlayerControlled && session.Motor == null &&
+                module.SimulationCamera == originalCamera && reentrantStartRejected && session.Error.Contains("Injected restore callback failure"),
+                "A restoration callback exception cannot retain movement ownership or the simulation camera");
+            velocityZ.SetOnChange(null);
+            foreach (var pair in values)
+                Check(Mathf.Abs(module.GetParam(pair.Key).FloatValue() - pair.Value) < 0.0001f,
+                    "Restoration continues after callback failure for " + pair.Key);
+            using (var keyboard = new KeyboardMotionInputSource(true))
+            using (var otherKeyboard = new KeyboardMotionInputSource(true))
+            {
+                var originalCursorLock = Cursor.lockState;
+                var originalCursorVisible = Cursor.visible;
+                Check(session.Start(manager, keyboard, collisions: false, viewMode: SimulationViewMode.FirstPerson),
+                    "Game simulation always creates its camera even when the optional legacy preview flag is false");
+                Check(session.ViewCamera && session.ViewCamera.Mode == SimulationViewMode.FirstPerson, "Game entry uses the requested first-person view");
+                var toggle = (Action)typeof(KeyboardMotionInputSource).GetField("ViewToggleRequested", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(keyboard);
+                toggle();
+                Check(session.ViewMode == SimulationViewMode.ThirdPerson, "The keyboard view event reaches the active session");
+                otherAvatar = new GameObject("Pro other game simulation avatar");
+                otherAvatar.AddComponent<Animator>();
+                var otherDescriptor = otherAvatar.AddComponent<VRCAvatarDescriptor>();
+                var otherModule = new ModuleVrc3(otherDescriptor) { Active = true };
+                secondManager.Module = otherModule;
+                Check(!competing.Start(secondManager, otherKeyboard, collisions: false) && competing.Error == "Another game simulation is already active.",
+                    "Only one game simulation can capture the shared Game view even for distinct avatars");
+                session.Stop();
+                Check(Cursor.lockState == originalCursorLock && Cursor.visible == originalCursorVisible && keyboard.Suspended,
+                    "Exiting game simulation preserves cursor state and suspends input");
+                Check(typeof(KeyboardMotionInputSource).GetField("ViewToggleRequested", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(keyboard) == null,
+                    "Stop removes view input subscriptions");
+            }
         }
         finally
         {
@@ -196,6 +284,8 @@ public static class UnityProPlayChecks
             if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
             if (secondManager) { secondManager.Module = null; UnityEngine.Object.DestroyImmediate(secondManager.gameObject); }
             if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            if (otherAvatar) UnityEngine.Object.DestroyImmediate(otherAvatar);
+            if (originalCameraObject) UnityEngine.Object.DestroyImmediate(originalCameraObject);
             EditorApplication.isPaused = paused;
         }
     }
