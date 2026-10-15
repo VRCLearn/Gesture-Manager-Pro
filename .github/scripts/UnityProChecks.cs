@@ -221,6 +221,7 @@ public static class UnityProChecks
             UnityProMotionChecks.Run(Check);
             UnityProCameraChecks.Run(Check);
             UnityProStatisticsChecks.Run(Check);
+            UnityProLocalizationChecks.Run(Check);
             UnityProFontChecks.Run(Check);
 
             Check(Application.platform == RuntimePlatform.WindowsEditor && IntPtr.Size == 8, "Native validation runs on supported Windows x64 Editor");

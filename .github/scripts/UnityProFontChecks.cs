@@ -68,6 +68,25 @@ public static class UnityProFontChecks
             check(root.style.unityFontDefinition.value.fontAsset == chinese,
                 "Automatic font language follows the same culture policy as the displayed translations");
 
+            foreach (var sample in new[]
+            {
+                (ProLanguage.Japanese, "ja", "ゲームシミュレーション"),
+                (ProLanguage.Korean, "ko", "게임 시뮬레이션"),
+                (ProLanguage.TraditionalChinese, "zh-Hant", "遊戲模擬")
+            })
+            {
+                EditorLocalization.Language = sample.Item1;
+                var selected = root.style.unityFontDefinition.value.fontAsset;
+                check(selected && selected.name.StartsWith("GestureManagerPro.UIFont." + sample.Item2 + ".", StringComparison.Ordinal) &&
+                    windows.All(window => window.rootVisualElement.style.unityFontDefinition.value.fontAsset == selected),
+                    "All attached roots use the selected locale's own font chain: " + sample.Item1);
+                check(new[] { selected }.Concat(selected.fallbackFontAssetTable).Any(font => font.TryAddCharacters(sample.Item3, out _)),
+                    "An installed fallback face renders representative script glyphs: " + sample.Item1);
+                EditorLocalization.Language = ProLanguage.SimplifiedChinese;
+                check(root.style.unityFontDefinition.value.fontAsset == chinese,
+                    "Returning from another CJK locale reuses the original Simplified Chinese chain: " + sample.Item1);
+            }
+
             var cjk = chain.First(font => font.faceInfo.familyName == "Microsoft YaHei UI");
             for (var offset = 0; offset < 512 && cjk.atlasTextureCount < 3; offset += 32)
                 cjk.TryAddCharacters(new string(Enumerable.Range(0x4e00 + offset, 32).Select(value => (char)value).ToArray()), out _);

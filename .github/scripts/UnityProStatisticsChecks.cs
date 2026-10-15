@@ -415,7 +415,7 @@ public static class UnityProStatisticsChecks
             var latestId = ModelStatisticsService.History[0].Id;
             check(window.titleContent.text == "Model Statistics", "Statistics window has its English title");
             EditorLocalization.Language = ProLanguage.SimplifiedChinese;
-            check(window.titleContent.text == "模型指标" &&
+            check(window.titleContent.text == "模型统计" &&
                 window.rootVisualElement.Q<Button>("refreshButton").text == EditorLocalization.Tr("Measure Before Processing"),
                 "Open statistics window updates its Chinese title and action captions live");
             check(window.rootVisualElement.Q<ObjectField>("avatarField").value == avatar && avatar.name == "Tools" &&
@@ -427,8 +427,8 @@ public static class UnityProStatisticsChecks
             CheckRenderedRatings(window, check);
             var chineseMetrics = window.rootVisualElement.Q("metricsTable").Query<Label>(className: "statistics-metric")
                 .ToList().Select(label => label.text).ToArray();
-            check(new[] { "三角面总数", "纹理显存占用", "基本网格", "约束链长度" }.All(chineseMetrics.Contains),
-                "Statistics render the VRCX Chinese terminology for geometry, memory and constraint metrics");
+            check(new[] { "三角面数", "纹理内存", "网格渲染器", "约束深度" }.All(chineseMetrics.Contains),
+                "Statistics captions describe the actual SDK geometry, memory and constraint metrics");
             var styleCount = window.rootVisualElement.styleSheets.count;
             window.CreateGUI();
             EditorLocalization.Language = ProLanguage.English;
@@ -612,18 +612,18 @@ public static class UnityProStatisticsChecks
         var chinese = EditorLocalization.Language == ProLanguage.SimplifiedChinese;
         var captions = new Dictionary<PerformanceRating, string>
         {
-            { PerformanceRating.Excellent, chinese ? "流畅" : "Excellent" },
-            { PerformanceRating.Good, chinese ? "低负载" : "Good" },
-            { PerformanceRating.Medium, chinese ? "中负载" : "Medium" },
-            { PerformanceRating.Poor, chinese ? "高负载" : "Poor" },
-            { PerformanceRating.VeryPoor, chinese ? "极高负载" : "Very Poor" }
+            { PerformanceRating.Excellent, chinese ? "优秀" : "Excellent" },
+            { PerformanceRating.Good, chinese ? "良好" : "Good" },
+            { PerformanceRating.Medium, chinese ? "中等" : "Medium" },
+            { PerformanceRating.Poor, chinese ? "较差" : "Poor" },
+            { PerformanceRating.VeryPoor, chinese ? "极差" : "Very Poor" }
         };
         var unrated = chinese ? "未评级" : "Not Rated";
         var labelGetter = typeof(ModelStatisticsWindow).GetMethod("RatingLabel", Any);
         check(captions.All(pair => (string)labelGetter.Invoke(null, new object[] { pair.Key }) == pair.Value) &&
             (string)labelGetter.Invoke(null, new object[] { PerformanceRating.None }) == unrated &&
             (string)labelGetter.Invoke(null, new object[] { (PerformanceRating)999 }) == unrated,
-            "Performance captions retain all five agreed grades and explicitly distinguish unrated results");
+            "Performance captions preserve all five SDK grades and explicitly distinguish unrated results");
         var overallCaption = captions.TryGetValue(snapshot.OverallRating, out var caption) ? caption : unrated;
         var overallIcon = window.rootVisualElement.Q<Image>("overallRatingIcon");
         check(overallIcon != null && MatchesRatingIcon(overallIcon.image, snapshot.OverallRating) &&
