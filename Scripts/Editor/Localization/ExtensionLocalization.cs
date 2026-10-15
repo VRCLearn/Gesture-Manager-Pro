@@ -8,7 +8,7 @@ using VRCLearn.GestureManagerPro.Library.VisualElements;
 
 namespace VRCLearn.GestureManagerPro.Localization
 {
-    public enum ProLanguage { Automatic = 0, English = 1, SimplifiedChinese = 2 }
+    public enum ProLanguage { Automatic = 0, English = 1, SimplifiedChinese = 2, Japanese = 3 }
 
     public static class EditorLocalization
     {
@@ -73,6 +73,7 @@ namespace VRCLearn.GestureManagerPro.Localization
         {
             var name = (culture ?? "").Replace('_', '-');
             var parts = name.Split('-');
+            if (parts[0].Equals("ja", StringComparison.OrdinalIgnoreCase)) return ProLanguage.Japanese;
             return name.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
                 name.StartsWith("zh-CN", StringComparison.OrdinalIgnoreCase) ||
                 name.StartsWith("zh-SG", StringComparison.OrdinalIgnoreCase) ||
@@ -82,6 +83,7 @@ namespace VRCLearn.GestureManagerPro.Localization
 
         internal static string LanguageCode(ProLanguage language) => language switch
         {
+            ProLanguage.Japanese => "ja",
             ProLanguage.SimplifiedChinese => "zh-Hans",
             _ => "en"
         };
@@ -90,6 +92,7 @@ namespace VRCLearn.GestureManagerPro.Localization
         {
             var catalog = new TranslationCatalog();
             catalog.Register(ProLanguage.SimplifiedChinese, GestureManagerChinese.Entries, LipSyncChinese.Entries, ModelStatisticsChinese.Entries);
+            catalog.Register(ProLanguage.Japanese, JapaneseTranslations.Entries);
             catalog.Register(ProLanguage.English, EnglishTranslations.Entries);
             return catalog;
         }
