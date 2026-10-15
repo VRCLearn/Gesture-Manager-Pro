@@ -1,5 +1,17 @@
 # Development validation
 
+## Standard inline avatar tools (unreleased)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in the disposable Windows fixture with Direct3D 11.
+
+- Lip Sync Test and Game Simulation now inherit the same GmgDynamicFunction implementation as the original avatar tools. They appear as normal collapsed entries under Extra Tools, with the shared foldout frame, running-state green highlight, inline settings and start/stop action. Their separate windows and unused UXML/USS assets were removed; the renamed C# assets retain their GUIDs. Each feature still lives in its own assembly and uses its existing session implementation.
+- Tool factories bind once to the displayed manager and are owned by that module's AvatarTools instance. Closing a foldout or changing tabs preserves the session. Pause, Play Mode exit, assembly reload and avatar disconnection stop or dispose the sessions and restore their owned resources. Running, expanded tools request Inspector repaint only while the Tools tab is visible.
+- Graphics-enabled editor integration passed 433 assertions, including standard-tool registration, repeated registration, manager binding, first-person and microphone-monitoring defaults, live localized captions and existing native, motion, camera, statistics and font checks. Static validation passed 1,721 checks against the original GM resource baseline and both SDK packages.
+- Eight production-Inspector captures at 470 by 1080 pixels cover collapsed tools, each expanded tool in Chinese and English, running-state highlights and a paused tool. Twelve real Play Mode checks start the production AudioClip and game-simulation actions, preserve running sessions across collapse/tab changes, stop lip sync on pause, and dispose both tools on avatar disconnection while restoring player ownership and the original avatar position.
+- The final sources were synchronized to the open Test-Avatar project with backups and unchanged script GUIDs. Unity compiled without console errors. Its actual 469-by-918-pixel Inspector shows both standard entries beside the inherited tools, with Chocolat selected; Play Mode was restored after compilation and the scene remained unsaved.
+
+Audio uses a looping synthetic silent clip; microphone hardware, physical keyboard/mouse input, light theme, higher display scaling and other operating systems were not revalidated. This shared inline-tool presentation supersedes the standalone feature windows and special button row described in earlier records.
+
 ## Original Inspector layout and contextual tools (unreleased)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in the disposable Windows fixture with Direct3D 11.
