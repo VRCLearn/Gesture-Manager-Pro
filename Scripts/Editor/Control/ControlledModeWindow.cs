@@ -55,6 +55,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             titleContent = new GUIContent(EditorLocalization.Tr("Game Simulation"));
             minSize = new Vector2(360f, 440f);
             rootVisualElement.Clear();
+            EditorLocalization.ApplyFontPreferences(rootVisualElement);
             var scriptPath = AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(this));
             var stylePath = Path.Combine(Path.GetDirectoryName(scriptPath) ?? "", "ControlledModeWindow.uss").Replace('\\', '/');
             var style = AssetDatabase.LoadAssetAtPath<StyleSheet>(stylePath);

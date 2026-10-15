@@ -85,6 +85,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             titleContent = new GUIContent(EditorLocalization.Tr("Model Statistics"));
             minSize = new Vector2(460f, 400f);
             rootVisualElement.Clear();
+            EditorLocalization.ApplyFontPreferences(rootVisualElement);
             var script = AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(this));
             var stylePath = Path.Combine(Path.GetDirectoryName(script) ?? "", "ModelStatisticsWindow.uss").Replace('\\', '/');
             var style = AssetDatabase.LoadAssetAtPath<StyleSheet>(stylePath);

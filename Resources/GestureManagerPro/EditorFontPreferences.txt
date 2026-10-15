@@ -1,0 +1,14 @@
+# Ordered installed font families. An empty language prefix applies to every language.
+# Use regular faces; UI Toolkit synthesizes bold without a separate fallback weight cache.
+=Verdana
+=Tahoma
+=Arial
+=Helvetica
+=Liberation Sans
+=DejaVu Sans
+zh-Hans=Microsoft YaHei UI
+zh-Hans=Microsoft YaHei
+zh-Hans=PingFang SC
+zh-Hans=Noto Sans CJK SC
+zh-Hans=Source Han Sans SC
+zh-Hans=WenQuanYi Micro Hei

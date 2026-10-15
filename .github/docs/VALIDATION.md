@@ -1,5 +1,16 @@
 # Development validation
 
+## Shared localized editor fonts (unreleased)
+
+Validated on 2026-10-15 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in the disposable Windows fixture.
+
+- Model Statistics, Lip Sync Test and Game Simulation now share language-specific regular system font chains to avoid inconsistent Chinese weights from Unity's default font fallback cache. The design follows [NDMF's language font preferences](https://github.com/bdunderscore/ndmf/blob/89c8f6d18918cdd54fa20148070bea0578ccc1b6/Editor/UI/Localization/LanguagePrefs.cs#L266); it adds no NDMF dependency or font binary. On this Windows fixture the Latin chain includes Verdana, Tahoma and Arial; Simplified Chinese adds Microsoft YaHei UI and Microsoft YaHei. All faces have empty alternate-weight tables, so headings use synthetic bold over the regular glyphs.
+- Editor integration: 438 assertions passed. Checks cover shared fonts in all three production windows, language/cache selection, automatic-language culture policy, idempotent attachment, child material/atlas retention, complete-chain recovery after a destroyed fallback material, and detached-window cleanup. Also fixed a reentrant lip-sync language dropdown callback exposed by opening multiple localized windows.
+- Actual rendering and lifecycle: all three production windows were inspected in Chinese and English, with Model Statistics at widths of 620 and 460 pixels. Each Chinese stage verified 667 regular and 28 synthetic-bold CJK glyph instances against their styles and the owned fallback chain. The English stage preserved 11 Chinese user-name/value glyphs. The same checks passed during actual Play Mode and after returning to Edit Mode across domain reloads. Ratings were synthetic typography samples, not avatar performance measurements.
+- Distribution: all 42 Python tests and 1,745 static package checks passed. Candidate families remain data in `Resources/GestureManagerPro/EditorFontPreferences.txt`; the implementation skips missing families and falls back to the editor default if no configured face loads. Shared owned resources are released on assembly reload or editor shutdown.
+
+Only the Windows dark theme at pixelsPerPoint 1 was visually inspected. Light theme, higher display scaling and macOS/Linux font resolution and rendering remain unverified.
+
 ## Unrated help icon (0.4.2)
 
 Validated on 2026-10-15 in the existing disposable Windows fixture with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5.

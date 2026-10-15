@@ -38,6 +38,8 @@ namespace VRCLearn.GestureManagerPro.Localization
         public static string Format(string source, params object[] args) => Catalog.Format(source, IsChinese, args);
         public static bool TryGetSource(string text, out string source) => Catalog.TryGetSource(text, out source);
 
+        public static void ApplyFontPreferences(VisualElement root) => EditorFontPreferences.Apply(root);
+
         public static void RegisterTranslations(IReadOnlyDictionary<string, string> translations)
         {
             if (translations == null) throw new ArgumentNullException(nameof(translations));
@@ -63,7 +65,7 @@ namespace VRCLearn.GestureManagerPro.Localization
         internal static bool HasTranslation(string source) => Catalog.Contains(source);
         internal static bool CanTranslate(string source) => Catalog.CanTranslate(source);
 
-        private static bool IsChinese => Language == ProLanguage.SimplifiedChinese ||
+        internal static bool IsChinese => Language == ProLanguage.SimplifiedChinese ||
             Language == ProLanguage.Automatic && IsSimplifiedChinese(CultureInfo.CurrentUICulture.Name);
 
         internal static bool IsSimplifiedChinese(string culture) =>

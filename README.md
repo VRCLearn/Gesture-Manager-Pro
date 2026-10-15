@@ -23,6 +23,8 @@ This is an initial development build for Unity 2022.3 and VRChat Avatars SDK 3.1
 6. Set the interface language through **Tools > Language Settings** or the lip sync window.
 7. Click **Model Statistics** in the emulator Inspector, or open **Tools > Model Statistics**. Choose an avatar and platform. Use **Measure Before Processing** outside Play Mode, or **Measure Current Play Mode State** during Play Mode. Select a **Processing Stage** and **Recorded Snapshot** to compare observations; **All Avatars** also exposes history for processed runtime clones. The latest 48 records are retained for the Editor session, including across domain reloads.
 
+Model Statistics, Lip Sync Test and Game Simulation share language-specific system font chains, following the approach used by NDMF's editor localization. Regular faces and synthetic bold keep Chinese body text and headings consistent without sharing Unity's default alternate-weight cache. Candidate families are listed in `Resources/GestureManagerPro/EditorFontPreferences.txt`; unavailable families are skipped, and the editor default remains available if none can be loaded. Font resources are cached by language, preserved across Play Mode and rebuilt if invalidated. No NDMF dependency or font binary is added.
+
 Before-processing statistics are an independent feature for inspecting the model before optimizers or build processors run. They remain available alongside the processed observations:
 
 | Stage | Capture point |

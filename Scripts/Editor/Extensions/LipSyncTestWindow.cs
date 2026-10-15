@@ -33,6 +33,7 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
         private VisualElement _microphoneSettings;
         private VisualElement _clipSettings;
         private DropdownField _languageField;
+        private bool _updatingLanguageField;
         private DropdownField _inputField;
         private DropdownField _deviceField;
         private ObjectField _managerField;
@@ -78,6 +79,7 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
         public void CreateGUI()
         {
             rootVisualElement.Clear();
+            EditorLocalization.ApplyFontPreferences(rootVisualElement);
             _scores.Clear();
             _status = null;
             _missingTree = null;
@@ -117,6 +119,7 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
             _languageField = rootVisualElement.Q<DropdownField>("language");
             _languageField.RegisterValueChangedCallback(change =>
             {
+                if (_updatingLanguageField) return;
                 var index = _languageField.index;
                 if (index >= 0 && index <= (int)ProLanguage.SimplifiedChinese)
                     EditorLocalization.Language = (ProLanguage)index;
@@ -168,14 +171,22 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
             if (_status == null) return;
 
             rootVisualElement.Q<Label>("heading").text = EditorLocalization.Tr("Gesture Manager Pro · Lip Sync Test");
-            _languageField.label = EditorLocalization.Tr("Language");
-            _languageField.choices = new List<string>
+            _updatingLanguageField = true;
+            try
             {
-                EditorLocalization.Tr("Automatic"),
-                EditorLocalization.Tr("English"),
-                EditorLocalization.Tr("Simplified Chinese")
-            };
-            _languageField.SetValueWithoutNotify(_languageField.choices[(int)EditorLocalization.Language]);
+                _languageField.label = EditorLocalization.Tr("Language");
+                _languageField.choices = new List<string>
+                {
+                    EditorLocalization.Tr("Automatic"),
+                    EditorLocalization.Tr("English"),
+                    EditorLocalization.Tr("Simplified Chinese")
+                };
+                _languageField.SetValueWithoutNotify(_languageField.choices[(int)EditorLocalization.Language]);
+            }
+            finally
+            {
+                _updatingLanguageField = false;
+            }
             rootVisualElement.Q<Button>("license").text = EditorLocalization.Tr("Bundled analyzer license");
             _managerField.label = EditorLocalization.Tr("Gesture Manager Pro");
             rootVisualElement.Q<Button>("findManager").text = EditorLocalization.Tr("Use selected / active manager");
