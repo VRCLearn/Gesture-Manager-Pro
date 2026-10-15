@@ -9,6 +9,7 @@
         "VRCLearn.GestureManagerPro.Control.Editor",
         "VRCLearn.GestureManagerPro.Diagnostics.Editor",
         "VRC.SDKBase",
+        "VRC.SDKBase.Editor.BuildPipeline",
         "VRC.SDK3A"
     ],
     "includePlatforms": ["Editor"],

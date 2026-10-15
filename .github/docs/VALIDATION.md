@@ -1,5 +1,17 @@
 # Development validation
 
+## Processing stages and APW alignment (0.4.0)
+
+Validated on 2026-10-15 in the existing disposable Windows fixture with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5.
+
+- Editor integration: 408 assertions passed. All 31 SDK values and ratings are checked independently for PC and Mobile, including optional sizes, raw constraint depth, full Bounds, PhysBone null handling, SDK ignore-delegate preservation, two-platform build status, 48-record history, stage filters, localization and legacy snapshot formats.
+- Play Mode integration: 281 assertions passed. A real Play transition invokes the SDK preprocessing callback pipeline with a controlled processor that removes one of two cubes. Both platform histories independently retain 24 triangles before processing and 12 in the SDK and first-Editor-update Play observations. Manual Play scans have their own source and cannot overwrite the before-processing stage. Existing simulator, input, graph and GPU camera checks pass.
+- APW reference: all 31 metric values and ratings, plus the overall rating, match the original APW calculator for both PC and Mobile on the processed fixture. Only the unmodified DTO/calculator code was extracted from anatawa12 gists pack 0.25.3 into a temporary reference DLL; its UI, callbacks and fallback-status mutation were excluded. Upstream source SHA-256: `aaab1dfbb6afb966c4b8b9f72b35f6a2f2568ab7433806b2dcc98afdc45dda22`. The reference DLL is not distributed with Pro.
+- Desktop UI: the actual Chinese statistics window displays 24 triangles before processing and 12 after selecting the Play-processing stage. The stage menu, retained snapshot selection, current-Play measurement caption and full Bounds are visible and usable.
+- Compatibility and distribution: final Diagnostics sources compile against SDK 3.10.4 and run in Unity against 3.10.5. The 42 Python distribution tests and 1,733 static package checks pass. No new package dependency or native binary was introduced.
+
+This controlled processor checks lifecycle timing; it is not an acceptance test for production avatars or NDMF/MA/AAO combinations. SDK build completion/error correlation is tested with injected events, without a real bundle build or upload. The Play transition cannot guarantee that it runs before earlier tools' transition callbacks. SDK observations run at the last preprocessing priority, without claiming to include later bundle-time transformations. Android imports/builds and macOS/Linux editor operation remain unverified. This section supersedes the 0.3.0 capture/filter behavior below; old records keep their original values in the legacy stage.
+
 ## Model Statistics (0.3.0)
 
 Validated on 2026-10-15 in the existing disposable Windows fixture with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5.

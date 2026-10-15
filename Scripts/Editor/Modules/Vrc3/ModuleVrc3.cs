@@ -189,16 +189,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         public override void InitForAvatar()
         {
-            // Capture before the simulator changes animators or adds temporary contacts.
-            try
-            {
-                Diagnostics.ModelStatisticsService.CapturePreview(Avatar, false);
-                Diagnostics.ModelStatisticsService.CapturePreview(Avatar, true);
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning("Gesture Manager Pro could not capture preview statistics: " + exception.Message);
-            }
             MemoryClone();
             StartVrcHooks();
 

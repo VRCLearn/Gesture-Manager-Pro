@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using VRCLearn.GestureManagerPro;
 using VRCLearn.GestureManagerPro.Diagnostics;
 using VRCLearn.GestureManagerPro.Localization;
@@ -89,9 +90,9 @@ public static class UnityProStatisticsChecks
             var desktop = ModelStatisticsService.Capture(avatar, false);
             check(changes == beforeCaptureChanges + 1 && ReferenceEquals(ModelStatisticsService.History[0], desktop),
                 "Statistics capture publishes exactly one newest-first history entry");
-            check(desktop.Source == ModelStatisticsSource.CurrentAvatar &&
+            check(desktop.Source == ModelStatisticsSource.BeforeProcessing &&
                 desktop.BuildStatus == ModelStatisticsBuildStatus.NotApplicable && !desktop.IsMobile,
-                "Edit Mode measurement is labeled current PC state rather than a completed SDK build");
+                "Edit Mode measurement is labeled before processing rather than a completed SDK build");
             check(desktop.AvatarName == "Tools" && !string.IsNullOrEmpty(desktop.AvatarIdentity),
                 "Statistics retain the exact user avatar name and a source identity");
             check(DateTime.TryParse(desktop.CapturedUtc, CultureInfo.InvariantCulture,
@@ -107,14 +108,10 @@ public static class UnityProStatisticsChecks
                 Metric(desktop, AvatarPerformanceCategory.MaterialCount).Rating ==
                 desktopStats.GetPerformanceRatingForCategory(AvatarPerformanceCategory.MaterialCount),
                 "Snapshot overall and material ratings match an independent SDK calculation");
-            check(desktop.Metrics.Select(metric => metric.Category).Distinct().Count() == desktop.Metrics.Count,
+            check(desktop.Metrics.Count == 31 && desktop.Metrics.Select(metric => metric.Category).Distinct().Count() == 31,
                 "Statistics expose one row per SDK metric category");
-            check(!Metric(desktop, AvatarPerformanceCategory.DownloadSize).IsAvailable &&
-                !Metric(desktop, AvatarPerformanceCategory.UncompressedSize).IsAvailable &&
-                !Metric(desktop, AvatarPerformanceCategory.ConstraintDepth).IsAvailable && desktop.BundleBytes == -1,
-                "Unbuilt sizes and unsupported constraint depth remain unavailable instead of reporting a misleading zero");
-            check(Metric(desktop, AvatarPerformanceCategory.DownloadSize).Rating == PerformanceRating.None,
-                "An unavailable package size is not assigned a performance grade");
+            CheckSdkMetrics(desktop, desktopStats, check);
+            check(desktop.BundleBytes == -1, "Before-processing measurements do not invent a built bundle file size");
             check(Metric(desktop, AvatarPerformanceCategory.ParticleTrailsEnabled).Value == bool.FalseString &&
                 Metric(desktop, AvatarPerformanceCategory.ParticleCollisionEnabled).Value == bool.FalseString,
                 "SDK boolean metrics retain their machine-readable values for localized display");
@@ -131,6 +128,7 @@ public static class UnityProStatisticsChecks
             check(Metric(mobile, AvatarPerformanceCategory.MaterialCount).Rating !=
                 Metric(desktop, AvatarPerformanceCategory.MaterialCount).Rating,
                 "Two material slots demonstrate the different PC and Mobile performance thresholds");
+            CheckSdkMetrics(mobile, mobileStats, check);
             check(sourceComponents.SequenceEqual(avatar.GetComponentsInChildren<Component>(true)) &&
                 sourceComponents.Select(component => EditorJsonUtility.ToJson(component)).SequenceEqual(sourceJson),
                 "Calculating statistics preserves source components, transforms and serialized avatar settings");
@@ -142,12 +140,13 @@ public static class UnityProStatisticsChecks
                 "Statistics do not change selection, dirty the scene or leave temporary scene objects");
 
             CheckTemporaryComponents(avatar, body, userSender, check);
+            CheckOptionalSdkMetrics(check);
 
-            var preview = ModelStatisticsService.CapturePreview(avatar, false);
-            check(preview.Source == ModelStatisticsSource.PlayModePreview &&
+            var preview = ModelStatisticsService.CaptureBeforeProcessing(avatar, false);
+            check(preview.Source == ModelStatisticsSource.BeforeProcessing &&
                 preview.BuildStatus == ModelStatisticsBuildStatus.NotApplicable && preview.BundleBytes == -1,
-                "Play Mode preview is identified separately from successful upload/build results");
-            check(!string.IsNullOrWhiteSpace(preview.Notes), "Preview records the limits of its capture stage");
+                "The dedicated before-processing action remains separate from processed or uploaded results");
+            check(!string.IsNullOrWhiteSpace(preview.Notes), "Before-processing records the limits of its capture stage");
             avatar.name = "Statistics renamed source";
             check(desktop.AvatarName == "Tools" && Number(desktop, AvatarPerformanceCategory.PolyCount) == 24,
                 "Historical snapshots remain independent of later source avatar changes");
@@ -157,11 +156,15 @@ public static class UnityProStatisticsChecks
             check(observer.callbackOrder == int.MaxValue,
                 "SDK statistics observer runs at the final preprocess callback priority");
             var beforeObserver = ModelStatisticsService.History.Count;
-            check(observer.OnPreprocessAvatar(avatar) && ModelStatisticsService.History.Count == beforeObserver + 1,
-                "SDK preprocessing observer captures an avatar without stopping the pipeline");
-            check(ModelStatisticsService.History[0].Source == ModelStatisticsSource.SdkPreprocess &&
-                ModelStatisticsService.History[0].BuildStatus == ModelStatisticsBuildStatus.NotApplicable,
+            check(observer.OnPreprocessAvatar(avatar) && ModelStatisticsService.History.Count == beforeObserver + 2,
+                "SDK preprocessing observer captures PC and Mobile without stopping the pipeline");
+            var observed = ModelStatisticsService.History.Take(2).ToArray();
+            check(observed.All(snapshot => snapshot.Source == ModelStatisticsSource.SdkPreprocess &&
+                snapshot.BuildStatus == ModelStatisticsBuildStatus.NotApplicable) &&
+                observed.Select(snapshot => snapshot.IsMobile).Distinct().Count() == 2,
                 "A preprocess callback alone does not claim successful bundle generation");
+            CheckSdkMetrics(observed.Single(snapshot => !snapshot.IsMobile), desktopStats, check);
+            CheckSdkMetrics(observed.Single(snapshot => snapshot.IsMobile), mobileStats, check);
             invalidAvatar = new GameObject("Statistics object without descriptor");
             beforeObserver = ModelStatisticsService.History.Count;
             check(observer.OnPreprocessAvatar(invalidAvatar) && observer.OnPreprocessAvatar(null) &&
@@ -184,10 +187,10 @@ public static class UnityProStatisticsChecks
                 "Rejected statistics requests neither publish history nor notify observers");
 
             var oldestId = desktop.Id;
-            for (var index = 0; index < 14; index++) ModelStatisticsService.Capture(avatar, index % 2 == 0);
-            check(ModelStatisticsService.History.Count <= 12 && ModelStatisticsService.History.Count > 1 &&
+            for (var index = 0; index < 50; index++) ModelStatisticsService.Capture(avatar, index % 2 == 0);
+            check(ModelStatisticsService.History.Count == 48 &&
                 !ModelStatisticsService.History.Any(snapshot => snapshot.Id == oldestId),
-                "Session history evicts oldest measurements instead of growing without bound");
+                "Session history retains the newest 48 measurements and evicts older entries");
             var stored = JsonUtility.FromJson<StoredHistory>(SessionState.GetString(HistoryKey, string.Empty));
             check(stored != null && stored.Snapshots.Select(snapshot => snapshot.Id)
                     .SequenceEqual(ModelStatisticsService.History.Select(snapshot => snapshot.Id)),
@@ -197,6 +200,7 @@ public static class UnityProStatisticsChecks
                 "Session snapshots round-trip their source identity and SDK metric values");
 
             CheckWindow(avatar, duplicateAvatar, check);
+            CheckLegacyHistory(avatar, check);
             ModelStatisticsService.ClearHistory();
             check(ModelStatisticsService.History.Count == 0 &&
                 JsonUtility.FromJson<StoredHistory>(SessionState.GetString(HistoryKey, string.Empty)).Snapshots.Count == 0,
@@ -237,19 +241,21 @@ public static class UnityProStatisticsChecks
                 "An unmanaged avatar keeps hidden components in its ordinary SDK measurement");
             GestureManager.ControlledAvatars.Add(avatar, null);
             var controlled = ModelStatisticsService.Capture(avatar, false);
-            check(Number(controlled, AvatarPerformanceCategory.ContactCount) == 1 &&
+            check(Number(controlled, AvatarPerformanceCategory.ContactCount) == 2 &&
                 Number(controlled, AvatarPerformanceCategory.PolyCount) == 24,
-                "Active simulator measurement excludes its temporary contact but preserves user geometry and hidden contact");
+                "APW-compatible measurements retain the SDK's temporary and user contacts while simulation is active");
             AvatarPerformance.ShouldIgnoreComponent = component => component == userSender;
             var priorIgnore = AvatarPerformance.ShouldIgnoreComponent;
+            var sdk = new AvatarPerformanceStats(false);
+            AvatarPerformance.CalculatePerformanceStats(avatar.name, avatar, sdk, false);
             var filtered = ModelStatisticsService.Capture(avatar, false);
-            check(Number(filtered, AvatarPerformanceCategory.ContactCount) == 0,
-                "Simulator filtering composes with an existing SDK component filter");
+            check(Number(filtered, AvatarPerformanceCategory.ContactCount) == sdk.contactCount,
+                "Statistics retain raw SDK contact counting instead of applying a custom simulator correction");
             check(ReferenceEquals(AvatarPerformance.ShouldIgnoreComponent, priorIgnore),
-                "Statistics restore the exact existing SDK filter after calculation");
+                "Statistics leave the SDK's existing component filter unchanged");
             check(helper && helper.hideFlags == HideFlags.HideAndDontSave && userSender &&
                 userSender.hideFlags == (HideFlags.HideInHierarchy | HideFlags.HideInInspector),
-                "Filtering never removes or changes simulator or user-authored source components");
+                "Raw SDK measurements never remove or change simulator or user-authored source components");
         }
         finally
         {
@@ -269,69 +275,75 @@ public static class UnityProStatisticsChecks
         {
             service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
             observer.OnPreprocessAvatar(avatar);
-            var pending = ModelStatisticsService.History[0];
-            check(pending.Source == ModelStatisticsSource.SdkPreprocess &&
-                pending.BuildStatus == ModelStatisticsBuildStatus.Pending && pending.BundleBytes == -1,
-                "An active SDK build begins with a pending preprocess snapshot and unavailable bundle size");
+            var actualMobile = ModelStatisticsService.IsCurrentPlatformMobile();
+            var pending = ModelStatisticsService.History.Take(2).ToArray();
+            check(pending.Length == 2 && pending.Select(snapshot => snapshot.IsMobile).Distinct().Count() == 2 &&
+                pending.All(snapshot => snapshot.Source == ModelStatisticsSource.SdkPreprocess &&
+                    snapshot.BuildStatus == ModelStatisticsBuildStatus.Pending && snapshot.BundleBytes == -1 &&
+                    snapshot.HasBuildPlatform && snapshot.BuildPlatformIsMobile == actualMobile),
+                "An SDK build observes both rating platforms and records its actual frozen build target");
             service.GetMethod("OnBuildError", Any).Invoke(null, new object[] { null, "Injected validation build error" });
-            var failed = ModelStatisticsService.History[0];
-            check(failed.Id == pending.Id && failed.Source == ModelStatisticsSource.SdkPreprocess &&
-                failed.BuildStatus == ModelStatisticsBuildStatus.Failed && failed.BundleBytes == -1,
-                "SDK build error updates only the pending snapshot and never reports a successful upload result");
-            check(pending.BuildStatus == ModelStatisticsBuildStatus.Pending,
-                "Updating build completion replaces the history entry without mutating a previously returned snapshot");
+            var failed = ModelStatisticsService.History.Take(2).ToArray();
+            check(SameIds(pending, failed) && failed.All(snapshot => snapshot.Source == ModelStatisticsSource.SdkPreprocess &&
+                snapshot.BuildStatus == ModelStatisticsBuildStatus.Failed && snapshot.BundleBytes == -1),
+                "SDK failure updates both related platform snapshots without reporting a completed bundle");
+            check(pending.All(snapshot => snapshot.BuildStatus == ModelStatisticsBuildStatus.Pending),
+                "Build completion replaces both history entries without mutating returned snapshot objects");
             service.GetMethod("OnBuildFinish", Any).Invoke(null, new object[] { null, "Injected validation finish" });
-            check(ReferenceEquals(ModelStatisticsService.History[0], failed),
-                "A later SDK finish notification does not overwrite the recorded build failure");
+            check(ModelStatisticsService.History.Take(2).SequenceEqual(failed),
+                "A later SDK finish notification preserves the failure on both platform records");
 
             File.WriteAllBytes(bundle, new byte[23]);
             service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
             observer.OnPreprocessAvatar(avatar);
-            var pendingSuccess = ModelStatisticsService.History[0];
+            var pendingSuccess = ModelStatisticsService.History.Take(2).ToArray();
             service.GetMethod("OnBuildSuccess", Any).Invoke(null, new object[] { null, bundle });
-            var succeeded = ModelStatisticsService.History[0];
-            check(succeeded.Id == pendingSuccess.Id && succeeded.Source == ModelStatisticsSource.SdkBuild &&
-                succeeded.BuildStatus == ModelStatisticsBuildStatus.Succeeded && succeeded.BundleBytes == 23,
-                "SDK success notification associates the built file size with its own avatar snapshot");
-            check(!Metric(succeeded, AvatarPerformanceCategory.DownloadSize).IsAvailable &&
-                !Metric(succeeded, AvatarPerformanceCategory.UncompressedSize).IsAvailable,
+            var succeeded = ModelStatisticsService.History.Take(2).ToArray();
+            check(SameIds(pendingSuccess, succeeded) && succeeded.All(snapshot =>
+                snapshot.Source == ModelStatisticsSource.SdkBuild && snapshot.BuildStatus == ModelStatisticsBuildStatus.Succeeded &&
+                snapshot.BundleBytes == (snapshot.IsMobile == actualMobile ? 23 : -1) &&
+                snapshot.HasBuildPlatform && snapshot.BuildPlatformIsMobile == actualMobile),
+                "SDK success updates both grades and associates bundle bytes only with the actual build platform");
+            check(succeeded.All(snapshot => !Metric(snapshot, AvatarPerformanceCategory.DownloadSize).IsAvailable &&
+                !Metric(snapshot, AvatarPerformanceCategory.UncompressedSize).IsAvailable),
                 "A local bundle file size is kept separate from unavailable official download/uncompressed metrics");
             service.GetMethod("OnBuildFinish", Any).Invoke(null, new object[] { null, "Injected validation finish" });
-            check(ReferenceEquals(ModelStatisticsService.History[0], succeeded),
-                "A later SDK finish notification preserves a successful build result");
+            check(ModelStatisticsService.History.Take(2).SequenceEqual(succeeded),
+                "A later SDK finish notification preserves success on both platform records");
 
             service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
             observer.OnPreprocessAvatar(avatar);
-            var pendingDisconnect = ModelStatisticsService.History[0];
+            var pendingDisconnect = ModelStatisticsService.History.Take(2).ToArray();
             service.GetMethod("DisconnectBuilder", Any).Invoke(null, null);
-            var disconnected = ModelStatisticsService.History[0];
-            check(disconnected.Id == pendingDisconnect.Id &&
-                disconnected.BuildStatus == ModelStatisticsBuildStatus.Unconfirmed &&
-                disconnected.Source == ModelStatisticsSource.SdkPreprocess && disconnected.BundleBytes == -1,
-                "Disconnecting SDK observation records unconfirmed completion without reporting failure or a bundle");
-            check(pendingDisconnect.BuildStatus == ModelStatisticsBuildStatus.Pending,
-                "SDK disconnect preserves the previously returned pending snapshot object");
+            var disconnected = ModelStatisticsService.History.Take(2).ToArray();
+            check(SameIds(pendingDisconnect, disconnected) && disconnected.All(snapshot =>
+                snapshot.BuildStatus == ModelStatisticsBuildStatus.Unconfirmed &&
+                snapshot.Source == ModelStatisticsSource.SdkPreprocess && snapshot.BundleBytes == -1),
+                "Disconnecting SDK observation leaves both platform records unconfirmed instead of failed");
+            check(pendingDisconnect.All(snapshot => snapshot.BuildStatus == ModelStatisticsBuildStatus.Pending),
+                "SDK disconnect preserves both previously returned pending snapshot objects");
             service.GetMethod("OnBuildSuccess", Any).Invoke(null, new object[] { null, bundle });
             service.GetMethod("OnBuildFinish", Any).Invoke(null, new object[] { null, "Injected disconnected finish" });
-            check(ReferenceEquals(ModelStatisticsService.History[0], disconnected),
-                "SDK notifications after disconnect cannot complete the abandoned pending build");
+            check(ModelStatisticsService.History.Take(2).SequenceEqual(disconnected),
+                "SDK notifications after disconnect cannot complete either abandoned platform record");
 
             service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
             observer.OnPreprocessAvatar(avatar);
-            var pendingReload = ModelStatisticsService.History[0];
+            var pendingReload = ModelStatisticsService.History.Take(2).ToArray();
             var storedPending = SessionState.GetString(HistoryKey, string.Empty);
             service.GetMethod("OnBuildError", Any).Invoke(null, new object[] { null, "Reset injected build correlation" });
             SessionState.SetString(HistoryKey, storedPending);
             service.GetMethod("RestoreHistory", Any).Invoke(null, null);
-            var recovered = ModelStatisticsService.History[0];
-            check(recovered.Id == pendingReload.Id && recovered.BuildStatus == ModelStatisticsBuildStatus.Unconfirmed &&
-                recovered.Source == ModelStatisticsSource.SdkPreprocess && recovered.BundleBytes == -1 &&
-                Number(recovered, AvatarPerformanceCategory.PolyCount) == 24,
-                "Restoring a session after domain reload retains metrics and marks pending completion unconfirmed");
+            var recovered = ModelStatisticsService.History.Take(2).ToArray();
+            check(SameIds(pendingReload, recovered) && recovered.All(snapshot =>
+                snapshot.BuildStatus == ModelStatisticsBuildStatus.Unconfirmed &&
+                snapshot.Source == ModelStatisticsSource.SdkPreprocess && snapshot.BundleBytes == -1 &&
+                Number(snapshot, AvatarPerformanceCategory.PolyCount) == 24),
+                "Restoring session history preserves both sets of metrics and marks pending completion unconfirmed");
             var restoredStored = JsonUtility.FromJson<StoredHistory>(SessionState.GetString(HistoryKey, string.Empty));
-            check(restoredStored.Snapshots[0].Id == pendingReload.Id &&
-                restoredStored.Snapshots[0].BuildStatus == ModelStatisticsBuildStatus.Unconfirmed,
-                "Recovered unconfirmed status is written back to SessionState instead of repeatedly restoring pending");
+            check(SameIds(pendingReload, restoredStored.Snapshots.Take(2)) &&
+                restoredStored.Snapshots.Take(2).All(snapshot => snapshot.BuildStatus == ModelStatisticsBuildStatus.Unconfirmed),
+                "Both recovered unconfirmed platform records are written back to SessionState");
         }
         finally
         {
@@ -348,6 +360,7 @@ public static class UnityProStatisticsChecks
         try
         {
             EditorLocalization.Language = ProLanguage.English;
+            new ModelStatisticsPreprocessCallback().OnPreprocessAvatar(avatar);
             var otherSnapshot = ModelStatisticsService.Capture(otherAvatar, false);
             window = ScriptableObject.CreateInstance<ModelStatisticsWindow>();
             var defaultStyles = Enumerable.Range(0, window.rootVisualElement.styleSheets.count)
@@ -362,9 +375,11 @@ public static class UnityProStatisticsChecks
                 "Statistics window attaches to Unity's panel and retains editor/external stylesheets");
             check(window.rootVisualElement.Q<ObjectField>("avatarField") != null &&
                 window.rootVisualElement.Q<DropdownField>("platformField") != null &&
+                window.rootVisualElement.Q<DropdownField>("stageField") != null &&
                 window.rootVisualElement.Q<DropdownField>("snapshotField") != null &&
                 window.rootVisualElement.Q<Button>("refreshButton") != null &&
                 window.rootVisualElement.Q<Button>("useSelectedButton") != null &&
+                window.rootVisualElement.Q<Button>("allAvatarsButton") != null &&
                 window.rootVisualElement.Q("statusLabel") != null &&
                 window.rootVisualElement.Q("metricsTable") != null,
                 "Statistics window exposes avatar, platform, history, refresh and metric controls");
@@ -373,27 +388,40 @@ public static class UnityProStatisticsChecks
             platform.index = 0;
             typeof(ModelStatisticsWindow).GetMethod("CaptureSelected", Any).Invoke(window, null);
             check(ModelStatisticsService.History[0].AvatarName == "Tools" &&
-                ModelStatisticsService.History[0].Source == ModelStatisticsSource.CurrentAvatar,
-                "Window refresh measures the selected avatar without running a build");
-            var visibleSnapshots = (IEnumerable<ModelStatisticsSnapshot>)typeof(ModelStatisticsWindow)
-                .GetField("_snapshots", Any).GetValue(window);
+                ModelStatisticsService.History[0].Source == ModelStatisticsSource.BeforeProcessing,
+                "Edit Mode refresh records before-processing data without running processors or a build");
+            var visibleSnapshots = VisibleSnapshots(window);
             check(ModelStatisticsService.History.Any(snapshot => snapshot.Id == otherSnapshot.Id) &&
                 visibleSnapshots.Any() && visibleSnapshots.All(snapshot => snapshot.AvatarIdentity != otherSnapshot.AvatarIdentity),
                 "Window history excludes snapshots from a different unsaved avatar with the same name");
             var selectionId = ModelStatisticsService.History[0].Id;
             check(window.rootVisualElement.Q("metricsTable").childCount ==
                 ModelStatisticsService.History[0].Metrics.Count + 1 &&
-                window.rootVisualElement.Q<HelpBox>("statusLabel").text.Contains("Current Avatar Snapshot"),
-                "Window renders every SDK metric with an explicit current-state source label");
+                window.rootVisualElement.Q<HelpBox>("statusLabel").text.Contains("Before Processing"),
+                "Window renders every SDK metric and explicitly labels the before-processing source");
+            var stage = window.rootVisualElement.Q<DropdownField>("stageField");
+            check(stage.choices.SequenceEqual(new[] { "All Stages", "Before Processing", "After Play Mode Processing",
+                "After SDK Processing", "Current Play Mode State", "Legacy Snapshots" }),
+                "Statistics window separates before-processing, Play, SDK, current-state and legacy stages");
+            stage.index = 3;
+            platform.index = 1;
+            var sdkRows = VisibleSnapshots(window).ToArray();
+            check(sdkRows.Length > 0 && sdkRows.All(snapshot => snapshot.IsMobile &&
+                (snapshot.Source == ModelStatisticsSource.SdkPreprocess || snapshot.Source == ModelStatisticsSource.SdkBuild)),
+                "SDK stage selection filters history to the selected platform's processed snapshots");
+            selectionId = (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window);
+            var latestId = ModelStatisticsService.History[0].Id;
             check(window.titleContent.text == "Model Statistics", "Statistics window has its English title");
             EditorLocalization.Language = ProLanguage.SimplifiedChinese;
             check(window.titleContent.text == "模型指标" &&
-                window.rootVisualElement.Q<Button>("refreshButton").text == EditorLocalization.Tr("Measure Current Avatar"),
+                window.rootVisualElement.Q<Button>("refreshButton").text == EditorLocalization.Tr("Measure Before Processing"),
                 "Open statistics window updates its Chinese title and action captions live");
             check(window.rootVisualElement.Q<ObjectField>("avatarField").value == avatar && avatar.name == "Tools" &&
-                ModelStatisticsService.History[0].Id == selectionId &&
+                ModelStatisticsService.History[0].Id == latestId &&
+                window.rootVisualElement.Q<DropdownField>("platformField").index == 1 &&
+                window.rootVisualElement.Q<DropdownField>("stageField").index == 3 &&
                 (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window) == selectionId,
-                "Language switching retains the chosen avatar and snapshot without changing identifiers or recapturing");
+                "Language switching retains avatar, platform, processing stage and selected snapshot without recapturing");
             var styleCount = window.rootVisualElement.styleSheets.count;
             window.CreateGUI();
             EditorLocalization.Language = ProLanguage.English;
@@ -401,12 +429,25 @@ public static class UnityProStatisticsChecks
                 defaultStyles.All(window.rootVisualElement.styleSheets.Contains) &&
                 window.rootVisualElement.styleSheets.Contains(externalStyle),
                 "Statistics rebuilds and language changes preserve Unity styling without duplicate stylesheets");
-            window.rootVisualElement.Q<DropdownField>("platformField").index = 1;
+            window.rootVisualElement.Q<DropdownField>("stageField").index = 1;
+            check(VisibleSnapshots(window).Any() && VisibleSnapshots(window).All(snapshot =>
+                snapshot.Source == ModelStatisticsSource.BeforeProcessing && snapshot.IsMobile),
+                "Before-processing history remains available as an independent stage");
+            window.rootVisualElement.Q<DropdownField>("stageField").index = 3;
             typeof(ModelStatisticsWindow).GetMethod("CaptureSelected", Any).Invoke(window, null);
             check(ModelStatisticsService.History[0].IsMobile &&
+                window.rootVisualElement.Q<DropdownField>("stageField").index == 1 &&
                 (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window) ==
                 ModelStatisticsService.History[0].Id,
-                "Window platform selector captures and selects Mobile SDK statistics");
+                "Manual measurement switches from the SDK stage to its new before-processing Mobile record");
+            window.rootVisualElement.Q<DropdownField>("platformField").index = 0;
+            var beforeAll = ModelStatisticsService.History.Count;
+            typeof(ModelStatisticsWindow).GetMethod("ShowAllAvatars", Any).Invoke(window, null);
+            check(window.rootVisualElement.Q<ObjectField>("avatarField").value == null &&
+                ModelStatisticsService.History.Count == beforeAll &&
+                VisibleSnapshots(window).Any(snapshot => snapshot.AvatarIdentity == otherSnapshot.AvatarIdentity) &&
+                window.rootVisualElement.Q<DropdownField>("stageField").index == 1,
+                "All Avatars removes identity filtering while preserving stage and measurements");
             var beforeInvalid = ModelStatisticsService.History[0].Id;
             window.rootVisualElement.Q<ObjectField>("avatarField").value = null;
             typeof(ModelStatisticsWindow).GetMethod("CaptureSelected", Any).Invoke(window, null);
@@ -431,12 +472,225 @@ public static class UnityProStatisticsChecks
         }
     }
 
+    private static void CheckLegacyHistory(GameObject avatar, Action<bool, string> check)
+    {
+        var previousHistory = ModelStatisticsService.History.ToArray();
+        var previousStored = SessionState.GetString(HistoryKey, string.Empty);
+        var previousLanguage = EditorLocalization.Language;
+        ModelStatisticsWindow window = null;
+        try
+        {
+            var beforeProcessing = ModelStatisticsService.CaptureBeforeProcessing(avatar, false);
+            new ModelStatisticsPreprocessCallback().OnPreprocessAvatar(avatar);
+            var currentSdk = ModelStatisticsService.History.First(snapshot => !snapshot.IsMobile);
+            check(beforeProcessing.FormatVersion == 1 && currentSdk.FormatVersion == 1,
+                "New before-processing and SDK measurements explicitly identify the current snapshot format");
+
+            var oldPreprocess = JsonUtility.FromJson<ModelStatisticsSnapshot>(JsonUtility.ToJson(currentSdk));
+            var oldBuild = JsonUtility.FromJson<ModelStatisticsSnapshot>(JsonUtility.ToJson(currentSdk));
+            typeof(ModelStatisticsSnapshot).GetField("id", Any).SetValue(oldPreprocess, "legacy-sdk-preprocess");
+            typeof(ModelStatisticsSnapshot).GetField("id", Any).SetValue(oldBuild, "legacy-sdk-build");
+            typeof(ModelStatisticsSnapshot).GetField("source", Any).SetValue(oldBuild, ModelStatisticsSource.SdkBuild);
+            typeof(ModelStatisticsSnapshot).GetField("buildStatus", Any).SetValue(oldBuild, ModelStatisticsBuildStatus.Succeeded);
+            foreach (var oldSnapshot in new[] { oldPreprocess, oldBuild })
+                typeof(ModelStatisticsMetric).GetField("value", Any)
+                    .SetValue(Metric(oldSnapshot, AvatarPerformanceCategory.AABB), "1 × 1 × 1");
+
+            var oldPreprocessJson = WithoutFormatVersion(JsonUtility.ToJson(oldPreprocess));
+            var oldBuildJson = WithoutFormatVersion(JsonUtility.ToJson(oldBuild));
+            check(!oldPreprocessJson.Contains("formatVersion") && !oldBuildJson.Contains("formatVersion"),
+                "Legacy fixture JSON omits the format marker as historical SDK records did");
+            SessionState.SetString(HistoryKey, "{\"Snapshots\":[" + oldPreprocessJson + "," + oldBuildJson + "," +
+                JsonUtility.ToJson(currentSdk) + "]}");
+            typeof(ModelStatisticsService).GetMethod("RestoreHistory", Any).Invoke(null, null);
+            var restored = ModelStatisticsService.History.ToArray();
+            check(restored.Length == 3 && restored[0].FormatVersion == 0 && restored[1].FormatVersion == 0 &&
+                restored[0].Source == ModelStatisticsSource.SdkPreprocess && restored[1].Source == ModelStatisticsSource.SdkBuild &&
+                restored[2].FormatVersion == 1,
+                "Restoring old SDK JSON preserves source identifiers and separates missing format markers from current records");
+            check(restored.Take(2).All(snapshot => Metric(snapshot, AvatarPerformanceCategory.AABB).Value == "1 × 1 × 1"),
+                "Legacy SDK bounds retain their original size-only values without a misleading data conversion");
+
+            EditorLocalization.Language = ProLanguage.English;
+            window = ScriptableObject.CreateInstance<ModelStatisticsWindow>();
+            window.Show();
+            window.CreateGUI();
+            window.rootVisualElement.Q<ObjectField>("avatarField").value = avatar;
+            window.rootVisualElement.Q<DropdownField>("platformField").index = 0;
+            window.rootVisualElement.Q<DropdownField>("stageField").index = 5;
+            var legacyRows = VisibleSnapshots(window).ToArray();
+            check(legacyRows.Length == 2 && legacyRows.All(snapshot => snapshot.FormatVersion == 0) &&
+                legacyRows.Any(snapshot => snapshot.Source == ModelStatisticsSource.SdkPreprocess) &&
+                legacyRows.Any(snapshot => snapshot.Source == ModelStatisticsSource.SdkBuild),
+                "Legacy stage includes old SDK preprocess and build records despite their unchanged source identifiers");
+            check(window.rootVisualElement.Q<HelpBox>("statusLabel").text.Contains("Legacy Snapshot") &&
+                window.rootVisualElement.Q("metricsTable").Query<Label>().ToList().Any(label => label.text == "Bounds Size"),
+                "Legacy SDK display identifies historical semantics and labels its bounds as size only");
+            window.rootVisualElement.Q<DropdownField>("stageField").index = 3;
+            var currentRows = VisibleSnapshots(window).ToArray();
+            check(currentRows.Length == 1 && currentRows[0].Id == currentSdk.Id && currentRows[0].FormatVersion == 1 &&
+                !window.rootVisualElement.Q<HelpBox>("statusLabel").text.Contains("Legacy Snapshot"),
+                "Current SDK stage excludes historical format-zero records and retains newly measured SDK data");
+        }
+        finally
+        {
+            if (window) UnityEngine.Object.DestroyImmediate(window);
+            EditorLocalization.Language = previousLanguage;
+            var history = (IList)typeof(ModelStatisticsService).GetField("Snapshots", Any).GetValue(null);
+            history.Clear();
+            foreach (var snapshot in previousHistory) history.Add(snapshot);
+            if (string.IsNullOrEmpty(previousStored)) SessionState.EraseString(HistoryKey);
+            else SessionState.SetString(HistoryKey, previousStored);
+        }
+    }
+
+    private static string WithoutFormatVersion(string json)
+    {
+        var withoutLeading = Regex.Replace(json, "\"formatVersion\"\\s*:\\s*\\d+\\s*,", string.Empty);
+        return Regex.Replace(withoutLeading, ",\\s*\"formatVersion\"\\s*:\\s*\\d+\\s*(?=\\})", string.Empty);
+    }
+
     private static GameObject Cube(Transform parent, string name)
     {
         var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
         cube.name = name;
         cube.transform.SetParent(parent, false);
         return cube;
+    }
+
+    private static IEnumerable<ModelStatisticsSnapshot> VisibleSnapshots(ModelStatisticsWindow window)
+    {
+        return (IEnumerable<ModelStatisticsSnapshot>)typeof(ModelStatisticsWindow).GetField("_snapshots", Any).GetValue(window);
+    }
+
+    private static bool SameIds(IEnumerable<ModelStatisticsSnapshot> first, IEnumerable<ModelStatisticsSnapshot> second)
+    {
+        return first.Select(snapshot => snapshot.Id).OrderBy(id => id)
+            .SequenceEqual(second.Select(snapshot => snapshot.Id).OrderBy(id => id));
+    }
+
+    private static void CheckSdkMetrics(ModelStatisticsSnapshot snapshot, AvatarPerformanceStats sdk,
+        Action<bool, string> check)
+    {
+        var expected = new Dictionary<AvatarPerformanceCategory, object>
+        {
+            { AvatarPerformanceCategory.DownloadSize, sdk.downloadSizeBytes / 1048576.0 },
+            { AvatarPerformanceCategory.UncompressedSize, sdk.uncompressedSizeBytes / 1048576.0 },
+            { AvatarPerformanceCategory.PolyCount, sdk.polyCount },
+            { AvatarPerformanceCategory.AABB, sdk.aabb?.ToString() },
+            { AvatarPerformanceCategory.SkinnedMeshCount, sdk.skinnedMeshCount },
+            { AvatarPerformanceCategory.MeshCount, sdk.meshCount },
+            { AvatarPerformanceCategory.MaterialCount, sdk.materialCount },
+            { AvatarPerformanceCategory.PhysBoneComponentCount, sdk.physBone?.componentCount ?? 0 },
+            { AvatarPerformanceCategory.PhysBoneTransformCount, sdk.physBone?.transformCount ?? 0 },
+            { AvatarPerformanceCategory.PhysBoneColliderCount, sdk.physBone?.colliderCount ?? 0 },
+            { AvatarPerformanceCategory.PhysBoneCollisionCheckCount, sdk.physBone?.collisionCheckCount ?? 0 },
+            { AvatarPerformanceCategory.ContactCount, sdk.contactCount },
+            { AvatarPerformanceCategory.AnimatorCount, sdk.animatorCount },
+            { AvatarPerformanceCategory.BoneCount, sdk.boneCount },
+            { AvatarPerformanceCategory.LightCount, sdk.lightCount },
+            { AvatarPerformanceCategory.ParticleSystemCount, sdk.particleSystemCount },
+            { AvatarPerformanceCategory.ParticleTotalCount, sdk.particleTotalCount },
+            { AvatarPerformanceCategory.ParticleMaxMeshPolyCount, sdk.particleMaxMeshPolyCount },
+            { AvatarPerformanceCategory.ParticleTrailsEnabled, sdk.particleTrailsEnabled },
+            { AvatarPerformanceCategory.ParticleCollisionEnabled, sdk.particleCollisionEnabled },
+            { AvatarPerformanceCategory.TrailRendererCount, sdk.trailRendererCount },
+            { AvatarPerformanceCategory.LineRendererCount, sdk.lineRendererCount },
+            { AvatarPerformanceCategory.ClothCount, sdk.clothCount },
+            { AvatarPerformanceCategory.ClothMaxVertices, sdk.clothMaxVertices },
+            { AvatarPerformanceCategory.PhysicsColliderCount, sdk.physicsColliderCount },
+            { AvatarPerformanceCategory.PhysicsRigidbodyCount, sdk.physicsRigidbodyCount },
+            { AvatarPerformanceCategory.AudioSourceCount, sdk.audioSourceCount },
+            { AvatarPerformanceCategory.TextureMegabytes, sdk.textureMegabytes },
+            { AvatarPerformanceCategory.ConstraintsCount, sdk.constraintsCount },
+            { AvatarPerformanceCategory.ConstraintDepth, sdk.constraintDepth },
+            { AvatarPerformanceCategory.RaycastCount, sdk.raycastCount }
+        };
+        foreach (var pair in expected)
+        {
+            var metric = Metric(snapshot, pair.Key);
+            var formatted = pair.Value == null ? null :
+                pair.Key == AvatarPerformanceCategory.TextureMegabytes ||
+                pair.Key == AvatarPerformanceCategory.DownloadSize ||
+                pair.Key == AvatarPerformanceCategory.UncompressedSize
+                    ? ((IFormattable)pair.Value).ToString("F2", CultureInfo.CurrentCulture)
+                    : Convert.ToString(pair.Value, CultureInfo.InvariantCulture);
+            check(metric.IsAvailable == (pair.Value != null) && metric.Value == formatted &&
+                metric.Rating == sdk.GetPerformanceRatingForCategory(pair.Key),
+                "Statistics match independent SDK value, availability and rating for " +
+                (snapshot.IsMobile ? "Mobile " : "PC ") + pair.Key);
+        }
+    }
+
+    // The Play lifecycle runner calls this after entering Play Mode with its own
+    // disposable fixture; Run() above remains an Edit Mode acceptance entry.
+    public static void CheckPlayModeCapture(GameObject avatar, Action<bool, string> check)
+    {
+        check(EditorApplication.isPlaying, "Current Play Mode capture is verified inside a running Play session");
+        var desktop = ModelStatisticsService.Capture(avatar, false);
+        var mobile = ModelStatisticsService.Capture(avatar, true);
+        check(desktop.Source == ModelStatisticsSource.CurrentPlayMode && mobile.Source == ModelStatisticsSource.CurrentPlayMode &&
+            !desktop.IsMobile && mobile.IsMobile && desktop.AvatarIdentity == mobile.AvatarIdentity &&
+            desktop.BuildStatus == ModelStatisticsBuildStatus.NotApplicable && mobile.BuildStatus == ModelStatisticsBuildStatus.NotApplicable,
+            "Manual Play measurements use the current-state stage for both rating platforms");
+        var desktopSdk = new AvatarPerformanceStats(false);
+        AvatarPerformance.CalculatePerformanceStats(avatar.name, avatar, desktopSdk, false);
+        var mobileSdk = new AvatarPerformanceStats(true);
+        AvatarPerformance.CalculatePerformanceStats(avatar.name, avatar, mobileSdk, true);
+        CheckSdkMetrics(desktop, desktopSdk, check);
+        CheckSdkMetrics(mobile, mobileSdk, check);
+        var beforeReject = ModelStatisticsService.History[0].Id;
+        var rejected = false;
+        try { ModelStatisticsService.CaptureBeforeProcessing(avatar, false); }
+        catch (InvalidOperationException) { rejected = true; }
+        check(rejected && ModelStatisticsService.History[0].Id == beforeReject,
+            "Play Mode cannot publish a misleading new before-processing observation");
+    }
+
+    private static void CheckOptionalSdkMetrics(Action<bool, string> check)
+    {
+        var sdk = new AvatarPerformanceStats(false)
+        {
+            downloadSizeBytes = null,
+            uncompressedSizeBytes = null,
+            constraintDepth = null,
+            physBone = null
+        };
+        sdk.CalculateAllPerformanceRatings(false);
+        var buildMetrics = typeof(ModelStatisticsService).GetMethod("BuildMetrics", Any);
+        var unavailable = ((IEnumerable<ModelStatisticsMetric>)buildMetrics.Invoke(null, new object[] { sdk })).ToArray();
+        foreach (var category in new[] { AvatarPerformanceCategory.DownloadSize, AvatarPerformanceCategory.UncompressedSize,
+            AvatarPerformanceCategory.ConstraintDepth })
+        {
+            var metric = unavailable.Single(item => item.Category == category);
+            check(!metric.IsAvailable && metric.Value == null && metric.Rating == sdk.GetPerformanceRatingForCategory(category),
+                "An absent SDK " + category + " remains unavailable with its original SDK grade");
+        }
+        check(new[] { AvatarPerformanceCategory.PhysBoneComponentCount, AvatarPerformanceCategory.PhysBoneTransformCount,
+            AvatarPerformanceCategory.PhysBoneColliderCount, AvatarPerformanceCategory.PhysBoneCollisionCheckCount }
+            .All(category => unavailable.Single(item => item.Category == category).Value == "0" &&
+                unavailable.Single(item => item.Category == category).IsAvailable &&
+                unavailable.Single(item => item.Category == category).Rating == sdk.GetPerformanceRatingForCategory(category)),
+            "Missing SDK PhysBone statistics display APW's zero counts without inventing different grades");
+
+        sdk.downloadSizeBytes = 1310720;
+        sdk.uncompressedSizeBytes = 2621440;
+        sdk.textureMegabytes = 12.3456f;
+        sdk.constraintDepth = 7;
+        sdk.aabb = new Bounds(new Vector3(1f, 2f, 3f), new Vector3(4f, 6f, 8f));
+        sdk.CalculateAllPerformanceRatings(false);
+        var available = ((IEnumerable<ModelStatisticsMetric>)buildMetrics.Invoke(null, new object[] { sdk })).ToArray();
+        check(available.Single(item => item.Category == AvatarPerformanceCategory.DownloadSize).Value == 1.25.ToString("F2", CultureInfo.CurrentCulture) &&
+            available.Single(item => item.Category == AvatarPerformanceCategory.UncompressedSize).Value == 2.5.ToString("F2", CultureInfo.CurrentCulture) &&
+            available.Single(item => item.Category == AvatarPerformanceCategory.TextureMegabytes).Value == 12.35.ToString("F2", CultureInfo.CurrentCulture),
+            "SDK byte sizes and texture memory are represented in megabytes to two decimal places");
+        check(available.Single(item => item.Category == AvatarPerformanceCategory.ConstraintDepth).IsAvailable &&
+            available.Single(item => item.Category == AvatarPerformanceCategory.ConstraintDepth).Value == "7" &&
+            available.Single(item => item.Category == AvatarPerformanceCategory.ConstraintDepth).Rating ==
+                sdk.GetPerformanceRatingForCategory(AvatarPerformanceCategory.ConstraintDepth),
+            "A known SDK constraint depth is displayed with its original SDK grade");
+        check(available.Single(item => item.Category == AvatarPerformanceCategory.AABB).Value == sdk.aabb.Value.ToString(),
+            "Bounds retain the SDK's full center and extents rather than only the size");
     }
 
     private static ModelStatisticsMetric Metric(ModelStatisticsSnapshot snapshot, AvatarPerformanceCategory category)

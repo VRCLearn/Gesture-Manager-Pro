@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+- Preserve **Before Processing** statistics as a separate feature, with manual Edit Mode capture, an observation while leaving Edit Mode, and a capture of the original avatar when an SDK build starts. Earlier mode-transition callbacks may already have changed the model when the transition observation runs.
+- Align processed statistics with Actual Performance Window: use the same SDK calculation and ratings for all 31 metrics, capture active scene avatars on the first Editor update in Play Mode, and observe the last-priority SDK preprocessing callback without repeating processors.
+- Keep current Play Mode scans separate from the automatic processed snapshot. Include simulator/runtime components exactly as the SDK sees them instead of filtering them out or recalculating grades.
+- Show the SDK's complete Bounds center/extents, raw constraint depth and available download/uncompressed sizes. Format texture memory and both size metrics to two decimal places in MB; retain the SDK rating when a value is unknown.
+- Retain the latest 48 Editor-session records. Add stage filtering and an **All Avatars** history view; identify models by object identity rather than merging same-name avatars. Keep old current-state and preview records in a separate legacy group.
+- Record both PC and Mobile ratings at each automatic capture. Identify the actual SDK build platform and attach a successful bundle's file size only to its matching platform record; a second rating does not imply a second platform build or asset import.
+- Keep SDK preprocessing observations separate from later SDK work, bundle generation and upload. A successful build confirms the SDK build event, without claiming that the recorded metrics represent every later transformation or measured client performance.
+
 ## 0.3.0
 
 - Replace the Inspector's Discord-name button with **Model Statistics**, also available directly under Tools and while an avatar is connected.

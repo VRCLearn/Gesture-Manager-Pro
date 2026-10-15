@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
-using VRC.Dynamics;
+using UnityEngine.SceneManagement;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3A.Editor;
 using VRC.SDKBase.Validation.Performance;
@@ -12,19 +12,27 @@ using VRC.SDKBase.Validation.Performance.Stats;
 
 namespace VRCLearn.GestureManagerPro.Diagnostics
 {
-    /// <summary>Read-only SDK statistics, with a bounded Editor-session history.</summary>
+    /// <summary>SDK statistics with Actual Performance Window semantics and separate processing stages.</summary>
     [InitializeOnLoad]
     public static class ModelStatisticsService
     {
         private const string HistoryKey = "VRCLearn.GestureManagerPro.ModelStatistics.History.v1";
-        private const int HistoryLimit = 12;
+        private const int HistoryLimit = 48;
+        private const string CurrentEditNotes = "Current Edit Mode state. No build or optimizer was invoked by this capture.";
+        private const string BeforePlayNotes = "Captured while leaving Edit Mode, before this package's Play Mode sampling. Changes made by earlier transition callbacks may already be present.";
+        private const string BeforeBuildNotes = "Captured from the original avatar at SDK build start, before SDK preprocessing.";
+        private const string CurrentPlayNotes = "Current Play Mode state. This snapshot may include changes made by simulators and other runtime scripts.";
+        private const string ProcessedPlayNotes = "Captured on the first Editor update in Play Mode, using the same SDK calculation as Actual Performance Window. Only processing completed before capture is included.";
+        private const string ProcessedSdkNotes = "SDK preprocessing snapshot at the last callback priority. Later SDK processing and bundle generation are not included; build success is recorded only when the SDK reports it.";
         private static readonly List<ModelStatisticsSnapshot> Snapshots = new List<ModelStatisticsSnapshot>();
+        private static readonly List<string> PendingBuildSnapshotIds = new List<string>();
         private static IVRCSdkAvatarBuilderApi builder;
         private static string buildAvatarIdentity;
         private static string buildAvatarName;
-        private static string pendingBuildSnapshotId;
         private static bool buildActive;
         private static bool buildMobile;
+        private static bool playModeCaptured;
+        private static bool leavingPlayMode;
 
         [Serializable]
         private sealed class StoredHistory
@@ -41,6 +49,8 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             VRCSdkControlPanel.OnSdkPanelEnable += OnSdkPanelEnabled;
             VRCSdkControlPanel.OnSdkPanelDisable += OnSdkPanelDisabled;
             EditorApplication.delayCall += ConnectBuilder;
+            EditorApplication.update += OnEditorUpdate;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             AssemblyReloadEvents.beforeAssemblyReload += DisconnectBuilder;
         }
 
@@ -48,78 +58,63 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         {
             Snapshots.Clear();
             var stored = SessionState.GetString(HistoryKey, string.Empty);
-            if (!string.IsNullOrEmpty(stored))
+            if (string.IsNullOrEmpty(stored)) return;
+            try
             {
-                try
+                var history = JsonUtility.FromJson<StoredHistory>(stored);
+                if (history?.Snapshots != null) Snapshots.AddRange(history.Snapshots);
+                Snapshots.RemoveAll(snapshot => snapshot == null);
+                if (Snapshots.Count > HistoryLimit) Snapshots.RemoveRange(HistoryLimit, Snapshots.Count - HistoryLimit);
+                var recoveredPending = false;
+                for (var index = 0; index < Snapshots.Count; index++)
                 {
-                    var history = JsonUtility.FromJson<StoredHistory>(stored);
-                    if (history?.Snapshots != null) Snapshots.AddRange(history.Snapshots);
-                    if (Snapshots.Count > HistoryLimit) Snapshots.RemoveRange(HistoryLimit, Snapshots.Count - HistoryLimit);
-                    var recoveredPending = false;
-                    for (var index = 0; index < Snapshots.Count; index++)
-                    {
-                        if (Snapshots[index].BuildStatus != ModelStatisticsBuildStatus.Pending) continue;
-                        Snapshots[index] = Snapshots[index].MarkBuildUnconfirmed();
-                        recoveredPending = true;
-                    }
-                    // A domain reload loses SDK event correlation. Keep the observed preprocessing data,
-                    // but do not leave an old record claiming that completion can still be observed.
-                    if (recoveredPending)
-                        SessionState.SetString(HistoryKey, JsonUtility.ToJson(new StoredHistory { Snapshots = Snapshots }));
+                    if (Snapshots[index].BuildStatus != ModelStatisticsBuildStatus.Pending) continue;
+                    Snapshots[index] = Snapshots[index].MarkBuildUnconfirmed();
+                    recoveredPending = true;
                 }
-                catch (ArgumentException)
-                {
-                    SessionState.EraseString(HistoryKey);
-                }
+                // A domain reload loses SDK event correlation, while the immutable observations remain useful.
+                if (recoveredPending) PersistHistory();
+            }
+            catch (ArgumentException)
+            {
+                SessionState.EraseString(HistoryKey);
             }
         }
 
-        /// <summary>Reads the avatar as it exists now. It does not invoke a build or preprocessing.</summary>
+        /// <summary>Reads the current avatar without running a build or any preprocessing.</summary>
         public static ModelStatisticsSnapshot Capture(GameObject avatar, bool mobile)
         {
-            return CaptureAndStore(avatar, mobile, ModelStatisticsSource.CurrentAvatar,
-                ModelStatisticsBuildStatus.NotApplicable, null, null,
-                EditorApplication.isPlaying
-                    ? "Current Play Mode state; simulator-generated temporary components are excluded. This is not an upload result."
-                    : "Current avatar before SDK build preprocessing. This is not an upload result.");
+            return EditorApplication.isPlaying
+                ? CaptureAndStore(avatar, mobile, ModelStatisticsSource.CurrentPlayMode,
+                    ModelStatisticsBuildStatus.NotApplicable, null, null, CurrentPlayNotes)
+                : CaptureBeforeProcessing(avatar, mobile);
         }
 
-        /// <summary>Call before the simulator modifies the Play Mode avatar.</summary>
-        public static ModelStatisticsSnapshot CapturePreview(GameObject avatar, bool mobile)
+        public static ModelStatisticsSnapshot CaptureBeforeProcessing(GameObject avatar, bool mobile)
         {
-            return CaptureAndStore(avatar, mobile, ModelStatisticsSource.PlayModePreview,
-                ModelStatisticsBuildStatus.NotApplicable, null, null,
-                "Play Mode preview before Gesture Manager simulation. Only processors already run at capture time are included; this is not an upload result.");
+            if (EditorApplication.isPlaying)
+                throw new InvalidOperationException("Before-processing statistics can only be captured outside Play Mode.");
+            return CaptureAndStore(avatar, mobile, ModelStatisticsSource.BeforeProcessing,
+                ModelStatisticsBuildStatus.NotApplicable, null, null, CurrentEditNotes);
         }
 
         public static void ClearHistory()
         {
             Snapshots.Clear();
-            pendingBuildSnapshotId = null;
+            PendingBuildSnapshotIds.Clear();
             PersistAndNotify();
         }
 
-        /// <summary>Called by the last-order SDK preprocess observer; failures never block the SDK pipeline.</summary>
+        /// <summary>Observes the last SDK preprocessing priority; never starts or repeats a processor.</summary>
         internal static void ObservePreprocessedAvatar(GameObject avatar)
         {
             if (!avatar || !avatar.GetComponent<VRCAvatarDescriptor>()) return;
-            try
-            {
-                var belongsToBuild = buildActive &&
-                    (avatar.name == buildAvatarName || avatar.name == buildAvatarName + "(Clone)");
-                var source = belongsToBuild ? ModelStatisticsSource.SdkPreprocess
-                    : EditorApplication.isPlayingOrWillChangePlaymode ? ModelStatisticsSource.PlayModePreview
-                    : ModelStatisticsSource.SdkPreprocess;
-                var snapshot = CaptureAndStore(avatar, belongsToBuild ? buildMobile : IsCurrentPlatformMobile(), source,
-                    belongsToBuild ? ModelStatisticsBuildStatus.Pending : ModelStatisticsBuildStatus.NotApplicable,
-                    belongsToBuild ? buildAvatarIdentity : null, belongsToBuild ? buildAvatarName : null,
-                    "SDK preprocessing snapshot at the last callback priority. Later SDK processing and bundle generation are not included; build success is recorded only when the SDK reports it.");
-                if (belongsToBuild) pendingBuildSnapshotId = snapshot.Id;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning("Gesture Manager Pro could not capture model statistics: " + exception.Message);
-            }
+            var belongsToBuild = buildActive &&
+                (avatar.name == buildAvatarName || avatar.name == buildAvatarName + "(Clone)");
+            CapturePairSafely(avatar, ModelStatisticsSource.SdkPreprocess,
+                belongsToBuild ? ModelStatisticsBuildStatus.Pending : ModelStatisticsBuildStatus.NotApplicable,
+                belongsToBuild ? buildAvatarIdentity : null, belongsToBuild ? buildAvatarName : null,
+                ProcessedSdkNotes, belongsToBuild);
         }
 
         public static bool IsCurrentPlatformMobile()
@@ -128,50 +123,102 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
                 EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS;
         }
 
+        private static void OnPlayModeStateChanged(PlayModeStateChange state)
+        {
+            if (state == PlayModeStateChange.ExitingEditMode)
+            {
+                playModeCaptured = false;
+                leavingPlayMode = false;
+                // Unity has no priority for this event: earlier tools may already have changed the model.
+                CaptureSceneAvatars(ModelStatisticsSource.BeforeProcessing, BeforePlayNotes);
+            }
+            else if (state == PlayModeStateChange.ExitingPlayMode)
+            {
+                leavingPlayMode = true;
+            }
+            else if (state == PlayModeStateChange.EnteredEditMode)
+            {
+                playModeCaptured = false;
+                leavingPlayMode = false;
+            }
+        }
+
+        private static void OnEditorUpdate()
+        {
+            if (!EditorApplication.isPlaying)
+            {
+                playModeCaptured = false;
+                leavingPlayMode = false;
+                return;
+            }
+            if (playModeCaptured || leavingPlayMode) return;
+            playModeCaptured = true;
+            if (buildActive) return;
+            CaptureSceneAvatars(ModelStatisticsSource.PlayModeProcessed, ProcessedPlayNotes);
+        }
+
+        private static void CaptureSceneAvatars(ModelStatisticsSource source, string notes)
+        {
+            try
+            {
+                // Match APW's loaded-scene traversal and active-avatar selection. Manual capture can
+                // inspect inactive avatars. Runtime clones retain their own identity without name guessing.
+                for (var index = 0; index < SceneManager.sceneCount; index++)
+                {
+                    var scene = SceneManager.GetSceneAt(index);
+                    if (!scene.isLoaded) continue;
+                    foreach (var root in scene.GetRootGameObjects())
+                        foreach (var descriptor in root.GetComponentsInChildren<VRCAvatarDescriptor>())
+                            if (descriptor) CapturePairSafely(descriptor.gameObject, source,
+                                ModelStatisticsBuildStatus.NotApplicable, null, null, notes, false);
+                }
+            }
+            catch (Exception exception)
+            {
+                ReportCaptureFailure(exception);
+            }
+        }
+
+        private static void CapturePairSafely(GameObject avatar, ModelStatisticsSource source,
+            ModelStatisticsBuildStatus status, string identity, string name, string notes, bool associatedBuild)
+        {
+            for (var platform = 0; platform < 2; platform++)
+            {
+                try
+                {
+                    var snapshot = CaptureAndStore(avatar, platform != 0, source, status, identity, name, notes,
+                        associatedBuild, associatedBuild && buildMobile);
+                    if (associatedBuild && status == ModelStatisticsBuildStatus.Pending)
+                        PendingBuildSnapshotIds.Add(snapshot.Id);
+                }
+                catch (Exception exception)
+                {
+                    ReportCaptureFailure(exception);
+                }
+            }
+        }
+
+        private static void ReportCaptureFailure(Exception exception)
+        {
+            Debug.LogWarning("Gesture Manager Pro could not capture model statistics: " + exception.Message);
+        }
+
         private static ModelStatisticsSnapshot CaptureAndStore(GameObject avatar, bool mobile,
             ModelStatisticsSource source, ModelStatisticsBuildStatus buildStatus,
-            string identityOverride, string nameOverride, string notes)
+            string identityOverride, string nameOverride, string notes,
+            bool hasBuildPlatform = false, bool buildPlatformIsMobile = false)
         {
             if (!avatar || !avatar.GetComponent<VRCAvatarDescriptor>())
                 throw new ArgumentException("Select an avatar with a VRChat Avatar Descriptor.", nameof(avatar));
 
+            // APW delegates every metric and grade to the SDK, including simulator/runtime additions.
+            // Do not alter SDK ignore delegates, components, constraint execution groups or processor state.
             var stats = new AvatarPerformanceStats(mobile);
-            var originalIgnore = AvatarPerformance.ShouldIgnoreComponent;
-            var excludeSimulatorComponents = GestureManager.ControlledAvatars.ContainsKey(avatar);
-            try
-            {
-                if (excludeSimulatorComponents)
-                {
-                    AvatarPerformance.ShouldIgnoreComponent = component =>
-                        component && component.hideFlags == HideFlags.HideAndDontSave ||
-                        originalIgnore != null && originalIgnore(component);
-                }
-                AvatarPerformance.CalculatePerformanceStats(avatar.name, avatar, stats, mobile);
-                if (excludeSimulatorComponents && stats.contactCount.HasValue && stats.contactCompleteCount.HasValue)
-                {
-                    // SDK 3.10.x's Contact scanner enumerates ContactBase directly and does not apply
-                    // the SDK ignore delegate. Mirror its localOnly counting, applying our filter here.
-                    var completeCount = 0;
-                    var nonLocalCount = 0;
-                    foreach (var contact in avatar.GetComponentsInChildren<ContactBase>(true))
-                    {
-                        if (!contact || AvatarPerformance.ShouldIgnoreComponent(contact)) continue;
-                        completeCount++;
-                        if (!contact.localOnly) nonLocalCount++;
-                    }
-                    stats.contactCount = nonLocalCount;
-                    stats.contactCompleteCount = completeCount;
-                    stats.CalculateAllPerformanceRatings(mobile);
-                }
-            }
-            finally
-            {
-                AvatarPerformance.ShouldIgnoreComponent = originalIgnore;
-            }
-
+            AvatarPerformance.CalculatePerformanceStats(avatar.name, avatar, stats, mobile);
             var snapshot = new ModelStatisticsSnapshot(nameOverride ?? avatar.name,
                 identityOverride ?? GetAvatarIdentity(avatar), mobile, source, buildStatus,
-                stats.GetPerformanceRatingForCategory(AvatarPerformanceCategory.Overall), BuildMetrics(stats), notes);
+                stats.GetPerformanceRatingForCategory(AvatarPerformanceCategory.Overall), BuildMetrics(stats), notes,
+                hasBuildPlatform, buildPlatformIsMobile);
             Snapshots.Insert(0, snapshot);
             if (Snapshots.Count > HistoryLimit) Snapshots.RemoveAt(Snapshots.Count - 1);
             PersistAndNotify();
@@ -183,26 +230,23 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             if (!avatar) throw new ArgumentException("Select a model to identify.", nameof(avatar));
             var globalId = GlobalObjectId.GetGlobalObjectIdSlow(avatar);
             if (globalId.identifierType != 0) return globalId.ToString();
-            // Unsaved scenes and transient build clones have no durable global object id.
             return "session:" + avatar.GetInstanceID().ToString(CultureInfo.InvariantCulture);
         }
 
         private static List<ModelStatisticsMetric> BuildMetrics(AvatarPerformanceStats stats)
         {
             var metrics = new List<ModelStatisticsMetric>();
-            Add(metrics, stats, AvatarPerformanceCategory.DownloadSize, null);
-            Add(metrics, stats, AvatarPerformanceCategory.UncompressedSize, null);
+            Add(metrics, stats, AvatarPerformanceCategory.DownloadSize, FormatBytes(stats.downloadSizeBytes));
+            Add(metrics, stats, AvatarPerformanceCategory.UncompressedSize, FormatBytes(stats.uncompressedSizeBytes));
             Add(metrics, stats, AvatarPerformanceCategory.PolyCount, stats.polyCount);
-            Add(metrics, stats, AvatarPerformanceCategory.AABB, stats.aabb.HasValue
-                ? string.Format(CultureInfo.InvariantCulture, "{0:0.###} × {1:0.###} × {2:0.###}",
-                    stats.aabb.Value.size.x, stats.aabb.Value.size.y, stats.aabb.Value.size.z) : null);
+            Add(metrics, stats, AvatarPerformanceCategory.AABB, stats.aabb?.ToString());
             Add(metrics, stats, AvatarPerformanceCategory.SkinnedMeshCount, stats.skinnedMeshCount);
             Add(metrics, stats, AvatarPerformanceCategory.MeshCount, stats.meshCount);
             Add(metrics, stats, AvatarPerformanceCategory.MaterialCount, stats.materialCount);
-            Add(metrics, stats, AvatarPerformanceCategory.PhysBoneComponentCount, stats.physBone?.componentCount);
-            Add(metrics, stats, AvatarPerformanceCategory.PhysBoneTransformCount, stats.physBone?.transformCount);
-            Add(metrics, stats, AvatarPerformanceCategory.PhysBoneColliderCount, stats.physBone?.colliderCount);
-            Add(metrics, stats, AvatarPerformanceCategory.PhysBoneCollisionCheckCount, stats.physBone?.collisionCheckCount);
+            Add(metrics, stats, AvatarPerformanceCategory.PhysBoneComponentCount, stats.physBone?.componentCount ?? 0);
+            Add(metrics, stats, AvatarPerformanceCategory.PhysBoneTransformCount, stats.physBone?.transformCount ?? 0);
+            Add(metrics, stats, AvatarPerformanceCategory.PhysBoneColliderCount, stats.physBone?.colliderCount ?? 0);
+            Add(metrics, stats, AvatarPerformanceCategory.PhysBoneCollisionCheckCount, stats.physBone?.collisionCheckCount ?? 0);
             Add(metrics, stats, AvatarPerformanceCategory.ContactCount, stats.contactCount);
             Add(metrics, stats, AvatarPerformanceCategory.AnimatorCount, stats.animatorCount);
             Add(metrics, stats, AvatarPerformanceCategory.BoneCount, stats.boneCount);
@@ -219,14 +263,17 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             Add(metrics, stats, AvatarPerformanceCategory.PhysicsColliderCount, stats.physicsColliderCount);
             Add(metrics, stats, AvatarPerformanceCategory.PhysicsRigidbodyCount, stats.physicsRigidbodyCount);
             Add(metrics, stats, AvatarPerformanceCategory.AudioSourceCount, stats.audioSourceCount);
-            Add(metrics, stats, AvatarPerformanceCategory.TextureMegabytes, stats.textureMegabytes.HasValue
-                ? stats.textureMegabytes.Value.ToString("0.##", CultureInfo.InvariantCulture) : null);
+            Add(metrics, stats, AvatarPerformanceCategory.TextureMegabytes,
+                stats.textureMegabytes?.ToString("F2", CultureInfo.CurrentCulture));
             Add(metrics, stats, AvatarPerformanceCategory.ConstraintsCount, stats.constraintsCount);
-            // SDK validation refreshes internal execution groups before computing this value. That API is
-            // not public to tools, so a raw scan cannot promise an accurate constraint depth.
-            Add(metrics, stats, AvatarPerformanceCategory.ConstraintDepth, null);
+            Add(metrics, stats, AvatarPerformanceCategory.ConstraintDepth, stats.constraintDepth);
             Add(metrics, stats, AvatarPerformanceCategory.RaycastCount, stats.raycastCount);
             return metrics;
+        }
+
+        private static string FormatBytes(int? bytes)
+        {
+            return bytes.HasValue ? (bytes.Value / 1024.0 / 1024.0).ToString("F2", CultureInfo.CurrentCulture) : null;
         }
 
         private static void Add(List<ModelStatisticsMetric> metrics, AvatarPerformanceStats stats,
@@ -234,12 +281,17 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         {
             var formatted = value == null ? null : Convert.ToString(value, CultureInfo.InvariantCulture);
             metrics.Add(new ModelStatisticsMetric(category, formatted,
-                value == null ? PerformanceRating.None : stats.GetPerformanceRatingForCategory(category), value != null));
+                stats.GetPerformanceRatingForCategory(category), value != null));
+        }
+
+        private static void PersistHistory()
+        {
+            SessionState.SetString(HistoryKey, JsonUtility.ToJson(new StoredHistory { Snapshots = Snapshots }));
         }
 
         private static void PersistAndNotify()
         {
-            SessionState.SetString(HistoryKey, JsonUtility.ToJson(new StoredHistory { Snapshots = Snapshots }));
+            PersistHistory();
             if (Changed == null) return;
             foreach (Action listener in Changed.GetInvocationList())
             {
@@ -284,32 +336,45 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
                 builder.OnSdkBuildError -= OnBuildError;
                 builder.OnSdkBuildFinish -= OnBuildFinish;
             }
+            var changed = false;
             if (buildActive)
             {
                 for (var index = 0; index < Snapshots.Count; index++)
                 {
-                    if (Snapshots[index].Id != pendingBuildSnapshotId) continue;
+                    if (!PendingBuildSnapshotIds.Contains(Snapshots[index].Id)) continue;
                     Snapshots[index] = Snapshots[index].MarkBuildUnconfirmed();
-                    PersistAndNotify();
-                    break;
+                    changed = true;
                 }
             }
             builder = null;
             buildActive = false;
             buildAvatarIdentity = null;
             buildAvatarName = null;
-            pendingBuildSnapshotId = null;
+            PendingBuildSnapshotIds.Clear();
             buildMobile = false;
+            if (changed) PersistAndNotify();
         }
 
         private static void OnBuildStart(object sender, object target)
         {
-            var avatar = target as GameObject;
-            buildActive = avatar && avatar.GetComponent<VRCAvatarDescriptor>();
-            buildAvatarIdentity = buildActive ? GetAvatarIdentity(avatar) : null;
-            buildAvatarName = buildActive ? avatar.name : null;
-            buildMobile = IsCurrentPlatformMobile();
-            pendingBuildSnapshotId = null;
+            // Every automatic entry point must leave the SDK pipeline usable if diagnostics fails.
+            try
+            {
+                var avatar = target as GameObject;
+                buildActive = avatar && avatar.GetComponent<VRCAvatarDescriptor>();
+                buildAvatarIdentity = buildActive ? GetAvatarIdentity(avatar) : null;
+                buildAvatarName = buildActive ? avatar.name : null;
+                buildMobile = IsCurrentPlatformMobile();
+                PendingBuildSnapshotIds.Clear();
+                if (buildActive) CapturePairSafely(avatar, ModelStatisticsSource.BeforeProcessing,
+                    ModelStatisticsBuildStatus.NotApplicable, buildAvatarIdentity, buildAvatarName,
+                    BeforeBuildNotes, true);
+            }
+            catch (Exception exception)
+            {
+                buildActive = false;
+                ReportCaptureFailure(exception);
+            }
         }
 
         private static void OnBuildSuccess(object sender, string bundlePath)
@@ -338,14 +403,15 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         {
             if (!buildActive) return;
             buildActive = false;
+            var changed = false;
             for (var index = 0; index < Snapshots.Count; index++)
             {
-                if (Snapshots[index].Id != pendingBuildSnapshotId) continue;
+                if (!PendingBuildSnapshotIds.Contains(Snapshots[index].Id)) continue;
                 Snapshots[index] = Snapshots[index].CompleteBuild(succeeded, bytes);
-                PersistAndNotify();
-                break;
+                changed = true;
             }
-            pendingBuildSnapshotId = null;
+            PendingBuildSnapshotIds.Clear();
+            if (changed) PersistAndNotify();
         }
     }
 }

@@ -21,6 +21,7 @@ public static class UnityProPlayChecks
 {
     private const string PendingKey = "VRCLearn.GestureManagerPro.Validation.PlayPending";
     private const string DeadlineKey = "VRCLearn.GestureManagerPro.Validation.PlayDeadline";
+    private const string FirstUpdateKey = "VRCLearn.GestureManagerPro.Validation.PlayFirstUpdate";
     private static int _assertions;
     private static readonly string[] ParameterNames =
     {
@@ -34,6 +35,8 @@ public static class UnityProPlayChecks
 
     public static void Run()
     {
+        UnityProStatisticsLifecycleChecks.Prepare();
+        SessionState.SetBool(FirstUpdateKey, false);
         SessionState.SetBool(PendingKey, true);
         SessionState.SetString(DeadlineKey, DateTime.UtcNow.AddSeconds(90).Ticks.ToString());
         EditorApplication.update -= AwaitPlayMode;
@@ -52,11 +55,14 @@ public static class UnityProPlayChecks
             return;
         }
         if (!EditorApplication.isPlaying || EditorApplication.isCompiling) return;
+        // Let every first-Play-update observer run before checking its snapshots.
+        if (!SessionState.GetBool(FirstUpdateKey, false)) { SessionState.SetBool(FirstUpdateKey, true); return; }
         ClearPending();
         var exitCode = 1;
         try
         {
             _assertions = 0;
+            UnityProStatisticsLifecycleChecks.Run(Check);
             ExecuteChecks();
             UnityProCameraChecks.Run(Check);
             UnityProGraphChecks.RunChecks(Check);

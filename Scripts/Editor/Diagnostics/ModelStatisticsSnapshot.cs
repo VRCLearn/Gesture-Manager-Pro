@@ -10,7 +10,10 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         CurrentAvatar,
         PlayModePreview,
         SdkPreprocess,
-        SdkBuild
+        SdkBuild,
+        BeforeProcessing,
+        CurrentPlayMode,
+        PlayModeProcessed
     }
 
     public enum ModelStatisticsBuildStatus
@@ -50,6 +53,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
     public sealed class ModelStatisticsSnapshot
     {
         [SerializeField] private string id;
+        [SerializeField] private int formatVersion;
         [SerializeField] private string avatarName;
         [SerializeField] private string avatarIdentity;
         [SerializeField] private string capturedUtc;
@@ -60,8 +64,11 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         [SerializeField] private List<ModelStatisticsMetric> metrics = new List<ModelStatisticsMetric>();
         [SerializeField] private string notes;
         [SerializeField] private long bundleBytes = -1;
+        [SerializeField] private bool hasBuildPlatform;
+        [SerializeField] private bool buildPlatformIsMobile;
 
         public string Id => id;
+        public int FormatVersion => formatVersion;
         public string AvatarName => avatarName;
         public string AvatarIdentity => avatarIdentity;
         public string CapturedUtc => capturedUtc;
@@ -72,12 +79,16 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         public IReadOnlyList<ModelStatisticsMetric> Metrics => metrics.AsReadOnly();
         public string Notes => notes;
         public long BundleBytes => bundleBytes;
+        public bool HasBuildPlatform => hasBuildPlatform;
+        public bool BuildPlatformIsMobile => buildPlatformIsMobile;
 
         internal ModelStatisticsSnapshot(string avatarName, string avatarIdentity, bool isMobile,
             ModelStatisticsSource source, ModelStatisticsBuildStatus buildStatus,
-            PerformanceRating overallRating, List<ModelStatisticsMetric> metrics, string notes)
+            PerformanceRating overallRating, List<ModelStatisticsMetric> metrics, string notes,
+            bool hasBuildPlatform = false, bool buildPlatformIsMobile = false)
         {
             id = Guid.NewGuid().ToString("N");
+            formatVersion = 1;
             this.avatarName = avatarName;
             this.avatarIdentity = avatarIdentity;
             capturedUtc = DateTime.UtcNow.ToString("O");
@@ -87,6 +98,8 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             this.overallRating = overallRating;
             this.metrics = metrics;
             this.notes = notes;
+            this.hasBuildPlatform = hasBuildPlatform;
+            this.buildPlatformIsMobile = buildPlatformIsMobile;
         }
 
         internal ModelStatisticsSnapshot CompleteBuild(bool succeeded, long bytes)
@@ -94,7 +107,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             var completed = JsonUtility.FromJson<ModelStatisticsSnapshot>(JsonUtility.ToJson(this));
             completed.buildStatus = succeeded ? ModelStatisticsBuildStatus.Succeeded : ModelStatisticsBuildStatus.Failed;
             completed.source = succeeded ? ModelStatisticsSource.SdkBuild : ModelStatisticsSource.SdkPreprocess;
-            completed.bundleBytes = succeeded ? bytes : -1;
+            completed.bundleBytes = succeeded && (!hasBuildPlatform || isMobile == buildPlatformIsMobile) ? bytes : -1;
             return completed;
         }
 

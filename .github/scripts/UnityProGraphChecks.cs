@@ -86,16 +86,12 @@ public static class UnityProGraphChecks
             manager.settings = new ModuleSettings { vrMode = true };
             module = new ModuleVrc3(descriptor);
             check(module.IsValidDesc(), "A normal generic SDK3 descriptor is eligible for simulator initialization");
+            var statisticsCountBeforeInitialization = ModelStatisticsService.History.Count;
             manager.SetModule(module);
             check(ReferenceEquals(manager.Module, module) && module.Active && !module.IsInvalid(), "SetModule fully connects and initializes the simulator");
             check(GestureManager.ControlledAvatars.TryGetValue(avatar, out var connected) && ReferenceEquals(connected, module), "The actual Connect path registers avatar ownership");
-            var previewIdentity = ModelStatisticsService.GetAvatarIdentity(avatar);
-            var previews = ModelStatisticsService.History.Where(snapshot => snapshot.AvatarIdentity == previewIdentity &&
-                snapshot.Source == ModelStatisticsSource.PlayModePreview).ToArray();
-            check(previews.Any(snapshot => !snapshot.IsMobile) && previews.Any(snapshot => snapshot.IsMobile),
-                "The actual simulator initialization captures PC and Mobile preview statistics before its changes");
-            check(previews.All(snapshot => snapshot.BuildStatus == ModelStatisticsBuildStatus.NotApplicable && snapshot.BundleBytes < 0),
-                "Real simulator previews remain distinct from confirmed SDK build results");
+            check(ModelStatisticsService.History.Count == statisticsCountBeforeInitialization,
+                "Simulator initialization does not replace the independent before/after-processing sampling stages");
             check(module.Params.Count >= 30 && module.GetParam("Viseme") != null && module.GetParam("VelocityZ") != null, "Initialization creates the normal built-in parameter catalog");
             var graph = (PlayableGraph)typeof(ModuleVrc3).GetField("_playableGraph", Any).GetValue(module);
             check(graph.IsValid() && graph.IsPlaying() && graph.GetOutputCount() == 1, "Initialization creates a live avatar animation graph");
