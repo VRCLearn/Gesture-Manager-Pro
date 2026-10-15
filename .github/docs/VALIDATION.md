@@ -1,5 +1,16 @@
 # Development validation
 
+## Original Inspector layout and contextual tools (unreleased)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in the disposable Windows fixture with Direct3D 11.
+
+- The main Inspector keeps the original version heading, gear settings and two-button Edit Mode layout. Model Statistics occupies the original Discord shortcut's position beside Enter Play-Mode. The language selector is inside the existing gear settings, above the unchanged general and simulation sections.
+- Lip Sync Test and Game Simulation contribute their existing actions to the initialized avatar's Tools tab. No runtime action is exposed in Edit Mode, settings or the Gestures tab. Contributions retain the originating manager, require an active initialized module and are disabled while paused. Returning to Edit Mode removes the runtime actions. No assembly dependency, persistence key or asset change was needed.
+- Graphics-enabled editor integration passed 446 assertions. Static validation passed 1,739 checks with the original GM 3.9.9 resource baseline and both installed SDK packages supplied.
+- Eight production-Inspector render captures at 470 by 760 pixels cover Chinese and English Edit Mode, settings and Tools, paused Tools, and returning to Edit Mode. Actual Play Mode transitions initialize a generic SDK3 avatar through SetModule. The independent statistics action opens its production window in Edit Mode; that window can remain open during Play Mode. This placement supersedes the earlier Inspector feature-access layout below.
+
+The render probe uses a temporary host for the production custom Inspector in the disposable fixture. The four changed production scripts were subsequently synchronized to the open Test-Avatar project, retaining its asset metadata. Unity compiled without console errors, and the actual Inspector render confirmed the new Edit Mode layout while preserving the selected object and unsaved scene state. Physical mouse/dropdown interaction, microphone hardware, light theme and higher display scaling were not revalidated.
+
 ## Stable multi-page editor fonts (0.4.3)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.

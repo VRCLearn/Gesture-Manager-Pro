@@ -361,7 +361,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
                 GmgLayoutHelper.MyToolbar(ref menu.ToolBar, new (string, Action)[]
                 {
                     (EditorLocalization.Tr("Gestures"), () => EditorContentGesture(element, weightController)),
-                    (EditorLocalization.Tr("Tools"), () => AvatarTools.Gui(this)),
+                    (EditorLocalization.Tr("Tools"), () => AvatarTools.Gui(this, customEditor.target as GestureManager)),
                     (EditorLocalization.Tr("Debug"), () => EditorContentDebug(menu))
                 });
             }

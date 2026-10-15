@@ -26,7 +26,6 @@ namespace VRCLearn.GestureManagerPro.Editor
     public class GestureManagerEditor : UnityEditor.Editor
     {
         public static event Action<GestureManager> InspectorToolsGUI;
-        private static readonly string[] LanguageOptions = { "", "English", "简体中文" };
 
         private GestureManager Manager => target as GestureManager;
         private static IEnumerable<GmgAvatarDescriptor> Descriptors => FindSceneObjectsOfTypeAll<GmgAvatarDescriptor>();
@@ -113,7 +112,6 @@ namespace VRCLearn.GestureManagerPro.Editor
             if (isPrefab || isPlaying) GUILayout.Label(GestureManager.Version, GestureManagerStyles.TitleStyle);
             else if (GmgLayoutHelper.SettingsGearLabel(GestureManager.Version, _setting)) _setting = !_setting;
 
-            ToolsGui();
             if (Manager.Module != null) ModuleGui();
             else if (_setting) GestureManagerSettings.SettingGui(Manager);
             else SetupGui(isActive, Manager.enabled, isPlaying, isPrefab);
@@ -121,22 +119,14 @@ namespace VRCLearn.GestureManagerPro.Editor
             GestureManagerStyles.Sign();
         }
 
-        private void ToolsGui()
+        internal static void DrawInspectorTools(GestureManager manager)
         {
-            using (new GUILayout.VerticalScope(EditorStyles.helpBox))
+            if (!EditorApplication.isPlaying || !manager || !manager.isActiveAndEnabled ||
+                manager.Module == null || !manager.Module.Active || manager.Module.IsInvalid()) return;
+            using (new EditorGUI.DisabledScope(EditorApplication.isPaused))
+            using (new GUILayout.HorizontalScope())
             {
-                LanguageOptions[0] = EditorLocalization.Tr("Automatic");
-                var language = (ProLanguage)EditorGUILayout.Popup(EditorLocalization.Tr("Language"), (int)EditorLocalization.Language, LanguageOptions);
-                if (language != EditorLocalization.Language)
-                {
-                    EditorLocalization.Language = language;
-                    GUIUtility.ExitGUI();
-                }
-                using (new GUILayout.HorizontalScope())
-                {
-                    if (GUILayout.Button(EditorLocalization.Tr("Model Statistics"))) OpenStatistics();
-                    InspectorToolsGUI?.Invoke(Manager);
-                }
+                InspectorToolsGUI?.Invoke(manager);
             }
         }
 
@@ -160,6 +150,8 @@ namespace VRCLearn.GestureManagerPro.Editor
                 using (new GmgLayoutHelper.FlexibleScope())
                 {
                     if (GmgLayoutHelper.DebugButton(isPlaying ? EditorLocalization.Tr("Exit Play-Mode") : EditorLocalization.Tr("Enter Play-Mode"))) TogglePlaymode(isPlaying);
+                    GUILayout.Space(20);
+                    if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr("Model Statistics"))) OpenStatistics();
                 }
 
                 GUILayout.Space(5);
