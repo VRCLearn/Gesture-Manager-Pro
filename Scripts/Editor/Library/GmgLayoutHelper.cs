@@ -32,7 +32,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Library
             actions[toolbar].Item2();
         }
 
-        public static IEnumerable<EditorWindow> GetInspectorWindows() => Resources.FindObjectsOfTypeAll<EditorWindow>().Where(window => window.titleContent.text == "Inspector");
+        public static IEnumerable<EditorWindow> GetInspectorWindows() => Resources.FindObjectsOfTypeAll<EditorWindow>().Where(window => window.GetType().FullName == "UnityEditor.InspectorWindow");
 
         public static void GuiLabel((Color? color, string text) tuple, params GUILayoutOption[] options) => GuiLabel(LabelRect(options), tuple);
 
@@ -51,7 +51,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Library
             using (new GuiBackground(color)) return GUILayout.Button(text, options);
         }
 
-        public static bool DebugButton(string label, GUILayoutOption width = null) => GUILayout.Button(label, GUILayout.Height(30), width ?? GUILayout.Width(150));
+        public static bool DebugButton(string label, GUILayoutOption width = null) => GUILayout.Button(label, GUILayout.Height(30),
+            width ?? GUILayout.Width(Mathf.Max(150, GUI.skin.button.CalcSize(new GUIContent(label)).x)));
 
         public static bool TitleButton(string text, string button, int width = 85)
         {
@@ -286,7 +287,15 @@ namespace VRCLearn.GestureManagerPro.Editor.Library
 
         public static bool Toggle(string label, bool index, params UnityEngine.Object[] o)
         {
-            if (index == (index = EditorGUILayout.Toggle(label, index))) return index;
+            var previousWidth = EditorGUIUtility.labelWidth;
+            bool value;
+            try
+            {
+                EditorGUIUtility.labelWidth = Mathf.Max(previousWidth, EditorStyles.label.CalcSize(new GUIContent(label)).x + 4);
+                value = EditorGUILayout.Toggle(label, index);
+            }
+            finally { EditorGUIUtility.labelWidth = previousWidth; }
+            if (index == (index = value)) return index;
             RecordObjects(o, EventName);
             return index;
         }

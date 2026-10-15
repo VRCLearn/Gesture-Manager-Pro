@@ -8,12 +8,12 @@ using VRCLearn.GestureManagerPro.Library.VisualElements;
 
 namespace VRCLearn.GestureManagerPro.Localization
 {
-    public enum ProLanguage { Automatic, English, SimplifiedChinese }
+    public enum ProLanguage { Automatic = 0, English = 1, SimplifiedChinese = 2 }
 
     public static class EditorLocalization
     {
         private const string PreferenceKey = "com.vrclearn.gesture-manager-pro.language";
-        private static readonly TranslationCatalog Catalog = new TranslationCatalog(GestureManagerChinese.Entries, LipSyncChinese.Entries, ModelStatisticsChinese.Entries);
+        private static readonly TranslationCatalog Catalog = CreateCatalog();
         private static ProLanguage _language = ReadLanguage();
         private static readonly List<CaptionBinding> Captions = new List<CaptionBinding>();
 
@@ -34,16 +34,20 @@ namespace VRCLearn.GestureManagerPro.Localization
             }
         }
 
-        public static string Tr(string source) => Catalog.Translate(source, IsChinese);
-        public static string Format(string source, params object[] args) => Catalog.Format(source, IsChinese, args);
+        public static ProLanguage EffectiveLanguage => Language == ProLanguage.Automatic ? ResolveLanguage(CultureInfo.CurrentUICulture.Name) : Language;
+        public static string Tr(string source) => Catalog.Translate(source, EffectiveLanguage);
+        public static string Format(string source, params object[] args) => Catalog.Format(source, EffectiveLanguage, args);
         public static bool TryGetSource(string text, out string source) => Catalog.TryGetSource(text, out source);
 
         public static void ApplyFontPreferences(VisualElement root) => EditorFontPreferences.Apply(root);
 
         public static void RegisterTranslations(IReadOnlyDictionary<string, string> translations)
+            => RegisterTranslations(ProLanguage.SimplifiedChinese, translations);
+
+        public static void RegisterTranslations(ProLanguage language, IReadOnlyDictionary<string, string> translations)
         {
             if (translations == null) throw new ArgumentNullException(nameof(translations));
-            Catalog.Register(translations);
+            Catalog.Register(language, translations);
         }
 
         public static T Bind<T>(T element, string text) where T : TextElement
@@ -65,14 +69,29 @@ namespace VRCLearn.GestureManagerPro.Localization
         internal static bool HasTranslation(string source) => Catalog.Contains(source);
         internal static bool CanTranslate(string source) => Catalog.CanTranslate(source);
 
-        internal static bool IsChinese => Language == ProLanguage.SimplifiedChinese ||
-            Language == ProLanguage.Automatic && IsSimplifiedChinese(CultureInfo.CurrentUICulture.Name);
+        internal static ProLanguage ResolveLanguage(string culture)
+        {
+            var name = (culture ?? "").Replace('_', '-');
+            var parts = name.Split('-');
+            return name.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("zh-CN", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("zh-SG", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("zh-Hans", StringComparison.OrdinalIgnoreCase)
+                ? ProLanguage.SimplifiedChinese : ProLanguage.English;
+        }
 
-        internal static bool IsSimplifiedChinese(string culture) =>
-            culture.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
-            culture.StartsWith("zh-CN", StringComparison.OrdinalIgnoreCase) ||
-            culture.StartsWith("zh-SG", StringComparison.OrdinalIgnoreCase) ||
-            culture.StartsWith("zh-Hans", StringComparison.OrdinalIgnoreCase);
+        internal static string LanguageCode(ProLanguage language) => language switch
+        {
+            ProLanguage.SimplifiedChinese => "zh-Hans",
+            _ => "en"
+        };
+
+        private static TranslationCatalog CreateCatalog()
+        {
+            var catalog = new TranslationCatalog();
+            catalog.Register(ProLanguage.SimplifiedChinese, GestureManagerChinese.Entries, LipSyncChinese.Entries, ModelStatisticsChinese.Entries);
+            return catalog;
+        }
 
         private static ProLanguage ReadLanguage()
         {

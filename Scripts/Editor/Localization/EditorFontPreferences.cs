@@ -12,7 +12,7 @@ namespace VRCLearn.GestureManagerPro.Localization
     internal static class EditorFontPreferences
     {
         private const string PreferencesResource = "GestureManagerPro/EditorFontPreferences";
-        private static readonly Dictionary<bool, FontAsset[]> Fonts = new Dictionary<bool, FontAsset[]>();
+        private static readonly Dictionary<ProLanguage, FontAsset[]> Fonts = new Dictionary<ProLanguage, FontAsset[]>();
         private static readonly HashSet<VisualElement> Roots = new HashSet<VisualElement>();
 
         static EditorFontPreferences()
@@ -60,26 +60,26 @@ namespace VRCLearn.GestureManagerPro.Localization
 
         private static FontAsset[] GetFonts()
         {
-            var chinese = EditorLocalization.IsChinese;
-            if (!Fonts.TryGetValue(chinese, out var fonts) || !fonts.All(IsAlive))
+            var language = EditorLocalization.EffectiveLanguage;
+            if (!Fonts.TryGetValue(language, out var fonts) || !fonts.All(IsAlive))
             {
                 if (fonts != null) DestroyFonts(fonts);
-                fonts = LoadFonts(chinese);
-                Fonts[chinese] = fonts;
+                fonts = LoadFonts(language);
+                Fonts[language] = fonts;
             }
             // TextCore may add atlas pages after creation. Keep those alive across Play Mode as well.
             foreach (var font in fonts) PreserveResources(font);
             return fonts;
         }
 
-        private static FontAsset[] LoadFonts(bool chinese)
+        private static FontAsset[] LoadFonts(ProLanguage selectedLanguage)
         {
             var preferences = Resources.Load<UnityEngine.TextAsset>(PreferencesResource);
             if (!preferences) return Array.Empty<FontAsset>();
             var installed = new HashSet<string>(Font.GetOSInstalledFontNames(), StringComparer.OrdinalIgnoreCase);
             var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var fonts = new List<FontAsset>();
-            var language = chinese ? "zh-Hans" : "en";
+            var language = EditorLocalization.LanguageCode(selectedLanguage);
             foreach (var entry in preferences.text.Split('\n'))
             {
                 var line = entry.Trim();

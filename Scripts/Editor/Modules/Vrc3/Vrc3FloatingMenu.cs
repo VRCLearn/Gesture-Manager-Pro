@@ -72,7 +72,11 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         private Color[] Colors(int sizeX, int sizeY) => InternalEditorUtility.ReadScreenPixel(position.position + HeaderSize, sizeX, sizeY);
 
-        private void Awake() => this.MySetAntiAliasing(4);
+        private void Awake()
+        {
+            this.MySetAntiAliasing(4);
+            EditorLocalization.ApplyFontPreferences(rootVisualElement);
+        }
 
         public void Update() => Repaint();
 

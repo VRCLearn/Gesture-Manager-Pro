@@ -28,6 +28,7 @@ namespace VRCLearn.GestureManagerPro.Library.VisualElements
         private Data _data;
 
         private readonly VisualElement _textHolder;
+        private readonly float? _textWidth;
 
         private float Font => style.fontSize.value.value;
         private This This => this; // this
@@ -52,14 +53,16 @@ namespace VRCLearn.GestureManagerPro.Library.VisualElements
             }
         }
 
-        public GmgTmpRichTextElement()
+        public GmgTmpRichTextElement(float? textWidth = null)
         {
+            _textWidth = textWidth;
             Add(new TextElement { pickingMode = PickingMode.Ignore, text = "" });
             Add(_textHolder = new VisualElement { pickingMode = PickingMode.Ignore, style = { position = UIEPosition.Absolute } });
             style.color = DefaultColor;
             style.alignItems = Align.Center;
             style.fontSize = DefaultFontSize * DefaultScale;
             _textHolder.style.alignItems = Align.Center;
+            if (textWidth.HasValue) _textHolder.style.width = textWidth.Value;
         }
 
         private void SetUp(string input)
@@ -80,6 +83,11 @@ namespace VRCLearn.GestureManagerPro.Library.VisualElements
             if (string.IsNullOrEmpty(text)) return;
 
             var child = new TextElement { pickingMode = PickingMode.Ignore, text = text };
+            if (_textWidth.HasValue)
+            {
+                child.style.maxWidth = _textWidth.Value;
+                child.style.whiteSpace = WhiteSpace.Normal;
+            }
 
             child.style.color = _data.ColorStyle(child, style.color);
             child.style.fontSize = _data.LengthStyle(style.fontSize);

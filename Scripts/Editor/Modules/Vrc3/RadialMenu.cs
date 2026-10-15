@@ -196,7 +196,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             {
                 RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Hue"), color.Hue, ModuleVrc3Styles.HuePicker),
                 RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Saturation"), color.Sat, ModuleVrc3Styles.SaturationPicker),
-                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Value"), color.Val, ModuleVrc3Styles.ValuePicker)
+                RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Brightness"), color.Val, ModuleVrc3Styles.ValuePicker)
             });
             _radialDescription = new RadialDescription(EditorLocalization.Tr("Don't like the new color? "), EditorLocalization.Tr("Reset it to default"), "!", _ => color.Color = color.Reset);
         }

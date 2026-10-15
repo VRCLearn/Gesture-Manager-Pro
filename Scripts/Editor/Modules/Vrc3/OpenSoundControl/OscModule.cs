@@ -162,7 +162,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
 
             using (new GUILayout.HorizontalScope())
             using (new GmgLayoutHelper.FlexibleScope())
-                if (GmgLayoutHelper.DebugButton(!_module.DebugOscWindow ? Vrc3AvatarDebugWindow.Text.D.Button : Vrc3AvatarDebugWindow.Text.W.Button))
+                if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr(!_module.DebugOscWindow ? Vrc3AvatarDebugWindow.Text.D.Button : Vrc3AvatarDebugWindow.Text.W.Button)))
                     _module.SwitchDebugOscView();
 
             GUILayout.Space(6);

@@ -77,6 +77,7 @@ namespace VRCLearn.GestureManagerPro.Editor
         public override VisualElement CreateInspectorGUI()
         {
             _root = new VisualElement();
+            EditorLocalization.ApplyFontPreferences(_root);
             _root.Add(new IMGUIContainer(ManagerGui));
             if (Application.isPlaying) TryInitialize();
             foreach (var inspectorWindow in GmgLayoutHelper.GetInspectorWindows()) inspectorWindow.MySetAntiAliasing(AntiAliasing);

@@ -71,7 +71,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices
         {
             DataHolder = RadialMenuUtility.Prefabs.NewData(100, 100);
             Texture = new VisualElement { pickingMode = PickingMode.Ignore, style = { width = 50, height = 50, backgroundImage = !icon ? ModuleVrc3Styles.Default : icon } };
-            Text = EditorLocalization.Bind(new GmgTmpRichTextElement { pickingMode = PickingMode.Ignore, style = { unityTextAlign = TextAnchor.MiddleCenter } }, text);
+            Text = EditorLocalization.Bind(new GmgTmpRichTextElement(100) { pickingMode = PickingMode.Ignore, style = { unityTextAlign = TextAnchor.MiddleCenter } }, text);
             RadialMenuUtility.Prefabs.SetSlice(this, RadialMenu.Size, IdleCenterColor, IdleBorderColor, RadialMenuUtility.Colors.CustomBorder);
             if (subIcon) _sub = RadialMenuUtility.Prefabs.NewSubIcon(subIcon);
             Enabled = enabled;

@@ -11,6 +11,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
 {
     public static class GestureManagerSettings
     {
+        private static readonly ProLanguage[] LanguageValues = { ProLanguage.Automatic, ProLanguage.English, ProLanguage.SimplifiedChinese };
         private static readonly string[] LanguageOptions = { "", "English", "简体中文" };
         private const string LocalFolder = "LocalAvatarData";
 
@@ -42,7 +43,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
         private static void LanguageGui()
         {
             LanguageOptions[0] = EditorLocalization.Tr("Automatic");
-            var language = (ProLanguage)EditorGUILayout.Popup(EditorLocalization.Tr("Language"), (int)EditorLocalization.Language, LanguageOptions);
+            var selected = System.Array.IndexOf(LanguageValues, EditorLocalization.Language);
+            var language = LanguageValues[EditorGUILayout.Popup(EditorLocalization.Tr("Language"), selected, LanguageOptions)];
             if (language == EditorLocalization.Language) return;
             EditorLocalization.Language = language;
             GUIUtility.ExitGUI();

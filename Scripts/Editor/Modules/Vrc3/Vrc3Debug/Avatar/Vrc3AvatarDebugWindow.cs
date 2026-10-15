@@ -21,6 +21,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Vrc3Debug.Avatar
         private static Color Color => EditorGUIUtility.isProSkin ? Color.magenta : Color.cyan;
         private static readonly GUIStyle Style = new(EditorStyles.label) { fontSize = 10, alignment = TextAnchor.MiddleCenter };
 
+        private void OnEnable() => EditorLocalization.ApplyFontPreferences(rootVisualElement);
+
         internal static Vrc3AvatarDebugWindow Create(ModuleVrc3 source)
         {
             var instance = CreateInstance<Vrc3AvatarDebugWindow>();
@@ -46,7 +48,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Vrc3Debug.Avatar
 
         private void DebugGUI()
         {
-            titleContent.text = EditorLocalization.Tr("[Debug Window] Gesture Manager Pro");
             titleContent.text = EditorLocalization.Tr("[Debug Window] Gesture Manager Pro");
             GUILayout.Label(EditorLocalization.Tr("Gesture Manager Pro - Avatar Debug Window"), GestureManagerStyles.Header);
             var isFullScreen = EditorGUIUtility.currentViewWidth > 1279;

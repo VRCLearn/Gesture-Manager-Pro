@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using VRCLearn.GestureManagerPro.Localization;
 
 namespace VRCLearn.GestureManagerPro.Editor.Data
 {
@@ -70,6 +71,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
         internal static GUIStyle SettingsText => _settingsText ??= new GUIStyle(GUI.skin.label)
         {
             alignment = TextAnchor.MiddleCenter,
+            wordWrap = true,
             padding = new RectOffset(5, 5, 5, 12)
         };
 
@@ -154,7 +156,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
             padding = new RectOffset(5, 5, 5, 5)
         };
 
-        internal static GUIStyle Centered => _centered ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
+        internal static GUIStyle Centered => _centered ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true };
         internal static GUIStyle PlusButton => _plusButton ??= new GUIStyle { margin = new RectOffset(0, 20, 3, 3) };
 
         internal static Texture GearTexture => !_gearTexture ? _gearTexture = EditorGUIUtility.IconContent("d_Settings").image : _gearTexture;
@@ -278,6 +280,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
             }
         }
 
-        public static void Sign(string category = "Script") => GUILayout.Label($"{category} made by {BsxName}", BottomStyle);
+        public static void Sign(string category = "Script") => GUILayout.Label(EditorLocalization.Format("{0} made by {1}", EditorLocalization.Tr(category), BsxName), BottomStyle);
     }
 }

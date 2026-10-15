@@ -16,6 +16,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Vrc3Debug.Osc
         private VisualEpContainer _holder;
         private VisualEpContainer Holder => _holder ??= new VisualEpContainer();
 
+        private void OnEnable() => EditorLocalization.ApplyFontPreferences(rootVisualElement);
+
         internal static Vrc3OscDebugWindow Create(ModuleVrc3 source)
         {
             var instance = CreateInstance<Vrc3OscDebugWindow>();
@@ -39,7 +41,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Vrc3Debug.Osc
 
         private void DebugGUI()
         {
-            titleContent.text = EditorLocalization.Tr("[Debug Window] Gesture Manager Pro");
             titleContent.text = EditorLocalization.Tr("[Debug Window] Gesture Manager Pro");
             var isFullScreen = EditorGUIUtility.currentViewWidth > 1279;
 
