@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+- Display the same Unity help/question-mark icon used by the SDK for **Not Rated** overall and metric ratings. Share the other rating icons' dimensions and spacing to align their captions. Table headings and bundle file sizes remain outside the performance-rating icon display.
+
 ## 0.4.1
 
 - Display the VRChat SDK's performance-rank icons beside the overall rating and individual metrics, using the same SDK resources as Actual Performance Window. Keep text labels and tooltips alongside the icons.

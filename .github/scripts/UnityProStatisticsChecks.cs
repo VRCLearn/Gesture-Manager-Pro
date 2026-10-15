@@ -492,7 +492,7 @@ public static class UnityProStatisticsChecks
     private static Texture ExpectedRatingIcon(PerformanceRating rating)
     {
         return RatingResources.TryGetValue(rating, out var resource)
-            ? Resources.Load<Texture2D>("PerformanceIcons/Perf_" + resource + "_32") : null;
+            ? Resources.Load<Texture2D>("PerformanceIcons/Perf_" + resource + "_32") : EditorGUIUtility.IconContent("d__Help").image;
     }
 
     private static void CheckRatingResources(Action<bool, string> check)
@@ -506,9 +506,10 @@ public static class UnityProStatisticsChecks
                 AssetDatabase.GetAssetPath(actual).StartsWith("Packages/com.vrchat.base/", StringComparison.Ordinal),
                 "Statistics reuse the SDK's actual " + pair.Value + " performance icon for " + pair.Key);
         }
-        check(getter.Invoke(null, new object[] { PerformanceRating.None }) == null &&
-            getter.Invoke(null, new object[] { (PerformanceRating)999 }) == null,
-            "Missing and unrecognized SDK grades do not fall back to a green performance icon");
+        var helpIcon = EditorGUIUtility.IconContent("d__Help").image;
+        check(helpIcon && getter.Invoke(null, new object[] { PerformanceRating.None }) as Texture == helpIcon &&
+            getter.Invoke(null, new object[] { (PerformanceRating)999 }) as Texture == helpIcon,
+            "Unrated and unrecognized SDK grades reuse the help icon used by the SDK");
     }
 
     private static void CheckRenderedRatings(ModelStatisticsWindow window, Action<bool, string> check)
@@ -575,11 +576,13 @@ public static class UnityProStatisticsChecks
                 var firstRow = window.rootVisualElement.Q("metricsTable")
                     .Query<VisualElement>(className: "statistics-row").First();
                 var cell = firstRow.Q<VisualElement>(className: "statistics-rating");
-                check(window.rootVisualElement.Q<Image>("overallRatingIcon").image == null &&
+                var icons = cell.Query<Image>(className: "statistics-rating-icon").ToList();
+                var helpIcon = EditorGUIUtility.IconContent("d__Help").image;
+                check(helpIcon && window.rootVisualElement.Q<Image>("overallRatingIcon").image == helpIcon &&
                     window.rootVisualElement.Q<Label>("overallRating").text.Contains("Not Rated") &&
-                    !cell.Query<Image>(className: "statistics-rating-icon").ToList().Any() &&
+                    icons.Count == 1 && icons[0].image == helpIcon &&
                     cell.Q<Label>(className: "statistics-rating-label").text == "Not Rated",
-                    "Unrated snapshot " + (int)grade + " renders explicit text without false overall or metric icons");
+                    "Unrated snapshot " + (int)grade + " renders the SDK help icon with its explicit caption");
             }
             ModelStatisticsService.ClearHistory();
             check(window.rootVisualElement.Q<Image>("overallRatingIcon").image == null &&

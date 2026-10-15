@@ -285,7 +285,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         }
 
         private void AddRow(string metric, string value, string rating, bool header,
-            PerformanceRating performance = PerformanceRating.None)
+            PerformanceRating? performance = null)
         {
             var row = new VisualElement();
             row.AddToClassList(header ? "statistics-header" : "statistics-row");
@@ -295,7 +295,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             number.AddToClassList("statistics-value");
             var rank = new VisualElement { tooltip = rating };
             rank.AddToClassList("statistics-rating");
-            var icon = header ? null : RatingIcon(performance);
+            var icon = header || !performance.HasValue ? null : RatingIcon(performance.Value);
             if (icon)
             {
                 var image = new Image { image = icon, scaleMode = ScaleMode.ScaleToFit, tooltip = rating };
@@ -388,7 +388,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
                 case PerformanceRating.Medium: resource = "PerformanceIcons/Perf_Medium_32"; break;
                 case PerformanceRating.Poor: resource = "PerformanceIcons/Perf_Poor_32"; break;
                 case PerformanceRating.VeryPoor: resource = "PerformanceIcons/Perf_Horrible_32"; break;
-                default: return null;
+                default: return EditorGUIUtility.IconContent("d__Help").image;
             }
             return Resources.Load<Texture>(resource);
         }
