@@ -4,11 +4,11 @@
 
 Validated on 2026-10-15 in the existing disposable Windows fixture with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5.
 
-- Editor integration: 424 assertions passed. Existing resource, caption and rendered-rating checks require the native 32x32 Unity `d__Help@2x` icon for None and unrecognized ratings, while retaining the empty-history cleanup checks. The resource assertion verifies both pixel dimensions.
-- Desktop UI: a controlled sample shows the high-resolution help icon beside both the overall **Not Rated** caption and unrated metric captions, without the enlarged 16x16 variant's blocky edges. Its image bounds and label spacing match those of the five SDK performance icons. Table headings and bundle file sizes do not acquire an unrated icon.
+- Editor integration: 427 assertions passed. Resource, caption and rendered-rating checks require a private native 32x32 Unity `d__Help@2x` copy with bilinear filtering for None and unrecognized ratings. Repeated requests reuse that window's texture; separate windows own separate copies. Closing a window destroys its copy while preserving other windows and Unity's shared texture/filter settings. Empty-history cleanup remains covered.
+- Desktop UI: an actual UI Toolkit comparison at 16, 24 and 32 pixels reproduced jagged contours from the native help texture's Point filtering, including at the metric row's 24-pixel size. Bilinear filtering on a private copy smooths the scaled contour. The corrected production statistics window was inspected with synthetic Chinese ratings: overall and per-metric **Not Rated** icons retain their image bounds, caption alignment and spacing alongside the five SDK performance icons. Table headings and bundle file sizes do not acquire an unrated icon. Only dark theme at pixelsPerPoint 1 was inspected.
 - Compatibility and distribution: Diagnostics compile against SDK 3.10.4. The 42 Python distribution tests and 1,733 static package checks pass. No asset, dependency, calculator or processing-stage change was introduced.
 
-The visual sample uses synthetic ratings solely to inspect icon placement. It is not an avatar performance measurement. This supersedes 0.4.1's absence of an unrated icon; other 0.4.1 validation limits still apply.
+The visual sample uses synthetic ratings solely to inspect icon rendering and placement. It is not an avatar performance measurement. The earlier 32x32-only fix did not correct Point sampling at scaled sizes; this filtering check supersedes that visual assessment. This also supersedes 0.4.1's absence of an unrated icon; other 0.4.1 validation limits still apply.
 
 ## SDK rating icons and terminology (0.4.1)
 

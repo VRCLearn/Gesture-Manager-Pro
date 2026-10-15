@@ -399,7 +399,7 @@ public static class UnityProStatisticsChecks
                 ModelStatisticsService.History[0].Metrics.Count + 1 &&
                 window.rootVisualElement.Q<HelpBox>("statusLabel").text.Contains("Before Processing"),
                 "Window renders every SDK metric and explicitly labels the before-processing source");
-            CheckRatingResources(check);
+            CheckRatingResources(window, check);
             CheckRenderedRatings(window, check);
             var stage = window.rootVisualElement.Q<DropdownField>("stageField");
             check(stage.choices.SequenceEqual(new[] { "All Stages", "Before Processing", "After Play Mode Processing",
@@ -492,25 +492,54 @@ public static class UnityProStatisticsChecks
     private static Texture ExpectedRatingIcon(PerformanceRating rating)
     {
         return RatingResources.TryGetValue(rating, out var resource)
-            ? Resources.Load<Texture2D>("PerformanceIcons/Perf_" + resource + "_32") : EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture;
+            ? Resources.Load<Texture2D>("PerformanceIcons/Perf_" + resource + "_32") : null;
     }
 
-    private static void CheckRatingResources(Action<bool, string> check)
+    private static bool MatchesRatingIcon(Texture actual, PerformanceRating rating)
+    {
+        var sdkIcon = ExpectedRatingIcon(rating);
+        if (sdkIcon) return actual == sdkIcon;
+        var sharedHelp = EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture;
+        return actual && actual != sharedHelp && actual.width == 32 && actual.height == 32 &&
+            actual.filterMode == FilterMode.Bilinear &&
+            (actual.hideFlags & HideFlags.DontSave) == HideFlags.DontSave;
+    }
+
+    private static void CheckRatingResources(ModelStatisticsWindow window, Action<bool, string> check)
     {
         var getter = typeof(ModelStatisticsWindow).GetMethod("RatingIcon", Any);
         foreach (var pair in RatingResources)
         {
             var sdkIcon = ExpectedRatingIcon(pair.Key);
-            var actual = getter.Invoke(null, new object[] { pair.Key }) as Texture;
+            var actual = getter.Invoke(window, new object[] { pair.Key }) as Texture;
             check(sdkIcon && actual == sdkIcon &&
                 AssetDatabase.GetAssetPath(actual).StartsWith("Packages/com.vrchat.base/", StringComparison.Ordinal),
                 "Statistics reuse the SDK's actual " + pair.Value + " performance icon for " + pair.Key);
         }
         var helpIcon = EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture;
+        var originalFilter = helpIcon.filterMode;
+        var unrated = getter.Invoke(window, new object[] { PerformanceRating.None }) as Texture;
         check(helpIcon && helpIcon.width == 32 && helpIcon.height == 32 &&
-            getter.Invoke(null, new object[] { PerformanceRating.None }) as Texture == helpIcon &&
-            getter.Invoke(null, new object[] { (PerformanceRating)999 }) as Texture == helpIcon,
-            "Unrated and unrecognized SDK grades use the native 32-pixel help icon instead of enlarging the 16-pixel variant");
+            MatchesRatingIcon(unrated, PerformanceRating.None) &&
+            getter.Invoke(window, new object[] { (PerformanceRating)999 }) as Texture == unrated &&
+            getter.Invoke(window, new object[] { PerformanceRating.None }) as Texture == unrated,
+            "Unrated grades reuse a private native-resolution help icon with smooth filtering at scaled UI sizes");
+        check(helpIcon.filterMode == originalFilter,
+            "Statistics do not change the filter mode of Unity's shared help icon");
+        var temporaryWindow = ScriptableObject.CreateInstance<ModelStatisticsWindow>();
+        Texture ownedIcon = null;
+        try
+        {
+            ownedIcon = getter.Invoke(temporaryWindow, new object[] { PerformanceRating.None }) as Texture;
+            check(ownedIcon && ownedIcon != unrated && MatchesRatingIcon(ownedIcon, PerformanceRating.None),
+                "Each statistics window owns its filtered help texture without sharing mutable state");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(temporaryWindow);
+        }
+        check(!ownedIcon && unrated && helpIcon && helpIcon.filterMode == originalFilter,
+            "Closing a statistics window releases its help texture and preserves other windows and shared icons");
     }
 
     private static void CheckRenderedRatings(ModelStatisticsWindow window, Action<bool, string> check)
@@ -534,7 +563,7 @@ public static class UnityProStatisticsChecks
             "Performance captions retain all five agreed grades and explicitly distinguish unrated results");
         var overallCaption = captions.TryGetValue(snapshot.OverallRating, out var caption) ? caption : unrated;
         var overallIcon = window.rootVisualElement.Q<Image>("overallRatingIcon");
-        check(overallIcon != null && overallIcon.image == ExpectedRatingIcon(snapshot.OverallRating) &&
+        check(overallIcon != null && MatchesRatingIcon(overallIcon.image, snapshot.OverallRating) &&
             overallIcon.tooltip == overallCaption &&
             window.rootVisualElement.Q<Label>("overallRating").text == EditorLocalization.Format("Overall: {0}", overallCaption),
             "Overall performance displays the selected snapshot's matching SDK icon and localized caption");
@@ -546,10 +575,8 @@ public static class UnityProStatisticsChecks
             var label = cell?.Q<Label>(className: "statistics-rating-label");
             if (label == null) return false;
             var expectedCaption = captions.TryGetValue(metric.Rating, out var metricCaption) ? metricCaption : unrated;
-            var expectedIcon = ExpectedRatingIcon(metric.Rating);
             var icons = cell.Query<Image>(className: "statistics-rating-icon").ToList();
-            return label.text == expectedCaption && (expectedIcon
-                    ? icons.Count == 1 && icons[0].image == expectedIcon : icons.Count == 0) &&
+            return label.text == expectedCaption && icons.Count == 1 && MatchesRatingIcon(icons[0].image, metric.Rating) &&
                 (cell.tooltip == expectedCaption || label.tooltip == expectedCaption ||
                     icons.Any(icon => icon.tooltip == expectedCaption));
         }).All(matches => matches),
@@ -578,8 +605,8 @@ public static class UnityProStatisticsChecks
                     .Query<VisualElement>(className: "statistics-row").First();
                 var cell = firstRow.Q<VisualElement>(className: "statistics-rating");
                 var icons = cell.Query<Image>(className: "statistics-rating-icon").ToList();
-                var helpIcon = EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture;
-                check(helpIcon && window.rootVisualElement.Q<Image>("overallRatingIcon").image == helpIcon &&
+                var helpIcon = window.rootVisualElement.Q<Image>("overallRatingIcon").image;
+                check(MatchesRatingIcon(helpIcon, grade) &&
                     window.rootVisualElement.Q<Label>("overallRating").text.Contains("Not Rated") &&
                     icons.Count == 1 && icons[0].image == helpIcon &&
                     cell.Q<Label>(className: "statistics-rating-label").text == "Not Rated",

@@ -25,6 +25,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         private HelpBox _status;
         private VisualElement _summaryRow;
         private Image _summaryIcon;
+        private Texture2D _unratedIcon;
         private Label _summary;
         private Label _details;
         private VisualElement _metrics;
@@ -67,6 +68,8 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             ModelStatisticsService.Changed -= RefreshSnapshots;
             EditorLocalization.Changed -= Rebuild;
             EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+            if (_unratedIcon) DestroyImmediate(_unratedIcon);
+            _unratedIcon = null;
         }
 
         public void CreateGUI() => Rebuild();
@@ -378,7 +381,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             }
         }
 
-        private static Texture RatingIcon(PerformanceRating rating)
+        private Texture RatingIcon(PerformanceRating rating)
         {
             string resource;
             switch (rating)
@@ -388,7 +391,18 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
                 case PerformanceRating.Medium: resource = "PerformanceIcons/Perf_Medium_32"; break;
                 case PerformanceRating.Poor: resource = "PerformanceIcons/Perf_Poor_32"; break;
                 case PerformanceRating.VeryPoor: resource = "PerformanceIcons/Perf_Horrible_32"; break;
-                default: return EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture;
+                default:
+                    if (!_unratedIcon)
+                    {
+                        var source = EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture2D;
+                        if (source)
+                        {
+                            _unratedIcon = Instantiate(source);
+                            _unratedIcon.hideFlags = HideFlags.HideAndDontSave;
+                            _unratedIcon.filterMode = FilterMode.Bilinear;
+                        }
+                    }
+                    return _unratedIcon;
             }
             return Resources.Load<Texture>(resource);
         }
