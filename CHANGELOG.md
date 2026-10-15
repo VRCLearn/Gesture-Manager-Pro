@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+- Display the VRChat SDK's performance-rank icons beside the overall rating and individual metrics, using the same SDK resources as Actual Performance Window. Keep text labels and tooltips alongside the icons.
+- Align Simplified Chinese performance-rank and metric terminology with VRCX-0: 流畅, 低负载, 中负载, 高负载 and 极高负载. Preserve the SDK's non-local Contact scope and complete Bounds semantics.
+- Show unranked or unknown ratings as **Not Rated**, without a misleading rank icon. Clear the overall icon when no snapshot is selected.
+
 ## 0.4.0
 
 - Preserve **Before Processing** statistics as a separate feature, with manual Edit Mode capture, an observation while leaving Edit Mode, and a capture of the original avatar when an SDK build starts. Earlier mode-transition callbacks may already have changed the model when the transition observation runs.

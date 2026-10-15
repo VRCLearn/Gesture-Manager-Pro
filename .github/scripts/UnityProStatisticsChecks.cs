@@ -399,6 +399,8 @@ public static class UnityProStatisticsChecks
                 ModelStatisticsService.History[0].Metrics.Count + 1 &&
                 window.rootVisualElement.Q<HelpBox>("statusLabel").text.Contains("Before Processing"),
                 "Window renders every SDK metric and explicitly labels the before-processing source");
+            CheckRatingResources(check);
+            CheckRenderedRatings(window, check);
             var stage = window.rootVisualElement.Q<DropdownField>("stageField");
             check(stage.choices.SequenceEqual(new[] { "All Stages", "Before Processing", "After Play Mode Processing",
                 "After SDK Processing", "Current Play Mode State", "Legacy Snapshots" }),
@@ -422,6 +424,11 @@ public static class UnityProStatisticsChecks
                 window.rootVisualElement.Q<DropdownField>("stageField").index == 3 &&
                 (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window) == selectionId,
                 "Language switching retains avatar, platform, processing stage and selected snapshot without recapturing");
+            CheckRenderedRatings(window, check);
+            var chineseMetrics = window.rootVisualElement.Q("metricsTable").Query<Label>(className: "statistics-metric")
+                .ToList().Select(label => label.text).ToArray();
+            check(new[] { "三角面总数", "纹理显存占用", "基本网格", "约束链长度" }.All(chineseMetrics.Contains),
+                "Statistics render the VRCX Chinese terminology for geometry, memory and constraint metrics");
             var styleCount = window.rootVisualElement.styleSheets.count;
             window.CreateGUI();
             EditorLocalization.Language = ProLanguage.English;
@@ -459,6 +466,7 @@ public static class UnityProStatisticsChecks
             check(window.rootVisualElement.Q<ObjectField>("avatarField").value == avatar &&
                 ModelStatisticsService.History[0].AvatarName == "Tools",
                 "Using a selected avatar child resolves its descriptor root before measurement");
+            CheckUnratedAndEmptyDisplay(window, check);
             var menu = typeof(ModelStatisticsWindow).GetMethod("Open", Any).GetCustomAttributes(typeof(MenuItem), false)
                 .Cast<MenuItem>().ToArray();
             check(menu.Any(item => item.menuItem == "Tools/Model Statistics" && !item.validate),
@@ -469,6 +477,124 @@ public static class UnityProStatisticsChecks
             if (window) UnityEngine.Object.DestroyImmediate(window);
             if (externalStyle) UnityEngine.Object.DestroyImmediate(externalStyle);
             EditorLocalization.Language = language;
+        }
+    }
+
+    private static readonly Dictionary<PerformanceRating, string> RatingResources = new Dictionary<PerformanceRating, string>
+    {
+        { PerformanceRating.Excellent, "Great" },
+        { PerformanceRating.Good, "Good" },
+        { PerformanceRating.Medium, "Medium" },
+        { PerformanceRating.Poor, "Poor" },
+        { PerformanceRating.VeryPoor, "Horrible" }
+    };
+
+    private static Texture ExpectedRatingIcon(PerformanceRating rating)
+    {
+        return RatingResources.TryGetValue(rating, out var resource)
+            ? Resources.Load<Texture2D>("PerformanceIcons/Perf_" + resource + "_32") : null;
+    }
+
+    private static void CheckRatingResources(Action<bool, string> check)
+    {
+        var getter = typeof(ModelStatisticsWindow).GetMethod("RatingIcon", Any);
+        foreach (var pair in RatingResources)
+        {
+            var sdkIcon = ExpectedRatingIcon(pair.Key);
+            var actual = getter.Invoke(null, new object[] { pair.Key }) as Texture;
+            check(sdkIcon && actual == sdkIcon &&
+                AssetDatabase.GetAssetPath(actual).StartsWith("Packages/com.vrchat.base/", StringComparison.Ordinal),
+                "Statistics reuse the SDK's actual " + pair.Value + " performance icon for " + pair.Key);
+        }
+        check(getter.Invoke(null, new object[] { PerformanceRating.None }) == null &&
+            getter.Invoke(null, new object[] { (PerformanceRating)999 }) == null,
+            "Missing and unrecognized SDK grades do not fall back to a green performance icon");
+    }
+
+    private static void CheckRenderedRatings(ModelStatisticsWindow window, Action<bool, string> check)
+    {
+        var selected = (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window);
+        var snapshot = VisibleSnapshots(window).Single(item => item.Id == selected);
+        var chinese = EditorLocalization.Language == ProLanguage.SimplifiedChinese;
+        var captions = new Dictionary<PerformanceRating, string>
+        {
+            { PerformanceRating.Excellent, chinese ? "流畅" : "Excellent" },
+            { PerformanceRating.Good, chinese ? "低负载" : "Good" },
+            { PerformanceRating.Medium, chinese ? "中负载" : "Medium" },
+            { PerformanceRating.Poor, chinese ? "高负载" : "Poor" },
+            { PerformanceRating.VeryPoor, chinese ? "极高负载" : "Very Poor" }
+        };
+        var unrated = chinese ? "未评级" : "Not Rated";
+        var labelGetter = typeof(ModelStatisticsWindow).GetMethod("RatingLabel", Any);
+        check(captions.All(pair => (string)labelGetter.Invoke(null, new object[] { pair.Key }) == pair.Value) &&
+            (string)labelGetter.Invoke(null, new object[] { PerformanceRating.None }) == unrated &&
+            (string)labelGetter.Invoke(null, new object[] { (PerformanceRating)999 }) == unrated,
+            "Performance captions retain all five agreed grades and explicitly distinguish unrated results");
+        var overallCaption = captions.TryGetValue(snapshot.OverallRating, out var caption) ? caption : unrated;
+        var overallIcon = window.rootVisualElement.Q<Image>("overallRatingIcon");
+        check(overallIcon != null && overallIcon.image == ExpectedRatingIcon(snapshot.OverallRating) &&
+            overallIcon.tooltip == overallCaption &&
+            window.rootVisualElement.Q<Label>("overallRating").text == EditorLocalization.Format("Overall: {0}", overallCaption),
+            "Overall performance displays the selected snapshot's matching SDK icon and localized caption");
+
+        var rows = window.rootVisualElement.Q("metricsTable").Query<VisualElement>(className: "statistics-row").ToList();
+        check(rows.Count == snapshot.Metrics.Count && snapshot.Metrics.Select((metric, index) =>
+        {
+            var cell = rows[index].Q<VisualElement>(className: "statistics-rating");
+            var label = cell?.Q<Label>(className: "statistics-rating-label");
+            if (label == null) return false;
+            var expectedCaption = captions.TryGetValue(metric.Rating, out var metricCaption) ? metricCaption : unrated;
+            var expectedIcon = ExpectedRatingIcon(metric.Rating);
+            var icons = cell.Query<Image>(className: "statistics-rating-icon").ToList();
+            return label.text == expectedCaption && (expectedIcon
+                    ? icons.Count == 1 && icons[0].image == expectedIcon : icons.Count == 0) &&
+                (cell.tooltip == expectedCaption || label.tooltip == expectedCaption ||
+                    icons.Any(icon => icon.tooltip == expectedCaption));
+        }).All(matches => matches),
+            "All metric rows render their own SDK grade with the matching icon, caption and accessible tooltip");
+    }
+
+    private static void CheckUnratedAndEmptyDisplay(ModelStatisticsWindow window, Action<bool, string> check)
+    {
+        var previousHistory = ModelStatisticsService.History.ToArray();
+        var previousStored = SessionState.GetString(HistoryKey, string.Empty);
+        var selected = (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window);
+        var template = VisibleSnapshots(window).Single(snapshot => snapshot.Id == selected);
+        var history = (IList)typeof(ModelStatisticsService).GetField("Snapshots", Any).GetValue(null);
+        try
+        {
+            foreach (var grade in new[] { PerformanceRating.None, (PerformanceRating)999 })
+            {
+                var unknown = JsonUtility.FromJson<ModelStatisticsSnapshot>(JsonUtility.ToJson(template));
+                typeof(ModelStatisticsSnapshot).GetField("id", Any).SetValue(unknown, Guid.NewGuid().ToString("N"));
+                typeof(ModelStatisticsSnapshot).GetField("overallRating", Any).SetValue(unknown, grade);
+                typeof(ModelStatisticsMetric).GetField("rating", Any).SetValue(unknown.Metrics[0], grade);
+                history.Insert(0, unknown);
+                typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).SetValue(window, unknown.Id);
+                typeof(ModelStatisticsWindow).GetMethod("RefreshSnapshots", Any).Invoke(window, null);
+                var firstRow = window.rootVisualElement.Q("metricsTable")
+                    .Query<VisualElement>(className: "statistics-row").First();
+                var cell = firstRow.Q<VisualElement>(className: "statistics-rating");
+                check(window.rootVisualElement.Q<Image>("overallRatingIcon").image == null &&
+                    window.rootVisualElement.Q<Label>("overallRating").text.Contains("Not Rated") &&
+                    !cell.Query<Image>(className: "statistics-rating-icon").ToList().Any() &&
+                    cell.Q<Label>(className: "statistics-rating-label").text == "Not Rated",
+                    "Unrated snapshot " + (int)grade + " renders explicit text without false overall or metric icons");
+            }
+            ModelStatisticsService.ClearHistory();
+            check(window.rootVisualElement.Q<Image>("overallRatingIcon").image == null &&
+                string.IsNullOrEmpty(window.rootVisualElement.Q<Label>("overallRating").text) &&
+                window.rootVisualElement.Q("metricsTable").childCount == 0,
+                "Clearing statistics removes the previous overall icon and all metric grade displays");
+        }
+        finally
+        {
+            history.Clear();
+            foreach (var snapshot in previousHistory) history.Add(snapshot);
+            if (string.IsNullOrEmpty(previousStored)) SessionState.EraseString(HistoryKey);
+            else SessionState.SetString(HistoryKey, previousStored);
+            typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).SetValue(window, selected);
+            typeof(ModelStatisticsWindow).GetMethod("RefreshSnapshots", Any).Invoke(window, null);
         }
     }
 

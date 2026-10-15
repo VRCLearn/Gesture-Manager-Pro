@@ -23,6 +23,8 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         private ObjectField _avatarField;
         private DropdownField _snapshotField;
         private HelpBox _status;
+        private VisualElement _summaryRow;
+        private Image _summaryIcon;
         private Label _summary;
         private Label _details;
         private VisualElement _metrics;
@@ -160,9 +162,16 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             panel.Add(_snapshotField);
             _status = new HelpBox("", HelpBoxMessageType.Info) { name = "statusLabel" };
             panel.Add(_status);
-            _summary = new Label { name = "overallRating" };
-            _summary.AddToClassList("statistics-summary");
-            panel.Add(_summary);
+            _summaryRow = new VisualElement();
+            _summaryRow.AddToClassList("statistics-summary");
+            _summaryIcon = new Image { name = "overallRatingIcon", scaleMode = ScaleMode.ScaleToFit };
+            _summaryIcon.AddToClassList("statistics-rating-icon");
+            _summaryIcon.AddToClassList("statistics-summary-icon");
+            _summaryRow.Add(_summaryIcon);
+            _summary = new Label { name = "overallRating", enableRichText = false };
+            _summary.AddToClassList("statistics-summary-text");
+            _summaryRow.Add(_summary);
+            panel.Add(_summaryRow);
             _details = new Label { name = "snapshotDetails", enableRichText = false };
             _details.AddToClassList("statistics-note");
             panel.Add(_details);
@@ -243,6 +252,8 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             _metrics.Clear();
             var snapshot = _snapshots.FirstOrDefault(item => item.Id == _snapshotId);
             _summary.text = "";
+            _summaryIcon.image = null;
+            _summaryRow.EnableInClassList("statistics-hidden", snapshot == null);
             _details.text = "";
             _status.messageType = HelpBoxMessageType.Info;
             if (snapshot == null)
@@ -256,6 +267,9 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             if (snapshot.BuildStatus == ModelStatisticsBuildStatus.Failed || snapshot.BuildStatus == ModelStatisticsBuildStatus.Unconfirmed)
                 _status.messageType = HelpBoxMessageType.Warning;
             _summary.text = EditorLocalization.Format("Overall: {0}", RatingLabel(snapshot.OverallRating));
+            _summaryIcon.image = RatingIcon(snapshot.OverallRating);
+            _summaryIcon.tooltip = RatingLabel(snapshot.OverallRating);
+            _summaryIcon.EnableInClassList("statistics-hidden", !_summaryIcon.image);
             _details.text = snapshot.AvatarName + " · " + (_mobile ? EditorLocalization.Tr("Mobile (Android)") : "PC") + " · " + CaptureTime(snapshot);
             if (snapshot.HasBuildPlatform)
                 _details.text += "\n" + EditorLocalization.Format("Actual SDK Build Platform: {0}",
@@ -265,12 +279,13 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             foreach (var metric in snapshot.Metrics)
                 AddRow(snapshot.FormatVersion == 0 && metric.Category == AvatarPerformanceCategory.AABB
                     ? EditorLocalization.Tr("Bounds Size") : MetricLabel(metric.Category), MetricValue(metric),
-                    RatingLabel(metric.Rating), false);
+                    RatingLabel(metric.Rating), false, metric.Rating);
             if (snapshot.BundleBytes >= 0)
                 AddRow(EditorLocalization.Tr("Built Bundle File Size"), EditorUtility.FormatBytes(snapshot.BundleBytes), "—", false);
         }
 
-        private void AddRow(string metric, string value, string rating, bool header)
+        private void AddRow(string metric, string value, string rating, bool header,
+            PerformanceRating performance = PerformanceRating.None)
         {
             var row = new VisualElement();
             row.AddToClassList(header ? "statistics-header" : "statistics-row");
@@ -278,8 +293,18 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             name.AddToClassList("statistics-metric");
             var number = new Label(value) { enableRichText = false };
             number.AddToClassList("statistics-value");
-            var rank = new Label(rating) { enableRichText = false };
+            var rank = new VisualElement { tooltip = rating };
             rank.AddToClassList("statistics-rating");
+            var icon = header ? null : RatingIcon(performance);
+            if (icon)
+            {
+                var image = new Image { image = icon, scaleMode = ScaleMode.ScaleToFit, tooltip = rating };
+                image.AddToClassList("statistics-rating-icon");
+                rank.Add(image);
+            }
+            var rankLabel = new Label(rating) { enableRichText = false };
+            rankLabel.AddToClassList("statistics-rating-label");
+            rank.Add(rankLabel);
             row.Add(name);
             row.Add(number);
             row.Add(rank);
@@ -353,8 +378,33 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             }
         }
 
-        private static string RatingLabel(PerformanceRating rating) =>
-            EditorLocalization.Tr(rating.ToString() == "VeryPoor" ? "Very Poor" : rating.ToString());
+        private static Texture RatingIcon(PerformanceRating rating)
+        {
+            string resource;
+            switch (rating)
+            {
+                case PerformanceRating.Excellent: resource = "PerformanceIcons/Perf_Great_32"; break;
+                case PerformanceRating.Good: resource = "PerformanceIcons/Perf_Good_32"; break;
+                case PerformanceRating.Medium: resource = "PerformanceIcons/Perf_Medium_32"; break;
+                case PerformanceRating.Poor: resource = "PerformanceIcons/Perf_Poor_32"; break;
+                case PerformanceRating.VeryPoor: resource = "PerformanceIcons/Perf_Horrible_32"; break;
+                default: return null;
+            }
+            return Resources.Load<Texture>(resource);
+        }
+
+        private static string RatingLabel(PerformanceRating rating)
+        {
+            switch (rating)
+            {
+                case PerformanceRating.Excellent:
+                case PerformanceRating.Good:
+                case PerformanceRating.Medium:
+                case PerformanceRating.Poor: return EditorLocalization.Tr(rating.ToString());
+                case PerformanceRating.VeryPoor: return EditorLocalization.Tr("Very Poor");
+                default: return EditorLocalization.Tr("Not Rated");
+            }
+        }
 
         private static string MetricValue(ModelStatisticsMetric metric)
         {

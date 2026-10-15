@@ -1,5 +1,16 @@
 # Development validation
 
+## SDK rating icons and terminology (0.4.1)
+
+Validated on 2026-10-15 in the existing disposable Windows fixture with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5.
+
+- Editor integration: 424 assertions passed, including 16 additional checks for the actual SDK icon resources, overall and per-metric image/label binding, localized captions, snapshot preservation during language changes, and icon removal for unrated, unrecognized and empty-history states.
+- Desktop UI: controlled display samples show all five SDK icons alongside their Chinese captions. The actual window was inspected at widths of 680 and 460 pixels, then switched to English while retaining the same record. Overall captions fit without splitting the Chinese rating; metric values and long labels wrap within the table.
+- Terminology: Simplified Chinese ranks and shared performance metric labels match the local VRCX-0 `src/localization/zh-CN.json` entries under `dialog.avatar.performance`. Non-local Contact scope and Bounds center/extents remain explicit rather than adopting a less precise label.
+- Compatibility and distribution: Diagnostics compile against SDK 3.10.4, which also contains all five referenced icon assets. Unity integration uses SDK 3.10.5. The 42 Python distribution tests and 1,733 static package checks pass. Icons are loaded from the existing SDK dependency; no copied artwork, native binary or dependency was added.
+
+This update changes presentation and terminology only. The 0.4.0 SDK calculation and processing-stage behavior remain unchanged. Display samples use synthetic ratings to expose every visual state and are not avatar performance measurements. Light-theme UI and macOS/Linux editor visuals were not inspected.
+
 ## Processing stages and APW alignment (0.4.0)
 
 Validated on 2026-10-15 in the existing disposable Windows fixture with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5.
