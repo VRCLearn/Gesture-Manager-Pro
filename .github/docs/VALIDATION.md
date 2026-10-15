@@ -1,6 +1,36 @@
 # Development validation
 
-## Shared localized editor fonts (unreleased)
+## Stable multi-page editor fonts (0.4.3)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- Font validity and resource retention now inspect only `atlasTextureCount` active pages. TextCore can reserve a four-slot array for three valid atlas pages; its unused null slot no longer destroys and recreates the entire language font chain on every Editor update. Retention also avoids rewriting unchanged hide flags. Missing active pages or materials still trigger recovery.
+- Graphics-enabled editor integration passed 446 assertions; 1,739 static package checks passed. The regression generates a real three-page CJK font with reserved null capacity, verifies stable font/material/atlas instances over 200 refreshes, and checks retention and recovery from destroyed active resources.
+- The running Test-Avatar Model Statistics window was exercised for 180 Editor updates, including 20 warm-up updates and 160 measured updates. Eighty dispatched UI Toolkit wheel events produced 28 effective scroll changes over offsets 0–711; `EditorWindow.position` drove 40 position changes and 40 size changes. All 17 font/material/active-atlas instance IDs remained unchanged, with zero font-definition reads and glyph-rasterization calls after warm-up. The three-page/four-slot CJK atlas remained valid throughout.
+- Across those 160 updates, the font-maintenance callback took a median 0.0255 ms, 95th percentile 0.0703 ms and maximum 0.1856 ms. These are callback timings on this machine, not total Editor frame times. No errors were logged. The original window rectangle, scroll offset, selected snapshot, history and unsaved scene state were preserved.
+
+Wheel dispatch and window geometry changes were automated through Unity APIs; physical mouse title-bar dragging was not separately tested. Other operating systems, graphics backends and display scaling were not checked for this change.
+
+## Non-readable help texture copy (0.4.3)
+
+Validated on 2026-10-15 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- Replaced `Instantiate` of Unity's built-in help texture with a private texture of the same graphics format, dimensions and mip count, populated by [Graphics.CopyTexture](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Graphics.CopyTexture.html). This supports the CPU-unreadable native icon without changing its readability, Point filtering or Clamp wrapping. Each window keeps its own cached Bilinear copy and releases it on close.
+- Editor integration passed 439 assertions without a graphics device and 442 with graphics enabled. The GPU regression discards a patterned source texture's CPU data, requires zero copy errors, checks its known alpha values and compares every rendered color/alpha pixel with the copy. Existing cache reuse, separate-window ownership and cleanup checks also pass. All 1,739 static package checks pass.
+- The running Test-Avatar project compiled and opened Model Statistics without errors. Its actual 32x32 native help source remained CPU-unreadable; the private copy matched every GPU-rendered pixel, including all 325 nontransparent pixels. None and unknown grades reused that copy. Shared source settings, the active render target and the unsaved scene state were preserved. The console contained no errors after the check.
+
+Other graphics backends, light theme and higher display scaling were not checked for this change.
+
+## Inspector feature access (0.4.3)
+
+Validated on 2026-10-15 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in the disposable Windows fixture.
+
+- The emulator Inspector now exposes the global language selector and Model Statistics, Lip Sync Test and Game Simulation buttons beneath its version heading. The controls are available before Play Mode and while inspecting the prefab. Feature windows no longer register standalone Tools menu items, and localization no longer registers a Unity Preferences page.
+- Editor integration: 438 assertions passed, including feature-menu and settings-provider absence, one Inspector contribution from each feature assembly, explicit window binding to the originating emulator, language/cache switching and the existing motion/statistics checks. The original add-emulator Tools command remains unchanged.
+- Distribution: 1,739 static package checks passed. Removed the unused settings script, metadata and its two translations; no assembly dependency or prefab data changes were needed.
+- The running Test-Avatar project compiled the updated sources without errors. Inspector render captures verified the language selector and all three feature buttons on a scene instance in Chinese and English, and on the prefab asset in Chinese, at widths of 464–469 pixels. Invoking the production entry actions opened all three windows; Game Simulation and Lip Sync Test bound to the originating instance. The check restored the original selection and language, closed its temporary windows and preserved the scene's unsaved state. Native mouse/dropdown interaction was not validated.
+
+## Shared localized editor fonts (0.4.3)
 
 Validated on 2026-10-15 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in the disposable Windows fixture.
 

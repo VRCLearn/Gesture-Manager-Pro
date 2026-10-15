@@ -6,6 +6,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.UIElements;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDKBase.Validation.Performance;
@@ -30,9 +31,6 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         private Label _details;
         private VisualElement _metrics;
         private List<ModelStatisticsSnapshot> _snapshots = new List<ModelStatisticsSnapshot>();
-
-        [MenuItem("Tools/Model Statistics")]
-        public static void Open() => OpenForAvatar(null);
 
         public static void OpenForAvatar(GameObject avatar)
         {
@@ -396,16 +394,25 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
                     if (!_unratedIcon)
                     {
                         var source = EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture2D;
-                        if (source)
-                        {
-                            _unratedIcon = Instantiate(source);
-                            _unratedIcon.hideFlags = HideFlags.HideAndDontSave;
-                            _unratedIcon.filterMode = FilterMode.Bilinear;
-                        }
+                        if (source) _unratedIcon = CopyUnratedIcon(source);
                     }
                     return _unratedIcon;
             }
             return Resources.Load<Texture>(resource);
+        }
+
+        private static Texture2D CopyUnratedIcon(Texture2D source)
+        {
+            var copy = new Texture2D(source.width, source.height, source.graphicsFormat,
+                source.mipmapCount, TextureCreationFlags.None)
+            {
+                name = "GestureManagerPro.UnratedHelp",
+                hideFlags = HideFlags.HideAndDontSave,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = source.wrapMode
+            };
+            Graphics.CopyTexture(source, copy);
+            return copy;
         }
 
         private static string RatingLabel(PerformanceRating rating)

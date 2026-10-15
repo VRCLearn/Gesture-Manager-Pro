@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3;
+using VRCLearn.GestureManagerPro.Editor;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -49,8 +50,25 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
         private readonly float[] _weights = new float[PcmSignal.VisemeCount];
         private double _nextRefresh;
 
-        [MenuItem("Tools/Lip Sync Test")]
-        public static void Open() => GetWindow<LipSyncTestWindow>(EditorLocalization.Tr("Lip Sync Test"));
+        [InitializeOnLoadMethod]
+        private static void RegisterInspectorTools() => GestureManagerEditor.InspectorToolsGUI += DrawInspectorTools;
+
+        private static void DrawInspectorTools(GestureManagerComponent manager)
+        {
+            if (GUILayout.Button(EditorLocalization.Tr("Lip Sync Test"))) Open(manager);
+        }
+
+        public static void Open(GestureManagerComponent manager)
+        {
+            var window = GetWindow<LipSyncTestWindow>(EditorLocalization.Tr("Lip Sync Test"));
+            if (window._session == null || !window._session.Running)
+            {
+                window._manager = manager;
+                window._managerField?.SetValueWithoutNotify(manager);
+                window.Refresh();
+            }
+            window.Show();
+        }
 
         private void OnEnable()
         {

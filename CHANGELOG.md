@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3
+
+- Use shared, language-specific system font chains in Model Statistics, Lip Sync Test and Game Simulation, following NDMF's editor localization approach. Regular faces and synthetic bold keep Chinese body text and headings consistent without adding a font binary or NDMF dependency.
+- Fix repeated font rebuilding and Editor stalls when scrolling or moving Model Statistics. Validate only active atlas pages, so unused null slots in TextCore's multi-page atlas capacity do not invalidate the font cache. Missing active resources still recover automatically.
+- Put the language selector and Model Statistics, Lip Sync Test and Game Simulation actions at the top of the Gesture Manager emulator Inspector, including prefab inspection. Open simulation and lip sync with the selected emulator; remove their standalone Tools entries and the separate language Preferences page.
+- Fix copying Unity's CPU-unreadable help icon by copying its texture on the GPU. Preserve the native format and shared texture settings while retaining the window-owned, smoothly filtered icon and cleanup.
+
 ## 0.4.2
 
 - Display the same Unity help/question-mark icon used by the SDK for **Not Rated** overall and metric ratings. Share the other rating icons' dimensions and spacing to align their captions. Table headings and bundle file sizes remain outside the performance-rating icon display.

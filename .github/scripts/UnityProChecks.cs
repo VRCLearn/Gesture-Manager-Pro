@@ -86,9 +86,12 @@ public static class UnityProChecks
             Check(core != simulator && simulator != localization && localization != audioTools, "Core, simulator, localization, and audio tools use separate assemblies");
             Check(!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName().Name == "vrchat.blackstartx.gesture-manager"), "Fixture does not contain the original Gesture Manager");
             CheckToolsMenu(typeof(GestureManagerEditor), "AddNewEmulator", "Tools/Gesture Manager Pro");
-            CheckToolsMenu(typeof(ControlledModeWindow), "Open", "Tools/Game Simulation");
-            CheckToolsMenu(typeof(LipSyncTestWindow), "Open", "Tools/Lip Sync Test");
-            CheckToolsMenu(localization.GetType("VRCLearn.GestureManagerPro.Localization.LocalizationSettings", true), "Open", "Tools/Language Settings");
+            Check(new[] { typeof(ControlledModeWindow), typeof(LipSyncTestWindow), typeof(VRCLearn.GestureManagerPro.Diagnostics.ModelStatisticsWindow) }
+                .All(type => !type.GetMethods(Any).Any(method => method.IsDefined(typeof(MenuItem), false))),
+                "Feature windows do not add standalone Tools menu entries");
+            Check(!localization.GetTypes().SelectMany(type => type.GetMethods(Any))
+                .Any(method => method.IsDefined(typeof(SettingsProviderAttribute), false)),
+                "Language selection does not register a standalone Unity Preferences page");
 
             Check(Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Default"), "Pro radial icon loads from scoped resource path");
             Check(Resources.Load<GameObject>("GestureManagerPro/Vrc3/Meshes/CullingDiamond"), "Pro culling prefab loads from scoped resource path");
@@ -199,6 +202,15 @@ public static class UnityProChecks
             Check(Caption(state) == EditorLocalization.Tr("State") && Caption(states) == EditorLocalization.Tr("States"), "Distinct sources survive a second language switch");
 
             manager = new GameObject("Pro validation manager").AddComponent<GestureManager>();
+            window.Show();
+            LipSyncTestWindow.Open(manager);
+            ControlledModeWindow.Open(manager);
+            Check(typeof(LipSyncTestWindow).GetField("_manager", Any).GetValue(window) == manager &&
+                typeof(ControlledModeWindow).GetField("_manager", Any).GetValue(controlledWindow) == manager,
+                "Inspector feature actions bind their windows to the originating emulator");
+            var inspectorTools = (Action<GestureManager>)typeof(GestureManagerEditor).GetField("InspectorToolsGUI", Any).GetValue(null);
+            Check(inspectorTools != null && inspectorTools.GetInvocationList().Length == 2,
+                "Game simulation and lip sync each contribute one Inspector action across assembly boundaries");
             inspector = UnityEditor.Editor.CreateEditor(manager);
             Check(inspector is GestureManagerEditor, "Pro component has its own custom inspector");
             Check(((GestureManagerEditor)inspector).CreateInspectorGUI() != null, "Pro custom inspector creates its visual root");

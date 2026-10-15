@@ -48,7 +48,7 @@ public static class UnityProFontChecks
                 "Simplified Chinese includes the configured OS face and uses synthetic styles without alternate weight assets");
             check(chain.All(font => font.hideFlags == HideFlags.HideAndDontSave &&
                 font.material.hideFlags == HideFlags.HideAndDontSave &&
-                font.atlasTextures.All(texture => texture.hideFlags == HideFlags.HideAndDontSave)),
+                font.atlasTextures.Take(font.atlasTextureCount).All(texture => texture && texture.hideFlags == HideFlags.HideAndDontSave)),
                 "Dynamic font assets, materials and atlas pages are retained across editor scene and mode changes");
             check(roots.Count == originalRootCount + windows.Count,
                 "Each attached window registers exactly one font update target");
@@ -69,6 +69,25 @@ public static class UnityProFontChecks
             check(root.style.unityFontDefinition.value.fontAsset == chinese,
                 "Automatic font language follows the same culture policy as the displayed translations");
 
+            var cjk = chain.First(font => font.faceInfo.familyName == "Microsoft YaHei UI");
+            for (var offset = 0; offset < 512 && cjk.atlasTextureCount < 3; offset += 32)
+                cjk.TryAddCharacters(new string(Enumerable.Range(0x4e00 + offset, 32).Select(value => (char)value).ToArray()), out _);
+            var pages = cjk.atlasTextures.Take(cjk.atlasTextureCount).ToArray();
+            check(cjk.atlasTextureCount >= 3 && cjk.atlasTextures.Length > cjk.atlasTextureCount &&
+                cjk.atlasTextures.Skip(cjk.atlasTextureCount).Any(texture => !texture),
+                "A real multi-page CJK font reserves unused null atlas slots beyond its active pages");
+            var resourceIds = chain.SelectMany(font => new UnityEngine.Object[] { font, font.material }
+                .Concat(font.atlasTextures.Take(font.atlasTextureCount).Cast<UnityEngine.Object>()))
+                .Select(resource => resource.GetInstanceID()).ToArray();
+            for (var update = 0; update < 200; update++) refresh.Invoke(null, null);
+            check(windows.All(window => window.rootVisualElement.style.unityFontDefinition.value.fontAsset == chinese) &&
+                chain.SelectMany(font => new UnityEngine.Object[] { font, font.material }
+                    .Concat(font.atlasTextures.Take(font.atlasTextureCount).Cast<UnityEngine.Object>()))
+                    .Select(resource => resource.GetInstanceID()).SequenceEqual(resourceIds),
+                "Two hundred font updates preserve the chain, materials and active atlas pages despite reserved null slots");
+            check(pages.All(texture => texture && texture.hideFlags == HideFlags.HideAndDontSave),
+                "New active atlas pages are retained without touching unused capacity slots");
+
             // Simulate Unity invalidating a dynamic child resource without changing the bound FontAsset reference.
             UnityEngine.Object.DestroyImmediate(chain.Last().material);
             refresh.Invoke(null, null);
@@ -76,6 +95,13 @@ public static class UnityProFontChecks
             check(!chinese && repaired && repaired != chinese && windows.All(window =>
                 window.rootVisualElement.style.unityFontDefinition.value.fontAsset == repaired),
                 "A damaged fallback resource rebuilds the complete chain and rebinds all attached windows");
+            UnityEngine.Object.DestroyImmediate(repaired.atlasTextures[0]);
+            refresh.Invoke(null, null);
+            var atlasRepaired = root.style.unityFontDefinition.value.fontAsset;
+            check(!repaired && atlasRepaired && windows.All(window =>
+                window.rootVisualElement.style.unityFontDefinition.value.fontAsset == atlasRepaired),
+                "A destroyed active atlas page still triggers complete-chain recovery");
+            repaired = atlasRepaired;
             var last = windows.Last();
             windows.Remove(last);
             last.Close();

@@ -102,14 +102,28 @@ namespace VRCLearn.GestureManagerPro.Localization
             return fonts.ToArray();
         }
 
-        private static bool IsAlive(FontAsset font) => font && font.material &&
-            font.atlasTextures != null && font.atlasTextures.Length > 0 && font.atlasTextures.All(texture => texture);
+        private static bool IsAlive(FontAsset font)
+        {
+            if (!font || !font.material) return false;
+            var textures = font.atlasTextures;
+            var count = font.atlasTextureCount;
+            if (textures == null || count <= 0 || count > textures.Length) return false;
+            for (var index = 0; index < count; index++)
+                if (!textures[index]) return false;
+            return true;
+        }
 
         private static void PreserveResources(FontAsset font)
         {
-            font.hideFlags = HideFlags.HideAndDontSave;
-            font.material.hideFlags = HideFlags.HideAndDontSave;
-            foreach (var texture in font.atlasTextures) texture.hideFlags = HideFlags.HideAndDontSave;
+            Preserve(font);
+            Preserve(font.material);
+            var textures = font.atlasTextures;
+            for (var index = 0; index < font.atlasTextureCount; index++) Preserve(textures[index]);
+        }
+
+        private static void Preserve(UnityEngine.Object resource)
+        {
+            if (resource.hideFlags != HideFlags.HideAndDontSave) resource.hideFlags = HideFlags.HideAndDontSave;
         }
 
         private static void DestroyFonts(IEnumerable<FontAsset> fonts)

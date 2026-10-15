@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using VRCLearn.GestureManagerPro.Editor;
 using VRCLearn.GestureManagerPro.Localization;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -29,8 +30,24 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private DropdownField _view;
         private ObjectField _managerField;
 
-        [MenuItem("Tools/Game Simulation")]
-        public static void Open() => GetWindow<ControlledModeWindow>();
+        [InitializeOnLoadMethod]
+        private static void RegisterInspectorTools() => GestureManagerEditor.InspectorToolsGUI += DrawInspectorTools;
+
+        private static void DrawInspectorTools(GestureManager manager)
+        {
+            if (GUILayout.Button(EditorLocalization.Tr("Game Simulation"))) Open(manager);
+        }
+
+        public static void Open(GestureManager manager)
+        {
+            var window = GetWindow<ControlledModeWindow>();
+            if (window._session == null || !window._session.Running)
+            {
+                window._manager = manager;
+                window._managerField?.SetValueWithoutNotify(manager);
+            }
+            window.Show();
+        }
 
         private void OnEnable()
         {

@@ -467,10 +467,6 @@ public static class UnityProStatisticsChecks
                 ModelStatisticsService.History[0].AvatarName == "Tools",
                 "Using a selected avatar child resolves its descriptor root before measurement");
             CheckUnratedAndEmptyDisplay(window, check);
-            var menu = typeof(ModelStatisticsWindow).GetMethod("Open", Any).GetCustomAttributes(typeof(MenuItem), false)
-                .Cast<MenuItem>().ToArray();
-            check(menu.Any(item => item.menuItem == "Tools/Model Statistics" && !item.validate),
-                "Statistics window registers directly under Tools/Model Statistics");
         }
         finally
         {
@@ -526,6 +522,9 @@ public static class UnityProStatisticsChecks
             "Unrated grades reuse a private native-resolution help icon with smooth filtering at scaled UI sizes");
         check(helpIcon.filterMode == originalFilter,
             "Statistics do not change the filter mode of Unity's shared help icon");
+        check(unrated is Texture2D copy && copy.graphicsFormat == helpIcon.graphicsFormat &&
+            copy.mipmapCount == helpIcon.mipmapCount && copy.wrapMode == helpIcon.wrapMode,
+            "The private help texture preserves the native format, mip levels and edge wrapping");
         var temporaryWindow = ScriptableObject.CreateInstance<ModelStatisticsWindow>();
         Texture ownedIcon = null;
         try
@@ -540,6 +539,70 @@ public static class UnityProStatisticsChecks
         }
         check(!ownedIcon && unrated && helpIcon && helpIcon.filterMode == originalFilter,
             "Closing a statistics window releases its help texture and preserves other windows and shared icons");
+        if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null)
+            CheckNonReadableIconCopy(check);
+        else Debug.Log("[Pro statistics validation] SKIP: non-readable GPU texture copy requires a graphics-enabled invocation.");
+    }
+
+    private static void CheckNonReadableIconCopy(Action<bool, string> check)
+    {
+        var source = new Texture2D(32, 32, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp
+        };
+        Texture2D copy = null;
+        var errors = new List<string>();
+        Application.LogCallback onLog = (message, stack, type) =>
+        {
+            if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) errors.Add(message);
+        };
+        var previous = RenderTexture.active;
+        Application.logMessageReceived += onLog;
+        try
+        {
+            var pixels = Enumerable.Range(0, 32 * 32).Select(index =>
+                new Color32((byte)(index % 32 * 8), (byte)(index / 32 * 8), 128, (byte)(index % 3 * 127))).ToArray();
+            source.SetPixels32(pixels);
+            source.Apply(false, true);
+            copy = (Texture2D)typeof(ModelStatisticsWindow).GetMethod("CopyUnratedIcon", Any).Invoke(null, new object[] { source });
+            check(!source.isReadable && copy && errors.Count == 0,
+                "Copying a CPU-unreadable help texture does not emit errors");
+            var renderedSource = ReadGpuPixels(source);
+            check(renderedSource.Select(pixel => pixel.a).SequenceEqual(pixels.Select(pixel => pixel.a)) &&
+                renderedSource.SequenceEqual(ReadGpuPixels(copy)),
+                "The GPU help copy preserves every rendered color and alpha pixel");
+            check(errors.Count == 0 && RenderTexture.active == previous &&
+                !source.isReadable && source.filterMode == FilterMode.Point && source.wrapMode == TextureWrapMode.Clamp,
+                "Help copying and verification preserve shared texture settings and the active render target");
+        }
+        finally
+        {
+            Application.logMessageReceived -= onLog;
+            if (copy) UnityEngine.Object.DestroyImmediate(copy);
+            UnityEngine.Object.DestroyImmediate(source);
+        }
+    }
+
+    private static Color32[] ReadGpuPixels(Texture texture)
+    {
+        var target = RenderTexture.GetTemporary(texture.width, texture.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+        var readable = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false, true);
+        var previous = RenderTexture.active;
+        try
+        {
+            Graphics.Blit(texture, target);
+            RenderTexture.active = target;
+            readable.ReadPixels(new Rect(0, 0, texture.width, texture.height), 0, 0);
+            readable.Apply(false, false);
+            return readable.GetPixels32();
+        }
+        finally
+        {
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(target);
+            UnityEngine.Object.DestroyImmediate(readable);
+        }
     }
 
     private static void CheckRenderedRatings(ModelStatisticsWindow window, Action<bool, string> check)
