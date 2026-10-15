@@ -97,7 +97,7 @@ namespace VRCLearn.GestureManagerPro.Localization
         private static TranslationCatalog CreateCatalog()
         {
             var catalog = new TranslationCatalog();
-            catalog.Register(ProLanguage.SimplifiedChinese, GestureManagerChinese.Entries, LipSyncChinese.Entries, ModelStatisticsChinese.Entries);
+            catalog.Register(ProLanguage.SimplifiedChinese, GestureManagerChinese.Entries, LipSyncChinese.Entries, ModelStatisticsChinese.Entries, GameSimulationChinese.Entries);
             catalog.Register(ProLanguage.Japanese, JapaneseTranslations.Entries);
             catalog.Register(ProLanguage.Korean, KoreanTranslations.Entries);
             catalog.Register(ProLanguage.TraditionalChinese, TraditionalChineseTranslations.Entries);

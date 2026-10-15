@@ -9,6 +9,7 @@
 zh-Hans=Microsoft YaHei UI
 zh-Hans=Microsoft YaHei
 zh-Hans=PingFang SC
+zh-Hans=Noto Sans SC
 zh-Hans=Noto Sans CJK SC
 zh-Hans=Source Han Sans SC
 zh-Hans=WenQuanYi Micro Hei
