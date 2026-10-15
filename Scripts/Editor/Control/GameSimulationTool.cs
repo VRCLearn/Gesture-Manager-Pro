@@ -5,6 +5,7 @@ using UnityEngine;
 using VRCLearn.GestureManagerPro.Editor.Library;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools;
+using VRCLearn.GestureManagerPro.Extensions.Editor;
 using VRCLearn.GestureManagerPro.Localization;
 
 namespace VRCLearn.GestureManagerPro.Control.Editor
@@ -13,6 +14,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
     {
         private readonly GestureManager _manager;
         private readonly ControlledModeSession _session = new ControlledModeSession();
+        private readonly MicrophoneLipSync _lipSync = new MicrophoneLipSync();
         private KeyboardMotionInputSource _keyboard;
         private float _speed = 2f;
         private float _turnSpeed = 120f;
@@ -31,7 +33,11 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         [InitializeOnLoadMethod]
         private static void Register() => AvatarTools.RegisterTool(manager => new GameSimulationTool(manager));
 
-        public GameSimulationTool(GestureManager manager) => _manager = manager;
+        public GameSimulationTool(GestureManager manager)
+        {
+            _manager = manager;
+            _session.Stopped += _lipSync.Stop;
+        }
 
         protected override void Gui(ModuleVrc3 module)
         {
@@ -67,6 +73,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _session.Motor.MoveSpeed = _speed;
                 _session.Motor.TurnSpeed = _turnSpeed;
             }
+            _lipSync.DrawSettings(module, Active);
             using (new EditorGUI.DisabledScope(!Active && (!EditorApplication.isPlaying || EditorApplication.isPaused)))
                 if (GmgLayoutHelper.DebugButton(EditorLocalization.Tr(Active ? "Exit and Restore" : "Enter Game Simulation"))) Toggle(module);
             if (Active && _keyboard != null && (!_keyboard.Captured || _keyboard.Suspended) &&
@@ -112,6 +119,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             if (_session.Start(_manager, _keyboard, _speed, _turnSpeed, _collisions, _gravity, previewCamera: true,
                 viewMode: _viewMode, cameraDistance: _cameraDistance))
             {
+                _lipSync.Start(_manager);
                 EditorApplication.ExecuteMenuItem("Window/General/Game");
                 _keyboard.RequestCapture();
             }
@@ -125,6 +133,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public override void Dispose()
         {
             _session.Dispose();
+            _lipSync.Dispose();
             _keyboard = null;
         }
 

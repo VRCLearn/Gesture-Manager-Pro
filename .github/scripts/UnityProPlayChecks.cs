@@ -5,6 +5,7 @@ using System.Reflection;
 using VRCLearn.GestureManagerPro;
 using VRCLearn.GestureManagerPro.Control;
 using VRCLearn.GestureManagerPro.Control.Editor;
+using VRCLearn.GestureManagerPro.Extensions.Editor;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
 using VRCLearn.GestureManagerPro.Modules;
@@ -64,6 +65,7 @@ public static class UnityProPlayChecks
             _assertions = 0;
             UnityProStatisticsLifecycleChecks.Run(Check);
             ExecuteChecks();
+            CheckSimulationMicrophone();
             UnityProCameraChecks.Run(Check);
             UnityProGraphChecks.RunChecks(Check);
             UnityProSimulationRenderChecks.RunChecks(Check);
@@ -83,6 +85,103 @@ public static class UnityProPlayChecks
         EditorApplication.update -= AwaitPlayMode;
         SessionState.SetBool(PendingKey, false);
         SessionState.EraseString(DeadlineKey);
+    }
+
+    private static void CheckSimulationMicrophone()
+    {
+        const BindingFlags any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        GameObject avatar = null;
+        GestureManager manager = null;
+        GameSimulationTool tool = null;
+        var paused = EditorApplication.isPaused;
+        try
+        {
+            EditorApplication.isPaused = false;
+            avatar = new GameObject("Pro microphone validation avatar");
+            avatar.AddComponent<Animator>();
+            var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
+            descriptor.lipSync = VRC.SDKBase.VRC_AvatarDescriptor.LipSyncStyle.VisemeParameterOnly;
+            var module = new ModuleVrc3(descriptor) { Active = true, Settings = new ModuleSettings() };
+            foreach (var name in ParameterNames.Concat(new[] { "Viseme", "Voice" }))
+                module.Params.Add(name, new Vrc3Param(name, AnimatorControllerParameterType.Float));
+            module.GetParam("Viseme").Set(module, 3f);
+            module.GetParam("Voice").Set(module, 0.37f);
+            manager = new GameObject("Pro microphone validation manager").AddComponent<GestureManager>();
+            manager.Module = module;
+            tool = new GameSimulationTool(manager);
+            var microphone = (MicrophoneLipSync)typeof(GameSimulationTool).GetField("_lipSync", any).GetValue(tool);
+            var session = (ControlledModeSession)typeof(GameSimulationTool).GetField("_session", any).GetValue(tool);
+            var audio = typeof(MicrophoneLipSync).GetField("_session", any).GetValue(microphone);
+            var toggle = typeof(GameSimulationTool).GetMethod("Toggle", any);
+            Action click = () => toggle.Invoke(tool, new object[] { module });
+            var deviceField = typeof(MicrophoneLipSync).GetField("_microphones", any);
+            var devices = (string[])deviceField.GetValue(microphone);
+
+            microphone.Enabled = false;
+            click();
+            Check(session.Running && !microphone.Running, "Game simulation can run with microphone lip sync disabled");
+            click();
+            microphone.Enabled = true;
+            deviceField.SetValue(microphone, new string[0]);
+            click();
+            Check(session.Running && !microphone.Running &&
+                (string)audio.GetType().GetProperty("Error", any).GetValue(audio) == "No microphone is selected.",
+                "A missing microphone reports an audio error while movement stays available");
+            Check(audio.GetType().GetField("_audioObject", any).GetValue(audio) == null,
+                "A missing microphone leaves no temporary audio object");
+            click();
+            Check(!session.Running && !manager.IsPlayerControlled, "The combined simulation still exits after microphone startup failure");
+            deviceField.SetValue(microphone, devices);
+
+            if (devices.Length == 0 || Application.platform != RuntimePlatform.WindowsEditor || IntPtr.Size != 8)
+            {
+                Debug.Log("[Pro microphone validation] SKIP: native recording checks require an available Windows microphone.");
+                return;
+            }
+            click();
+            Check(session.Running && microphone.Running && Microphone.IsRecording(devices[0]),
+                "Starting game simulation automatically starts the selected microphone");
+            var audioObject = (GameObject)audio.GetType().GetField("_audioObject", any).GetValue(audio);
+            Check(!audioObject.GetComponent<AudioListener>(), "The microphone filter is not attached to a global AudioListener");
+            var tap = audio.GetType().GetField("_tap", any).GetValue(audio);
+            Check(!(bool)tap.GetType().GetField("Monitor", any).GetValue(tap),
+                "Game simulation analyzes microphone audio without speaker monitoring");
+            var samples = Enumerable.Repeat(0.25f, 1024).ToArray();
+            audio.GetType().GetMethod("OnSamples", any).Invoke(audio, new object[] { samples });
+            audio.GetType().GetMethod("ApplyFrame", any).Invoke(audio, null);
+            Check(Mathf.Abs(module.GetParam("Voice").FloatValue() - 0.25f) < 0.001f &&
+                module.GetParam("Viseme").FloatValue() >= 0f && module.GetParam("Viseme").FloatValue() <= 14f,
+                "The active native analyzer publishes injected PCM volume and a valid viseme to the simulator");
+            session.Stop();
+            Check(!microphone.Running && !Microphone.IsRecording(devices[0]) &&
+                audio.GetType().GetField("_audioObject", any).GetValue(audio) == null,
+                "Stopping the motion session synchronously releases its microphone and audio object");
+            Check(module.GetParam("Viseme").FloatValue() == 3f && Mathf.Abs(module.GetParam("Voice").FloatValue() - 0.37f) < 0.001f,
+                "Exiting the combined simulation restores the original speech parameters");
+            session.Stop();
+            Check(!microphone.Running && !Microphone.IsRecording(devices[0]), "Repeated combined-session cleanup is safe");
+
+            click();
+            Check(microphone.Running, "Restarting game simulation reacquires the microphone");
+            EditorApplication.isPaused = true;
+            session.Poll();
+            Check(!session.Running && !microphone.Running && !Microphone.IsRecording(devices[0]),
+                "Pausing releases microphone recording along with movement ownership");
+            EditorApplication.isPaused = false;
+            click();
+            manager.Module = null;
+            session.Poll();
+            Check(!microphone.Running && !Microphone.IsRecording(devices[0]) && !manager.IsPlayerControlled,
+                "Losing the controlled avatar stops both sessions and releases the microphone");
+            manager.Module = module;
+        }
+        finally
+        {
+            tool?.Dispose();
+            if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
+            if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            EditorApplication.isPaused = paused;
+        }
     }
 
     private static void ExecuteChecks()

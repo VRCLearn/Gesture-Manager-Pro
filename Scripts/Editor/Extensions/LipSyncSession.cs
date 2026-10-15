@@ -48,25 +48,24 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
 
         internal bool Running => _running;
         internal string Error { get; private set; }
-        internal bool BlendVisemes { get; set; } = true;
         internal float NoiseFloor { get => _noiseFloor; set => _noiseFloor = value; }
         internal float Gain { set { if (_tap) _tap.Gain = value; } }
-        internal bool Monitor { set { if (_tap) _tap.Monitor = value; } }
 
-        internal void Start(GestureManagerComponent manager, AudioClip clip, string microphone, bool useMicrophone, bool loop, float gain, float noiseFloor, bool monitor)
+        internal void Start(GestureManagerComponent manager, string microphone, float gain, float noiseFloor)
         {
             Stop();
             Error = null;
             try
             {
                 if (!EditorApplication.isPlaying || EditorApplication.isPaused)
-                    throw new InvalidOperationException("Enter Play Mode and resume the editor before starting a test.");
+                    throw new InvalidOperationException("Enter Play Mode and resume the editor before enabling microphone lip sync.");
                 var module = manager ? manager.Module as ModuleVrc3 : null;
                 if (module == null || !module.Active || module.IsInvalid())
                     throw new InvalidOperationException("Select an active Gesture Manager controlling an SDK3 avatar.");
                 if (module.GetParam("Viseme") == null || module.GetParam("Voice") == null)
                     throw new InvalidOperationException("Gesture Manager has not initialized the speech parameters yet.");
-                if (!useMicrophone && !clip) throw new InvalidOperationException("Select an AudioClip first.");
+                if (string.IsNullOrEmpty(microphone)) throw new InvalidOperationException("No microphone is selected.");
+                if (Microphone.IsRecording(microphone)) throw new InvalidOperationException("That microphone is already being recorded by another tool.");
                 if (AudioSettings.outputSampleRate <= 0) throw new InvalidOperationException("Unity audio output is disabled.");
 
                 if (Application.platform != RuntimePlatform.WindowsEditor || IntPtr.Size != 8)
@@ -85,43 +84,38 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
                 _audioError = null;
                 _hasFrame = false;
 
-                _audioObject = new GameObject("Gesture Manager Lip Sync Audio") { hideFlags = HideFlags.HideAndDontSave };
+                _audioObject = new GameObject("Gesture Manager Pro Microphone Audio") { hideFlags = HideFlags.HideAndDontSave };
                 _source = _audioObject.AddComponent<AudioSource>();
                 _source.playOnAwake = false;
                 _source.spatialBlend = 0f;
                 _source.volume = 1f;
-                _source.loop = useMicrophone || loop;
+                _source.loop = true;
                 _source.ignoreListenerPause = true;
                 var hasListener = false;
                 foreach (var listener in UnityEngine.Object.FindObjectsOfType<AudioListener>())
                     if (listener.isActiveAndEnabled) { hasListener = true; break; }
-                if (!hasListener) _audioObject.AddComponent<AudioListener>();
+                if (!hasListener)
+                {
+                    var listenerObject = new GameObject("Gesture Manager Pro Audio Listener") { hideFlags = HideFlags.HideAndDontSave };
+                    listenerObject.transform.SetParent(_audioObject.transform, false);
+                    listenerObject.AddComponent<AudioListener>();
+                }
                 _tap = _audioObject.AddComponent<LipSyncAudioTap>();
                 _tap.Gain = gain;
-                _tap.Monitor = monitor;
+                _tap.Monitor = false;
                 _tap.OnSamples = OnSamples;
                 _tap.OnFrame = ApplyFrame;
                 lock (_gate) _running = true;
 
-                if (useMicrophone)
-                {
-                    if (string.IsNullOrEmpty(microphone)) throw new InvalidOperationException("No microphone is selected.");
-                    if (Microphone.IsRecording(microphone)) throw new InvalidOperationException("That microphone is already being recorded by another tool.");
-                    _microphone = microphone;
-                    Microphone.GetDeviceCaps(microphone, out var minimum, out var maximum);
-                    var rate = maximum == 0 ? AudioSettings.outputSampleRate : Mathf.Clamp(AudioSettings.outputSampleRate, minimum, maximum);
-                    _microphoneClip = Microphone.Start(microphone, true, 1, rate);
-                    _ownsMicrophone = true;
-                    if (!_microphoneClip) throw new InvalidOperationException("Microphone could not start. Check the operating system microphone permissions.");
-                    _source.clip = _microphoneClip;
-                    _waitingForMicrophone = true;
-                    _microphoneStartTime = EditorApplication.timeSinceStartup;
-                }
-                else
-                {
-                    _source.clip = clip;
-                    _source.Play();
-                }
+                _microphone = microphone;
+                Microphone.GetDeviceCaps(microphone, out var minimum, out var maximum);
+                var rate = maximum == 0 ? AudioSettings.outputSampleRate : Mathf.Clamp(AudioSettings.outputSampleRate, minimum, maximum);
+                _microphoneClip = Microphone.Start(microphone, true, 1, rate);
+                _ownsMicrophone = true;
+                if (!_microphoneClip) throw new InvalidOperationException("Microphone could not start. Check the operating system microphone permissions.");
+                _source.clip = _microphoneClip;
+                _waitingForMicrophone = true;
+                _microphoneStartTime = EditorApplication.timeSinceStartup;
             }
             catch (Exception exception)
             {
@@ -166,18 +160,9 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
                     Stop();
                 }
             }
-            else if (!_ownsMicrophone && !_source.isPlaying) Stop();
         }
 
-        internal void Snapshot(float[] weights, out int dominant, out float voice)
-        {
-            lock (_gate)
-            {
-                Array.Copy(_weights, weights, _weights.Length);
-                dominant = _dominant;
-                voice = _voice;
-            }
-        }
+        internal float Voice { get { lock (_gate) return _voice; } }
 
         private void OnSamples(float[] samples)
         {
@@ -219,7 +204,7 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
             // Gesture Manager's Viseme callback sets Voice to 0 or 1; apply measured volume afterwards.
             _module.GetParam("Voice")?.Set(_module, voice);
             if (jawMode && _jaw) _jaw.rotation = Quaternion.Slerp(_jawClosed, _jawOpen, voice);
-            if (!BlendVisemes || _lipSyncStyle != LipSyncStyle.VisemeBlendShape || !_mesh) return;
+            if (_lipSyncStyle != LipSyncStyle.VisemeBlendShape || !_mesh) return;
             _renderBlendShapes.Clear();
             for (var i = 0; i < _blendShapeIndices.Length; i++)
             {

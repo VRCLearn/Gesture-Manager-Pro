@@ -65,7 +65,6 @@ public static class UnityProChecks
         var preferenceValue = EditorPrefs.GetInt(preferenceKey, 0);
         var language = EditorLocalization.Language;
         GameObject avatar = null;
-        LipSyncTestTool lipTool = null;
         GameSimulationTool simulationTool = null;
         GestureManager manager = null;
         UnityEditor.Editor inspector = null;
@@ -77,7 +76,7 @@ public static class UnityProChecks
             var core = typeof(GestureManager).Assembly;
             var simulator = typeof(ModuleVrc3).Assembly;
             var localization = typeof(EditorLocalization).Assembly;
-            var audioTools = typeof(LipSyncTestTool).Assembly;
+            var audioTools = typeof(MicrophoneLipSync).Assembly;
             foreach (var assembly in new[] { core, simulator, localization, audioTools }.Distinct())
             {
                 Check(assembly.GetName().Name.StartsWith("VRCLearn.GestureManagerPro", StringComparison.Ordinal), "Standalone assembly name: " + assembly.GetName().Name);
@@ -87,7 +86,7 @@ public static class UnityProChecks
             Check(core != simulator && simulator != localization && localization != audioTools, "Core, simulator, localization, and audio tools use separate assemblies");
             Check(!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName().Name == "vrchat.blackstartx.gesture-manager"), "Fixture does not contain the original Gesture Manager");
             CheckToolsMenu(typeof(GestureManagerEditor), "AddNewEmulator", "Tools/Gesture Manager Pro");
-            Check(new[] { typeof(GameSimulationTool), typeof(LipSyncTestTool), typeof(VRCLearn.GestureManagerPro.Diagnostics.ModelStatisticsWindow) }
+            Check(new[] { typeof(GameSimulationTool), typeof(MicrophoneLipSync), typeof(VRCLearn.GestureManagerPro.Diagnostics.ModelStatisticsWindow) }
                 .All(type => !type.GetMethods(Any).Any(method => method.IsDefined(typeof(MenuItem), false))),
                 "Feature tools do not add standalone Tools menu entries");
             Check(!localization.GetTypes().SelectMany(type => type.GetMethods(Any))
@@ -118,21 +117,21 @@ public static class UnityProChecks
 
             manager = new GameObject("Pro validation manager").AddComponent<GestureManager>();
             manager.settings = new VRCLearn.GestureManagerPro.Modules.ModuleSettings();
-            lipTool = new LipSyncTestTool(manager);
             simulationTool = new GameSimulationTool(manager);
-            Check(lipTool is GmgDynamicFunction && simulationTool is GmgDynamicFunction,
-                "Both features use the same dynamic-function base as the inherited tools");
-            Check(ToolCaption(lipTool) == "口型测试" && ToolCaption(simulationTool) == "游戏模拟",
-                "Registered tool headers render in Chinese");
+            Check(simulationTool is GmgDynamicFunction && !typeof(GmgDynamicFunction).IsAssignableFrom(typeof(MicrophoneLipSync)),
+                "Game simulation is a standard tool and microphone lip sync has no independent tool entry");
+            Check(ToolCaption(simulationTool) == "游戏模拟" && EditorLocalization.Tr("Microphone Lip Sync") == "麦克风口型",
+                "The simulation header and embedded microphone setting render in Chinese");
             Check((VRCLearn.GestureManagerPro.Control.SimulationViewMode)typeof(GameSimulationTool).GetField("_viewMode", Any).GetValue(simulationTool) == VRCLearn.GestureManagerPro.Control.SimulationViewMode.FirstPerson,
                 "Inline game simulation keeps the first-person default");
-            Check((bool)typeof(LipSyncTestTool).GetField("_useMicrophone", Any).GetValue(lipTool) &&
-                !(bool)typeof(LipSyncTestTool).GetField("_monitor", Any).GetValue(lipTool),
-                "Inline lip sync defaults to microphone input without monitoring");
+            var microphone = (MicrophoneLipSync)typeof(GameSimulationTool).GetField("_lipSync", Any).GetValue(simulationTool);
+            Check(microphone.Enabled && !microphone.Running, "Microphone lip sync is enabled by default but does not record before game simulation starts");
+            Check(!typeof(MicrophoneLipSync).GetMethods(Any).Any(method => method.IsDefined(typeof(InitializeOnLoadMethodAttribute), false)),
+                "Microphone integration does not register an independent tool factory");
             var factories = (List<Func<GestureManager, GmgDynamicFunction>>)typeof(AvatarTools).GetField("ToolFactories", Any).GetValue(null);
-            Check(factories.Count == 2, "Each optional feature registers exactly one standard tool factory");
+            Check(factories.Count == 1, "Only game simulation registers a feature tool factory");
             foreach (var factory in factories.ToArray()) AvatarTools.RegisterTool(factory);
-            Check(factories.Count == 2, "Repeating a tool registration does not duplicate its entry");
+            Check(factories.Count == 1, "Repeating a tool registration does not duplicate its entry");
             foreach (var factory in factories)
             {
                 using (var tool = factory(manager))
@@ -155,7 +154,7 @@ public static class UnityProChecks
             manager.Module = module;
             typeof(RadialMenu).GetMethod("ToolMenuPrefab", Any).Invoke(radial, null);
             var toolButtons = ((RadialSliceBase[])typeof(RadialMenu).GetField("_buttons", Any).GetValue(radial)).OfType<RadialSliceTool>().ToArray();
-            Check(toolButtons.Length == 5, "The radial Tools submenu includes the three inherited tools and both registered tools before opening the Tools tab");
+            Check(toolButtons.Length == 4, "The radial Tools submenu contains game simulation and the three inherited tools, without an independent lip-sync entry");
             var toolsOwner = (AvatarTools)typeof(ModuleVrc3).GetField("AvatarTools", Any).GetValue(module);
             var registered = (List<GmgDynamicFunction>)typeof(AvatarTools).GetField("_registeredTools", Any).GetValue(toolsOwner);
             var getRegistered = typeof(AvatarTools).GetMethod("GetRegisteredTools", Any);
@@ -170,7 +169,6 @@ public static class UnityProChecks
                 Check((Texture2D)tool.GetType().GetProperty("Icon", Any).GetValue(tool),
                     "Registered radial tool icon resolves: " + tool.GetType().Name);
             }
-            var lipButton = toolButtons.Single(button => Caption(button) == "口型测试");
             var gameButton = toolButtons.Single(button => Caption(button) == "游戏模拟");
             toolsOwner.Unlink(module);
             manager.Module = null;
@@ -199,9 +197,9 @@ public static class UnityProChecks
             Check(cachedToolbar[0].text == EditorLocalization.Tr("Tools"), "Toolbar initially renders in Chinese");
 
             EditorLocalization.Language = ProLanguage.English;
-            Check(Caption(lipButton) == "Lip Sync Test" && Caption(gameButton) == "Game Simulation",
+            Check(Caption(gameButton) == "Game Simulation",
                 "Existing radial tool captions follow live language changes");
-            Check(ToolCaption(lipTool) == "Lip Sync Test" && ToolCaption(simulationTool) == "Game Simulation",
+            Check(ToolCaption(simulationTool) == "Game Simulation" && EditorLocalization.Tr("Microphone Lip Sync") == "Microphone Lip Sync",
                 "Existing tool headers follow live language changes without rebuilding a window");
             Check(Caption(grounded) == "Grounded", "Existing built-in radial control switches live to English");
             Check(Caption(state) == "State" && Caption(states) == "States", "Equal Chinese captions retain their distinct original source keys");
@@ -241,7 +239,6 @@ public static class UnityProChecks
             analyzer?.Dispose();
             if (inspector) UnityEngine.Object.DestroyImmediate(inspector);
             if (manager) UnityEngine.Object.DestroyImmediate(manager.gameObject);
-            lipTool?.Dispose();
             simulationTool?.Dispose();
             if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
             if (expressionMenu) UnityEngine.Object.DestroyImmediate(expressionMenu);

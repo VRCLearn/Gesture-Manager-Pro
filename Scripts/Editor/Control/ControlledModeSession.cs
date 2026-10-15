@@ -38,6 +38,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public SimulationViewMode ViewMode { get; private set; } = SimulationViewMode.ThirdPerson;
         public bool Running { get; private set; }
         public string Error { get; private set; }
+        public event Action Stopped;
         public bool LocomotionBlocked => _module != null && (_module.IsLocomotionDisabled || _module.IsPoseSpaceActive || _module.IsPoseModeActive || _module.IsDummyModeActive);
 
         public bool Start(GestureManager manager, IMotionInputSource input, float speed = 2f, float turnSpeed = 120f,
@@ -176,6 +177,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public void Stop()
         {
             if (_stopping) return;
+            var wasRunning = Running;
             _stopping = true;
             try
             {
@@ -220,6 +222,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _hasPreviewCamera = false;
                 if (ReferenceEquals(_gameSimulationOwner, this)) _gameSimulationOwner = null;
                 Motor = null;
+                if (wasRunning) TryRestore(() => Stopped?.Invoke());
                 _stopping = false;
             }
         }
