@@ -1,5 +1,17 @@
 # Development validation
 
+## Main tool group and radial shortcuts (unreleased)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- Lip Sync Test and Game Simulation appear directly after Scene Camera, Clickable Contacts and Pose Avatar, above the Extra Tools heading. Both are standard toggles in the radial Tools submenu with the existing viseme and movement icons, running-state colors and link to settings in the Tools tab.
+- The module lazily resolves its controlling manager and owns one registered tool list shared by the Inspector and all of its radial menus. Opening the radial submenu before visiting Tools initializes the same sessions and defaults. Each feature remains in its separate assembly; no new assets or dependencies were added.
+- Graphics-enabled editor integration passed 442 assertions, including radial-first initialization, explicit owner binding, shared tool instances, icon resolution and live translated captions. Static package validation passed 1,725 checks against the original GM baseline and both SDK packages.
+- Eighteen real Play Mode checks passed, including starting through the radial menu, stopping through the Inspector, starting through the Inspector and stopping through the radial menu, running-state highlights, pause, collapse/tab changes and avatar-disconnection restoration. Ten production Inspector captures cover the Chinese/English radial submenu and inline controls. The submenu in both languages and the main-group layout were visually inspected.
+- The seven changed production/documentation files were synchronized to Test-Avatar after checking its installed sources against the previous commit, with backups and unchanged metadata. The actual 469-by-918 Inspector shows both entries in the radial submenu with Chocolat selected. Play Mode was restored, the scene remains unsaved and the Unity console contains no errors.
+
+The audio check uses a synthetic silent AudioClip. Microphone hardware, physical input, light theme, higher display scaling and other operating systems were not revalidated. This grouping and radial access supersede the Extra Tools placement in the following record.
+
 ## Standard inline avatar tools (unreleased)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in the disposable Windows fixture with Direct3D 11.
