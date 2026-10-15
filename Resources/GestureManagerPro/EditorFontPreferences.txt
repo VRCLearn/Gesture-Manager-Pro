@@ -19,3 +19,7 @@ ja=Meiryo
 ja=Hiragino Sans
 ja=Noto Sans JP
 ja=Noto Sans CJK JP
+ko=Malgun Gothic
+ko=Apple SD Gothic Neo
+ko=Noto Sans KR
+ko=Noto Sans CJK KR
