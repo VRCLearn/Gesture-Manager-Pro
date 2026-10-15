@@ -18,6 +18,16 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 {
     public class AvatarTools
     {
+        private static readonly List<Func<GestureManager, GmgDynamicFunction>> ToolFactories = new();
+        private List<GmgDynamicFunction> _registeredTools;
+        internal bool RequiresRepaint => _registeredTools != null && _registeredTools.Any(tool => tool.RequiresRepaint);
+
+        public static void RegisterTool(Func<GestureManager, GmgDynamicFunction> factory)
+        {
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            if (!ToolFactories.Contains(factory)) ToolFactories.Add(factory);
+        }
+
         private UpdateSceneCamera _sceneCamera;
         public UpdateSceneCamera SceneCamera => _sceneCamera ??= new UpdateSceneCamera();
 
@@ -55,6 +65,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             GUILayout.Label(EditorLocalization.Tr("Extra Tools"), GestureManagerStyles.Header);
             BackgroundAvatar.Display(module);
             AnimationTest.Display(module);
+            _registeredTools ??= ToolFactories.Select(factory => factory(manager)).ToList();
+            foreach (var tool in _registeredTools) tool.Display(module);
             PerformanceAnimator.Display(module);
             GUILayout.Label(EditorLocalization.Tr("Customization"), GestureManagerStyles.Header);
             CustomizationTool.Display(module);
@@ -66,19 +78,31 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             BackgroundAvatar.OnUpdate(module);
             ContactsClickable.OnUpdate(module);
             PerformanceAnimator.OnUpdate(module);
+            if (_registeredTools != null)
+                foreach (var tool in _registeredTools) tool.OnUpdate(module);
         }
 
         internal void OnLateUpdate(ModuleVrc3 module)
         {
             ContactsClickable.OnLateUpdate(module);
+            if (_registeredTools != null)
+                foreach (var tool in _registeredTools) tool.OnLateUpdate(module);
         }
 
         internal void OnDrawGizmos()
         {
             ContactsClickable.OnDrawGizmos();
+            if (_registeredTools != null)
+                foreach (var tool in _registeredTools) tool.OnDrawGizmos();
         }
 
-        public void Unlink(ModuleVrc3 module) => PerformanceAnimator.Disable(module);
+        public void Unlink(ModuleVrc3 module)
+        {
+            PerformanceAnimator.Disable(module);
+            if (_registeredTools == null) return;
+            foreach (var tool in _registeredTools) tool.Dispose();
+            _registeredTools = null;
+        }
 
         public class UpdateSceneCamera : GmgDynamicFunction
         {

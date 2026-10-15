@@ -384,7 +384,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             menu.CheckCondition(this, menu);
             oscContainer.CheckCondition(this, menu);
             weightController.CheckCondition(this, menu);
-            if (IsWatchingDebugParameters(menu) || IsWatchingAnimatorPerformance(menu)) customEditor.Repaint();
+            if (IsWatchingDebugParameters(menu) || IsWatchingAnimatorPerformance(menu) || menu.ToolBar.Selected == 1 && AvatarTools.RequiresRepaint) customEditor.Repaint();
         }
 
         protected override void OnNewLeft(int left) => Params[Vrc3DefaultParams.GestureLeft].Set(this, left);

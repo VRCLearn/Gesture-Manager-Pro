@@ -1,11 +1,12 @@
 #if VRC_SDK_VRCSDK3
+using System;
 using VRCLearn.GestureManagerPro.Editor.Data;
 using VRCLearn.GestureManagerPro.Editor.Library;
 using UnityEngine;
 
 namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 {
-    public abstract class GmgDynamicFunction
+    public abstract class GmgDynamicFunction : IDisposable
     {
         private bool _value;
         protected internal abstract string Name { get; }
@@ -13,6 +14,11 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
         protected internal abstract bool Active { get; }
 
         protected bool Foldout;
+        internal bool RequiresRepaint => Active && Foldout;
+
+        public virtual void Dispose()
+        {
+        }
 
         internal void Display(ModuleVrc3 module)
         {
