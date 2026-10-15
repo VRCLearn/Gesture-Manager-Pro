@@ -3,6 +3,8 @@
 ## 0.4.2
 
 - Display the same Unity help/question-mark icon used by the SDK for **Not Rated** overall and metric ratings. Share the other rating icons' dimensions and spacing to align their captions. Table headings and bundle file sizes remain outside the performance-rating icon display.
+- Use the native 32x32 high-resolution help icon, preserving layout alignment without enlarging the 16x16 variant.
+- The 0.4.2 release assets were refreshed with this icon fix. Reinstall 0.4.2 if it was installed before the refresh.
 
 ## 0.4.1
 

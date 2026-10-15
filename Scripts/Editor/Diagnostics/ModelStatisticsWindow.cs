@@ -388,7 +388,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
                 case PerformanceRating.Medium: resource = "PerformanceIcons/Perf_Medium_32"; break;
                 case PerformanceRating.Poor: resource = "PerformanceIcons/Perf_Poor_32"; break;
                 case PerformanceRating.VeryPoor: resource = "PerformanceIcons/Perf_Horrible_32"; break;
-                default: return EditorGUIUtility.IconContent("d__Help").image;
+                default: return EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture;
             }
             return Resources.Load<Texture>(resource);
         }

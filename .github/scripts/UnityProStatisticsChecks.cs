@@ -492,7 +492,7 @@ public static class UnityProStatisticsChecks
     private static Texture ExpectedRatingIcon(PerformanceRating rating)
     {
         return RatingResources.TryGetValue(rating, out var resource)
-            ? Resources.Load<Texture2D>("PerformanceIcons/Perf_" + resource + "_32") : EditorGUIUtility.IconContent("d__Help").image;
+            ? Resources.Load<Texture2D>("PerformanceIcons/Perf_" + resource + "_32") : EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture;
     }
 
     private static void CheckRatingResources(Action<bool, string> check)
@@ -506,10 +506,11 @@ public static class UnityProStatisticsChecks
                 AssetDatabase.GetAssetPath(actual).StartsWith("Packages/com.vrchat.base/", StringComparison.Ordinal),
                 "Statistics reuse the SDK's actual " + pair.Value + " performance icon for " + pair.Key);
         }
-        var helpIcon = EditorGUIUtility.IconContent("d__Help").image;
-        check(helpIcon && getter.Invoke(null, new object[] { PerformanceRating.None }) as Texture == helpIcon &&
+        var helpIcon = EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture;
+        check(helpIcon && helpIcon.width == 32 && helpIcon.height == 32 &&
+            getter.Invoke(null, new object[] { PerformanceRating.None }) as Texture == helpIcon &&
             getter.Invoke(null, new object[] { (PerformanceRating)999 }) as Texture == helpIcon,
-            "Unrated and unrecognized SDK grades reuse the help icon used by the SDK");
+            "Unrated and unrecognized SDK grades use the native 32-pixel help icon instead of enlarging the 16-pixel variant");
     }
 
     private static void CheckRenderedRatings(ModelStatisticsWindow window, Action<bool, string> check)
@@ -577,7 +578,7 @@ public static class UnityProStatisticsChecks
                     .Query<VisualElement>(className: "statistics-row").First();
                 var cell = firstRow.Q<VisualElement>(className: "statistics-rating");
                 var icons = cell.Query<Image>(className: "statistics-rating-icon").ToList();
-                var helpIcon = EditorGUIUtility.IconContent("d__Help").image;
+                var helpIcon = EditorGUIUtility.Load("Icons/d__Help@2x.png") as Texture;
                 check(helpIcon && window.rootVisualElement.Q<Image>("overallRatingIcon").image == helpIcon &&
                     window.rootVisualElement.Q<Label>("overallRating").text.Contains("Not Rated") &&
                     icons.Count == 1 && icons[0].image == helpIcon &&

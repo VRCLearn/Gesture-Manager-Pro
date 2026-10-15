@@ -4,8 +4,8 @@
 
 Validated on 2026-10-15 in the existing disposable Windows fixture with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5.
 
-- Editor integration: 424 assertions passed. Existing resource, caption and rendered-rating checks now require the SDK-used Unity `d__Help` icon for None and unrecognized ratings, while retaining the empty-history cleanup checks.
-- Desktop UI: a controlled sample shows the help icon beside both the overall **Not Rated** caption and unrated metric captions. Its image bounds and label spacing match those of the five SDK performance icons. Table headings and bundle file sizes do not acquire an unrated icon.
+- Editor integration: 424 assertions passed. Existing resource, caption and rendered-rating checks require the native 32x32 Unity `d__Help@2x` icon for None and unrecognized ratings, while retaining the empty-history cleanup checks. The resource assertion verifies both pixel dimensions.
+- Desktop UI: a controlled sample shows the high-resolution help icon beside both the overall **Not Rated** caption and unrated metric captions, without the enlarged 16x16 variant's blocky edges. Its image bounds and label spacing match those of the five SDK performance icons. Table headings and bundle file sizes do not acquire an unrated icon.
 - Compatibility and distribution: Diagnostics compile against SDK 3.10.4. The 42 Python distribution tests and 1,733 static package checks pass. No asset, dependency, calculator or processing-stage change was introduced.
 
 The visual sample uses synthetic ratings solely to inspect icon placement. It is not an avatar performance measurement. This supersedes 0.4.1's absence of an unrated icon; other 0.4.1 validation limits still apply.
