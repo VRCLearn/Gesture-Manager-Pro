@@ -1,5 +1,17 @@
 # Development validation
 
+## Microphone lip sync integrated into Game Simulation (unreleased)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- Game Simulation is the single feature entry in both the main Tools group and radial Tools submenu. Its inline settings include default-enabled Microphone Lip Sync, device selection, gain, noise floor and mapping diagnostics. The independent lip-sync tool, AudioClip test path and monitoring controls were removed. The renamed microphone helper retains its C# asset GUID, and audio processing remains in its separate assembly.
+- Microphone recording starts after motion control successfully starts. The motion session's stop notification synchronously releases recording and restores mouth/speech state for exit, pause, avatar loss, failure or disposal. Missing/failed microphone input reports a warning while movement remains usable. Monitoring is always muted. In scenes without an existing AudioListener, the temporary listener is a separate child so the microphone filter does not also process the global listener output.
+- Editor integration passed 439 assertions. The final Play Mode suite passed 233 assertions, including microphone disabled/unavailable cases, real USB microphone recording, muted output, native analysis of an injected PCM frame, speech-parameter restoration, repeated stop, pause and avatar-loss cleanup. Static package validation passed 1,723 checks against the original GM baseline and both SDK packages. The optional APW reference comparison was skipped because its fixture-only DLL was absent.
+- An additional production-Inspector probe passed eight checks and captured five views: collapsed tools, expanded Game Simulation in Chinese/English, the radial submenu and the running combined session. Real microphone samples reached the native analyzer through Unity's audio callback; stopping through the Inspector released recording started through the radial menu. The main-group layout, localized settings and radial entry were visually checked.
+- Final sources and README were synchronized to Test-Avatar with backups and unchanged asset metadata. Unity compiled without console errors. Play Mode was restored with Chocolat selected and Game Simulation expanded for review; the user's scene remains unsaved.
+
+Recording lifecycle and signal flow were tested with an available USB microphone, and the analyzer was also given deterministic PCM. Spoken-phoneme recognition accuracy, visible humanoid mouth motion, physical movement controls, light theme, higher display scaling and other operating systems were not revalidated. This integrated microphone presentation supersedes the separate lip-sync tool in the following records.
+
 ## Main tool group and radial shortcuts (unreleased)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
