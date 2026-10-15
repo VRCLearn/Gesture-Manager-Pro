@@ -8,7 +8,7 @@ using VRCLearn.GestureManagerPro.Library.VisualElements;
 
 namespace VRCLearn.GestureManagerPro.Localization
 {
-    public enum ProLanguage { Automatic = 0, English = 1, SimplifiedChinese = 2, Japanese = 3, Korean = 4 }
+    public enum ProLanguage { Automatic = 0, English = 1, SimplifiedChinese = 2, Japanese = 3, Korean = 4, TraditionalChinese = 5 }
 
     public static class EditorLocalization
     {
@@ -75,17 +75,21 @@ namespace VRCLearn.GestureManagerPro.Localization
             var parts = name.Split('-');
             if (parts[0].Equals("ja", StringComparison.OrdinalIgnoreCase)) return ProLanguage.Japanese;
             if (parts[0].Equals("ko", StringComparison.OrdinalIgnoreCase)) return ProLanguage.Korean;
-            return name.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
-                name.StartsWith("zh-CN", StringComparison.OrdinalIgnoreCase) ||
-                name.StartsWith("zh-SG", StringComparison.OrdinalIgnoreCase) ||
-                name.StartsWith("zh-Hans", StringComparison.OrdinalIgnoreCase)
-                ? ProLanguage.SimplifiedChinese : ProLanguage.English;
+            if (!parts[0].Equals("zh", StringComparison.OrdinalIgnoreCase)) return ProLanguage.English;
+            foreach (var part in parts)
+                if (part.Equals("Hans", StringComparison.OrdinalIgnoreCase)) return ProLanguage.SimplifiedChinese;
+                else if (part.Equals("Hant", StringComparison.OrdinalIgnoreCase)) return ProLanguage.TraditionalChinese;
+            foreach (var part in parts)
+                if (part.Equals("TW", StringComparison.OrdinalIgnoreCase) || part.Equals("HK", StringComparison.OrdinalIgnoreCase) || part.Equals("MO", StringComparison.OrdinalIgnoreCase))
+                    return ProLanguage.TraditionalChinese;
+            return ProLanguage.SimplifiedChinese;
         }
 
         internal static string LanguageCode(ProLanguage language) => language switch
         {
             ProLanguage.Japanese => "ja",
             ProLanguage.Korean => "ko",
+            ProLanguage.TraditionalChinese => "zh-Hant",
             ProLanguage.SimplifiedChinese => "zh-Hans",
             _ => "en"
         };
@@ -96,6 +100,7 @@ namespace VRCLearn.GestureManagerPro.Localization
             catalog.Register(ProLanguage.SimplifiedChinese, GestureManagerChinese.Entries, LipSyncChinese.Entries, ModelStatisticsChinese.Entries);
             catalog.Register(ProLanguage.Japanese, JapaneseTranslations.Entries);
             catalog.Register(ProLanguage.Korean, KoreanTranslations.Entries);
+            catalog.Register(ProLanguage.TraditionalChinese, TraditionalChineseTranslations.Entries);
             catalog.Register(ProLanguage.English, EnglishTranslations.Entries);
             return catalog;
         }

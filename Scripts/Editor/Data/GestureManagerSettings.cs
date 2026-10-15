@@ -11,8 +11,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
 {
     public static class GestureManagerSettings
     {
-        private static readonly ProLanguage[] LanguageValues = { ProLanguage.Automatic, ProLanguage.English, ProLanguage.Japanese, ProLanguage.Korean, ProLanguage.SimplifiedChinese };
-        private static readonly string[] LanguageOptions = { "", "English", "日本語", "한국어", "简体中文" };
+        private static readonly ProLanguage[] LanguageValues = { ProLanguage.Automatic, ProLanguage.English, ProLanguage.Japanese, ProLanguage.Korean, ProLanguage.TraditionalChinese, ProLanguage.SimplifiedChinese };
+        private static readonly string[] LanguageOptions = { "", "English", "日本語", "한국어", "繁體中文", "简体中文" };
         private const string LocalFolder = "LocalAvatarData";
 
         private static IEnumerable<string> Users(string directory) => Directory.Exists(directory) ? Directory.GetDirectories(directory).Select(Path.GetFileName) : new string[] { };
