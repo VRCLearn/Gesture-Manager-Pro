@@ -90,6 +90,7 @@ namespace VRCLearn.GestureManagerPro.Localization
         {
             var catalog = new TranslationCatalog();
             catalog.Register(ProLanguage.SimplifiedChinese, GestureManagerChinese.Entries, LipSyncChinese.Entries, ModelStatisticsChinese.Entries);
+            catalog.Register(ProLanguage.English, EnglishTranslations.Entries);
             return catalog;
         }
 

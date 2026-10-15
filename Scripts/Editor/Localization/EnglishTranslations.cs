@@ -1,0 +1,52 @@
+using System.Collections.Generic;
+
+namespace VRCLearn.GestureManagerPro.Localization
+{
+    internal static class EnglishTranslations
+    {
+        internal static IReadOnlyDictionary<string, string> Entries { get; } = new Dictionary<string, string>
+        {
+            ["I'm disabled!"] = "This component is disabled.",
+            ["Drag & Drop me into the scene to start testing! ♥"] = "Drag Gesture Manager Pro into the scene to test an avatar.",
+            ["I'm a useless script if you aren't in play mode :D"] = "Enter Play Mode to use Gesture Manager Pro.",
+            ["Exit Play-Mode"] = "Exit Play Mode",
+            ["Enter Play-Mode"] = "Enter Play Mode",
+            ["No one of your VRC_AvatarDescriptor are eligible."] = "No eligible VRC_AvatarDescriptor was found.",
+            ["Non-Eligible VRC_AvatarDescriptors:"] = "Ineligible VRC_AvatarDescriptors:",
+            ["There are no VRC_AvatarDescriptors in your scene. \nPlease consider adding one to your avatar before entering PlayMode."] = "No VRC_AvatarDescriptor was found in the scene.\nAdd one to your avatar before entering Play Mode.",
+            ["Set As Avatar"] = "Use This Avatar",
+            ["Here you can customize the tool settings!"] = "Configure Gesture Manager Pro.",
+            ["What avatar should be picked on play?"] = "Choose the avatar to initialize when Play Mode starts.",
+            ["Do you wish to load the local stored parameters values?"] = "Load locally saved parameter values?",
+            ["IsOnFriendList: "] = "On Friends List (IsOnFriendsList): ",
+            ["Open Sound Control"] = "Open Sound Control (OSC)",
+            ["A collection of some small utility functions~"] = "Utilities for avatar simulation.",
+            ["This will match your game view with your scene view!\n\nClick the button to setup the main camera automatically~"] = "Match the Game view camera to the Scene view.\n\nClick to configure the main camera automatically.",
+            ["Click and trigger Avatar Contacts with your mouse!\n\nLike you can do with PhysBones~"] = "Click to trigger avatar Contact Receivers.\n\nWorks with the mouse, like PhysBone interaction.",
+            ["This feature will mask the humanoid animations!\n\nIt allows you to control the transform of your bones!"] = "Mask humanoid animation to pose the avatar.\n\nAdjust the bone transforms manually.",
+            ["You are in Pose-Mode!"] = "Pose Mode is active.",
+            ["Vrc Camera: "] = "VRChat Camera: ",
+            ["Constant"] = "Continuous",
+            ["Test Animation"] = "Animation Preview",
+            ["A simple benchmark using the Unity Profiler!\n\nAimed to show animator update calls usages!"] = "A simple benchmark using the Unity Profiler.\n\nShows the time spent updating Animators.",
+            ["Debug mode is disabled in {0}-Mode!"] = "Debugging is unavailable in {0} Mode.",
+            ["Exit {0}-Mode to show the debug information of your avatar!"] = "Exit {0} Mode to view avatar debug information.",
+            ["Exit {0}-Mode"] = "Exit {0} Mode",
+            ["You edit each tool settings in the \""] = "Configure each tool in the \"",
+            ["\" tab!"] = "\" tab.",
+            ["Osc Debug"] = "OSC Debug",
+            ["Gesture Manager Pro - Osc Debug Window"] = "Gesture Manager Pro - OSC Debug Window",
+            ["Osc Debug is not available while you are in {0}-Mode!"] = "OSC debugging is unavailable in {0} Mode.",
+            ["Osc Debug is disabled, start it with the button bellows!"] = "OSC debugging is stopped. Start it with the button below.",
+            ["Osc Debug is running, you can stop it with the orange button!"] = "OSC debugging is running. Click the orange button to stop it.",
+            ["You can start the OSC debug right now and it will use wide settings!"] = "Start OSC debugging with the default address mapping for all parameters.",
+            ["Or you can load your OSC settings!"] = "Or load custom OSC settings.",
+            ["Failed to parse Json data.\n\nCheck if your file contains invalid Json data."] = "Unable to parse JSON data.\n\nCheck the file for invalid JSON.",
+            ["Json Problem"] = "JSON Error",
+            ["The editor is in pause, animator will be so as well."] = "The editor and Animator are paused.",
+            ["Stop all lip sync sessions before changing the audio configuration."] = "Stop Game Simulation before changing the audio configuration.",
+            ["Enter Play Mode and resume the editor before enabling controlled mode."] = "Enter Play Mode and resume the editor before starting Game Simulation.",
+            ["Stop custom animation and dummy modes before enabling controlled mode."] = "Stop custom animation and avatar edit/test modes before starting Game Simulation.",
+        };
+    }
+}
