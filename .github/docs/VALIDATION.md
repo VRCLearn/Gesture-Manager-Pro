@@ -1,5 +1,18 @@
 # Development validation
 
+## Five-language localization audit (unreleased)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- Audited the existing interface, OSC, microphone and model-statistics terminology against their implementations. Corrected misleading Chinese SDK grades, mesh/constraint/bounds labels, OSC address-mapping instructions, HSV brightness, friend-parameter spelling and stale standalone lip-sync wording. English display corrections keep canonical translation keys stable. Technical identifiers, user names, product names and author credits retain their original identities.
+- The settings selector lists Automatic, English, Japanese, Korean, Traditional Chinese and Simplified Chinese. Existing persisted language values retain their meanings. Automatic resolves Japanese/Korean and Chinese scripts/regions, with English as the fallback. Centralized catalogs remove initialization-order-dependent registration; all five languages cover 486 keys.
+- Translation provenance retains structured format arguments across live switches. Cached captions, nested diagnostics and localized author-credit order update correctly, while user names containing colons, line breaks or text equal to a caption remain unchanged. Only English source templates can recognize untagged runtime exception messages.
+- Static localization validation passed 15,064 checks, and graphics-enabled Unity editor integration passed 597 assertions. Checks cover all locales in both switching directions, automatic selection, parameter/name preservation and shared Japanese/Korean/Traditional Chinese font chains with representative glyphs. Static package validation passed 1,753 checks against the original GM baseline and both SDK packages.
+- Captured and visually checked 35 production views across the five languages: Edit Mode, settings, expanded Game Simulation, the radial Tools submenu, avatar debugging, OSC and Model Statistics. Long buttons and toggle labels size to their captions, wheel labels wrap within their existing slots, and descriptive text wraps instead of clipping. Fixed a missed OSC undock-button translation exposed by these captures.
+- Synchronized the final production files and README to Test-Avatar after checking the installed baseline, with backups and unchanged existing asset metadata. The five native language names appear in its settings. The project remains in Edit Mode with Automatic selected, GestureManagerPro selected and its existing scene unsaved. Unity compiled without console errors.
+
+The visual review used the Windows dark theme at pixelsPerPoint 1 and a generic fixture avatar. Physical dropdown interaction, light theme, higher display scaling, other operating systems and hardware behavior were not revalidated for this localization change.
+
 ## Microphone lip sync integrated into Game Simulation (unreleased)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
