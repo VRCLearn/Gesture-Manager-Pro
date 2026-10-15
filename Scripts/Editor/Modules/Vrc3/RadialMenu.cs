@@ -301,7 +301,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
                 new RadialSliceTool(Module, Module.AvatarTools.SceneCamera, ModuleVrc3Styles.ToolCamera),
                 new RadialSliceTool(Module, Module.AvatarTools.ContactsClickable, ModuleVrc3Styles.ToolClick),
                 new RadialSliceTool(Module, Module.AvatarTools.PoseAvatar, ModuleVrc3Styles.ToolPose)
-            });
+            }.Concat(Module.AvatarTools.GetRegisteredTools(Module).Select(tool => new RadialSliceTool(Module, tool, tool.Icon))).ToArray());
             _radialDescription = new RadialDescription(EditorLocalization.Tr("You edit each tool settings in the \""), EditorLocalization.Tr("Tools"), EditorLocalization.Tr("\" tab!"), OpenToolPage);
         }
 

@@ -152,6 +152,28 @@ public static class UnityProChecks
 
             var radial = new RadialMenu(module, false);
             radial.Set(null);
+            manager.Module = module;
+            typeof(RadialMenu).GetMethod("ToolMenuPrefab", Any).Invoke(radial, null);
+            var toolButtons = ((RadialSliceBase[])typeof(RadialMenu).GetField("_buttons", Any).GetValue(radial)).OfType<RadialSliceTool>().ToArray();
+            Check(toolButtons.Length == 5, "The radial Tools submenu includes the three inherited tools and both registered tools before opening the Tools tab");
+            var toolsOwner = (AvatarTools)typeof(ModuleVrc3).GetField("AvatarTools", Any).GetValue(module);
+            var registered = (List<GmgDynamicFunction>)typeof(AvatarTools).GetField("_registeredTools", Any).GetValue(toolsOwner);
+            var getRegistered = typeof(AvatarTools).GetMethod("GetRegisteredTools", Any);
+            Check(ReferenceEquals(registered, getRegistered.Invoke(toolsOwner, new object[] { module })),
+                "The radial menu and Inspector share the same registered tool instances");
+            foreach (var tool in registered)
+            {
+                Check(tool.GetType().GetField("_manager", Any).GetValue(tool) == manager,
+                    "Radial-first creation binds to the manager controlling this module: " + tool.GetType().Name);
+                Check(toolButtons.Any(button => ReferenceEquals(typeof(RadialSliceTool).GetField("_tool", Any).GetValue(button), tool)),
+                    "The radial action targets the registered session: " + tool.GetType().Name);
+                Check((Texture2D)tool.GetType().GetProperty("Icon", Any).GetValue(tool),
+                    "Registered radial tool icon resolves: " + tool.GetType().Name);
+            }
+            var lipButton = toolButtons.Single(button => Caption(button) == "口型测试");
+            var gameButton = toolButtons.Single(button => Caption(button) == "游戏模拟");
+            toolsOwner.Unlink(module);
+            manager.Module = null;
             typeof(RadialMenu).GetMethod("OptionLocomotionMenuPrefab", Any).Invoke(radial, null);
             var buttons = (RadialSliceBase[])typeof(RadialMenu).GetField("_buttons", Any).GetValue(radial);
             var grounded = buttons.Single(button => Caption(button) == EditorLocalization.Tr("Grounded"));
@@ -177,6 +199,8 @@ public static class UnityProChecks
             Check(cachedToolbar[0].text == EditorLocalization.Tr("Tools"), "Toolbar initially renders in Chinese");
 
             EditorLocalization.Language = ProLanguage.English;
+            Check(Caption(lipButton) == "Lip Sync Test" && Caption(gameButton) == "Game Simulation",
+                "Existing radial tool captions follow live language changes");
             Check(ToolCaption(lipTool) == "Lip Sync Test" && ToolCaption(simulationTool) == "Game Simulation",
                 "Existing tool headers follow live language changes without rebuilding a window");
             Check(Caption(grounded) == "Grounded", "Existing built-in radial control switches live to English");

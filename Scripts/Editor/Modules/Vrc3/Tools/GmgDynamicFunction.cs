@@ -10,6 +10,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
     {
         private bool _value;
         protected internal abstract string Name { get; }
+        protected internal virtual Texture2D Icon => null;
         protected abstract string Description { get; }
         protected internal abstract bool Active { get; }
 

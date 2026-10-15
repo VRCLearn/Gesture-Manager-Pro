@@ -28,6 +28,14 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             if (!ToolFactories.Contains(factory)) ToolFactories.Add(factory);
         }
 
+        internal IReadOnlyList<GmgDynamicFunction> GetRegisteredTools(ModuleVrc3 module)
+        {
+            if (_registeredTools != null) return _registeredTools;
+            var manager = UnityEngine.Object.FindObjectsOfType<GestureManager>().FirstOrDefault(candidate => candidate.Module == module);
+            if (!manager) return Array.Empty<GmgDynamicFunction>();
+            return _registeredTools = ToolFactories.Select(factory => factory(manager)).ToList();
+        }
+
         private UpdateSceneCamera _sceneCamera;
         public UpdateSceneCamera SceneCamera => _sceneCamera ??= new UpdateSceneCamera();
 
@@ -53,7 +61,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
         private static bool Exist(UnityEngine.Object uObject) => !NExist(uObject);
         private static bool NExist(UnityEngine.Object uObject) => !uObject;
 
-        internal void Gui(ModuleVrc3 module, GestureManager manager)
+        internal void Gui(ModuleVrc3 module)
         {
             GUILayout.Label(EditorLocalization.Tr("Gesture Manager Pro Tools"), GestureManagerStyles.Header);
             GUILayout.Label(EditorLocalization.Tr("A collection of some small utility functions~"), GestureManagerStyles.Centered);
@@ -61,11 +69,10 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             SceneCamera.Display(module);
             ContactsClickable.Display(module);
             PoseAvatar.Display(module);
+            foreach (var tool in GetRegisteredTools(module)) tool.Display(module);
             GUILayout.Label(EditorLocalization.Tr("Extra Tools"), GestureManagerStyles.Header);
             BackgroundAvatar.Display(module);
             AnimationTest.Display(module);
-            _registeredTools ??= ToolFactories.Select(factory => factory(manager)).ToList();
-            foreach (var tool in _registeredTools) tool.Display(module);
             PerformanceAnimator.Display(module);
             GUILayout.Label(EditorLocalization.Tr("Customization"), GestureManagerStyles.Header);
             CustomizationTool.Display(module);

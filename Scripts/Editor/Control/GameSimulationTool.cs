@@ -24,6 +24,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private bool _showControls;
 
         protected override string Name => EditorLocalization.Tr("Game Simulation");
+        protected override Texture2D Icon => Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Velocity");
         protected override string Description => EditorLocalization.Tr("Control the avatar in Game or Scene view.\nKeyboard movement and mouse look.");
         protected override bool Active => _session.Running;
 

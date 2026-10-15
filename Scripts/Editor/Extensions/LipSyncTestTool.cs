@@ -30,6 +30,7 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
         private bool _disposed;
 
         protected override string Name => EditorLocalization.Tr("Lip Sync Test");
+        protected override Texture2D Icon => Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Visemes");
         protected override string Description => EditorLocalization.Tr("Preview lip sync with a microphone or AudioClip.");
         protected override bool Active => _session.Running;
 
