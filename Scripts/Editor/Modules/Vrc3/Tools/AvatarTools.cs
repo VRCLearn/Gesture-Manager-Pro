@@ -58,7 +58,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             GUILayout.Label(EditorLocalization.Tr("Gesture Manager Pro Tools"), GestureManagerStyles.Header);
             GUILayout.Label(EditorLocalization.Tr("A collection of some small utility functions~"), GestureManagerStyles.Centered);
             GUILayout.Space(10);
-            GestureManagerEditor.DrawInspectorTools(manager);
             SceneCamera.Display(module);
             ContactsClickable.Display(module);
             PoseAvatar.Display(module);

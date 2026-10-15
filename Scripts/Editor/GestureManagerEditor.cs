@@ -25,8 +25,6 @@ namespace VRCLearn.GestureManagerPro.Editor
     [CustomEditor(typeof(GestureManager))]
     public class GestureManagerEditor : UnityEditor.Editor
     {
-        public static event Action<GestureManager> InspectorToolsGUI;
-
         private GestureManager Manager => target as GestureManager;
         private static IEnumerable<GmgAvatarDescriptor> Descriptors => FindSceneObjectsOfTypeAll<GmgAvatarDescriptor>();
         private static IEnumerable<ModuleBase> Modules => Descriptors.Select(ModuleHelper.GetModuleFor).Where(module => module != null);
@@ -117,17 +115,6 @@ namespace VRCLearn.GestureManagerPro.Editor
             else SetupGui(isActive, Manager.enabled, isPlaying, isPrefab);
 
             GestureManagerStyles.Sign();
-        }
-
-        internal static void DrawInspectorTools(GestureManager manager)
-        {
-            if (!EditorApplication.isPlaying || !manager || !manager.isActiveAndEnabled ||
-                manager.Module == null || !manager.Module.Active || manager.Module.IsInvalid()) return;
-            using (new EditorGUI.DisabledScope(EditorApplication.isPaused))
-            using (new GUILayout.HorizontalScope())
-            {
-                InspectorToolsGUI?.Invoke(manager);
-            }
         }
 
         private void ModuleGui()

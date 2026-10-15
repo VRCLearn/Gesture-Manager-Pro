@@ -7,9 +7,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.TextCore.Text;
 using UnityEngine.UIElements;
-using VRCLearn.GestureManagerPro.Control.Editor;
 using VRCLearn.GestureManagerPro.Diagnostics;
-using VRCLearn.GestureManagerPro.Extensions.Editor;
 using VRCLearn.GestureManagerPro.Localization;
 
 // Run only in the disposable fixture, alongside the other editor integration checks.
@@ -30,19 +28,20 @@ public static class UnityProFontChecks
         {
             EditorLocalization.Language = ProLanguage.SimplifiedChinese;
             windows.Add(ScriptableObject.CreateInstance<ModelStatisticsWindow>());
-            windows.Add(ScriptableObject.CreateInstance<LipSyncTestWindow>());
-            windows.Add(ScriptableObject.CreateInstance<ControlledModeWindow>());
+            windows.Add(ScriptableObject.CreateInstance<ProValidationWindow>());
+            windows.Add(ScriptableObject.CreateInstance<ProValidationWindow>());
             foreach (var window in windows)
             {
                 window.Show();
-                window.GetType().GetMethod("CreateGUI").Invoke(window, null);
+                if (window is ModelStatisticsWindow) window.GetType().GetMethod("CreateGUI").Invoke(window, null);
+                else EditorLocalization.ApplyFontPreferences(window.rootVisualElement);
             }
             var root = windows[0].rootVisualElement;
             var chinese = root.style.unityFontDefinition.value.fontAsset;
             var chain = new[] { chinese }.Concat(chinese.fallbackFontAssetTable).ToArray();
             check(chinese && chinese.name.StartsWith("GestureManagerPro.UIFont.zh-Hans.", StringComparison.Ordinal) &&
                 windows.All(window => window.rootVisualElement.style.unityFontDefinition.value.fontAsset == chinese),
-                "All three localized UI Toolkit windows share the selected language's owned font chain");
+                "Production statistics and two independent UI Toolkit roots share the selected language's owned font chain");
             check(chain.Any(font => font.faceInfo.familyName == "Microsoft YaHei UI") &&
                 chain.All(font => font.fontWeightTable.All(pair => !pair.regularTypeface && !pair.italicTypeface)),
                 "Simplified Chinese includes the configured OS face and uses synthetic styles without alternate weight assets");
@@ -60,7 +59,7 @@ public static class UnityProFontChecks
             var english = root.style.unityFontDefinition.value.fontAsset;
             check(english && english != chinese && windows.All(window =>
                 window.rootVisualElement.style.unityFontDefinition.value.fontAsset == english),
-                "Language changes update every attached window without a lip-sync language callback reversing the selection");
+                "Language changes update every attached window without changing the selected language");
             EditorLocalization.Language = ProLanguage.SimplifiedChinese;
             check(root.style.unityFontDefinition.value.fontAsset == chinese,
                 "Switching back reuses the Chinese font chain rather than allocating per heading or window");

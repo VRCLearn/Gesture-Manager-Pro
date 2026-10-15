@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using VRCLearn.GestureManagerPro;
@@ -7,6 +8,7 @@ using VRCLearn.GestureManagerPro.Control.Editor;
 using VRCLearn.GestureManagerPro.Editor;
 using VRCLearn.GestureManagerPro.Editor.Library;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices;
 using VRCLearn.GestureManagerPro.Extensions.Editor;
@@ -63,9 +65,8 @@ public static class UnityProChecks
         var preferenceValue = EditorPrefs.GetInt(preferenceKey, 0);
         var language = EditorLocalization.Language;
         GameObject avatar = null;
-        LipSyncTestWindow window = null;
-        ControlledModeWindow controlledWindow = null;
-        StyleSheet externalWindowStyle = null;
+        LipSyncTestTool lipTool = null;
+        GameSimulationTool simulationTool = null;
         GestureManager manager = null;
         UnityEditor.Editor inspector = null;
         VRCExpressionsMenu expressionMenu = null;
@@ -76,7 +77,7 @@ public static class UnityProChecks
             var core = typeof(GestureManager).Assembly;
             var simulator = typeof(ModuleVrc3).Assembly;
             var localization = typeof(EditorLocalization).Assembly;
-            var audioTools = typeof(LipSyncTestWindow).Assembly;
+            var audioTools = typeof(LipSyncTestTool).Assembly;
             foreach (var assembly in new[] { core, simulator, localization, audioTools }.Distinct())
             {
                 Check(assembly.GetName().Name.StartsWith("VRCLearn.GestureManagerPro", StringComparison.Ordinal), "Standalone assembly name: " + assembly.GetName().Name);
@@ -86,9 +87,9 @@ public static class UnityProChecks
             Check(core != simulator && simulator != localization && localization != audioTools, "Core, simulator, localization, and audio tools use separate assemblies");
             Check(!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName().Name == "vrchat.blackstartx.gesture-manager"), "Fixture does not contain the original Gesture Manager");
             CheckToolsMenu(typeof(GestureManagerEditor), "AddNewEmulator", "Tools/Gesture Manager Pro");
-            Check(new[] { typeof(ControlledModeWindow), typeof(LipSyncTestWindow), typeof(VRCLearn.GestureManagerPro.Diagnostics.ModelStatisticsWindow) }
+            Check(new[] { typeof(GameSimulationTool), typeof(LipSyncTestTool), typeof(VRCLearn.GestureManagerPro.Diagnostics.ModelStatisticsWindow) }
                 .All(type => !type.GetMethods(Any).Any(method => method.IsDefined(typeof(MenuItem), false))),
-                "Feature windows do not add standalone Tools menu entries");
+                "Feature tools do not add standalone Tools menu entries");
             Check(!localization.GetTypes().SelectMany(type => type.GetMethods(Any))
                 .Any(method => method.IsDefined(typeof(SettingsProviderAttribute), false)),
                 "Language selection does not register a standalone Unity Preferences page");
@@ -115,33 +116,29 @@ public static class UnityProChecks
             Check(EditorLocalization.Format("Avatar: {0}\nLip sync mode: {1}", "Tools", "Mode").Contains("Tools"), "Formatted avatar metadata remains exact");
             Check(EditorLocalization.Tr("OVRLipSync could not process audio: native error -1.").Contains("-1"), "Native diagnostic retains error code");
 
-            window = ScriptableObject.CreateInstance<LipSyncTestWindow>();
-            window.CreateGUI();
-            Check(window.rootVisualElement.Q<Button>("start")?.text == "开始测试", "Bundled UXML and Chinese lip sync caption load");
-            Check(window.rootVisualElement.Q<DropdownField>("language") != null, "Lip sync language selector exists");
-            controlledWindow = ScriptableObject.CreateInstance<ControlledModeWindow>();
-            var defaultWindowStyles = Enumerable.Range(0, controlledWindow.rootVisualElement.styleSheets.count)
-                .Select(index => controlledWindow.rootVisualElement.styleSheets[index]).ToArray();
-            Check(defaultWindowStyles.Length > 0, "Game simulation window starts with Unity's default editor theme");
-            externalWindowStyle = ScriptableObject.CreateInstance<StyleSheet>();
-            externalWindowStyle.name = "External window stylesheet sentinel";
-            controlledWindow.rootVisualElement.styleSheets.Add(externalWindowStyle);
-            controlledWindow.Show();
-            controlledWindow.CreateGUI();
-            Check(controlledWindow.rootVisualElement.panel != null, "Game simulation root attaches to the native window panel");
-            Check(defaultWindowStyles.All(controlledWindow.rootVisualElement.styleSheets.Contains) && controlledWindow.rootVisualElement.styleSheets.Contains(externalWindowStyle), "Game simulation creation preserves the Unity theme and external stylesheets");
-            var controlScriptPath = AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(controlledWindow));
-            var controlStyle = AssetDatabase.LoadAssetAtPath<StyleSheet>(Path.ChangeExtension(controlScriptPath, ".uss"));
-            Check(controlStyle && Enumerable.Range(0, controlledWindow.rootVisualElement.styleSheets.count).Count(index => controlledWindow.rootVisualElement.styleSheets[index] == controlStyle) == 1, "Game simulation adds its own stylesheet exactly once");
-            var windowStyleCount = controlledWindow.rootVisualElement.styleSheets.count;
-            controlledWindow.CreateGUI();
-            Check(WindowStylesPreserved(controlledWindow, defaultWindowStyles, externalWindowStyle, windowStyleCount), "Repeated CreateGUI preserves the editor theme and does not duplicate the window stylesheet");
-            Check(controlledWindow.titleContent.text == "游戏模拟", "Game simulation window uses the registered Chinese translations");
-            Check(controlledWindow.rootVisualElement.Query<Button>().ToList().Any(button => button.text == "进入游戏模拟"), "Game simulation entry button is translated");
-            Check(((HelpBox)typeof(ControlledModeWindow).GetField("_status", Any).GetValue(controlledWindow)).text == "游戏模拟已停止。进入播放模式后可开始。", "Game simulation stopped status renders in Chinese");
-            Check(controlledWindow.rootVisualElement.Query<HelpBox>().ToList().Any(help => help.text.Contains("WASD 和 < / > 控制角色移动和转向，Scene 相机保持不动")), "Chinese Scene input help distinguishes avatar motion from Scene camera navigation");
-            var viewMode = controlledWindow.rootVisualElement.Q<DropdownField>("viewMode");
-            Check(viewMode != null && viewMode.index == 0 && viewMode.choices.SequenceEqual(new[] { "第一人称", "第三人称" }), "Game simulation defaults to first person and translates both views");
+            manager = new GameObject("Pro validation manager").AddComponent<GestureManager>();
+            manager.settings = new VRCLearn.GestureManagerPro.Modules.ModuleSettings();
+            lipTool = new LipSyncTestTool(manager);
+            simulationTool = new GameSimulationTool(manager);
+            Check(lipTool is GmgDynamicFunction && simulationTool is GmgDynamicFunction,
+                "Both features use the same dynamic-function base as the inherited tools");
+            Check(ToolCaption(lipTool) == "口型测试" && ToolCaption(simulationTool) == "游戏模拟",
+                "Registered tool headers render in Chinese");
+            Check((VRCLearn.GestureManagerPro.Control.SimulationViewMode)typeof(GameSimulationTool).GetField("_viewMode", Any).GetValue(simulationTool) == VRCLearn.GestureManagerPro.Control.SimulationViewMode.FirstPerson,
+                "Inline game simulation keeps the first-person default");
+            Check((bool)typeof(LipSyncTestTool).GetField("_useMicrophone", Any).GetValue(lipTool) &&
+                !(bool)typeof(LipSyncTestTool).GetField("_monitor", Any).GetValue(lipTool),
+                "Inline lip sync defaults to microphone input without monitoring");
+            var factories = (List<Func<GestureManager, GmgDynamicFunction>>)typeof(AvatarTools).GetField("ToolFactories", Any).GetValue(null);
+            Check(factories.Count == 2, "Each optional feature registers exactly one standard tool factory");
+            foreach (var factory in factories.ToArray()) AvatarTools.RegisterTool(factory);
+            Check(factories.Count == 2, "Repeating a tool registration does not duplicate its entry");
+            foreach (var factory in factories)
+            {
+                using (var tool = factory(manager))
+                    Check(tool.GetType().GetField("_manager", Any).GetValue(tool) == manager,
+                        "Tool creation binds to the originating manager: " + tool.GetType().Name);
+            }
 
             avatar = new GameObject("Tools");
             avatar.AddComponent<Animator>();
@@ -180,13 +177,8 @@ public static class UnityProChecks
             Check(cachedToolbar[0].text == EditorLocalization.Tr("Tools"), "Toolbar initially renders in Chinese");
 
             EditorLocalization.Language = ProLanguage.English;
-            Check(window.rootVisualElement.Q<Button>("start")?.text == "Start test", "Existing lip sync window switches live to English");
-            Check(controlledWindow.titleContent.text == "Game Simulation", "Existing game simulation window switches live to English");
-            Check(controlledWindow.rootVisualElement.Query<Button>().ToList().Any(button => button.text == "Enter Game Simulation"), "Game simulation button refreshes after language switch");
-            Check(controlledWindow.rootVisualElement.Q<DropdownField>("viewMode").choices.SequenceEqual(new[] { "First Person", "Third Person" }), "View choices refresh live after language switch");
-            Check(((HelpBox)typeof(ControlledModeWindow).GetField("_status", Any).GetValue(controlledWindow)).text == "Game Simulation is stopped. Enter Play Mode to begin.", "Game simulation stopped status refreshes live to English");
-            Check(controlledWindow.rootVisualElement.Query<HelpBox>().ToList().Any(help => help.text.StartsWith("Scene view: WASD and < / > move and turn the avatar without moving the Scene camera.", StringComparison.Ordinal)), "Scene input help refreshes live to English");
-            Check(WindowStylesPreserved(controlledWindow, defaultWindowStyles, externalWindowStyle, windowStyleCount), "Switching to English preserves the editor theme and stylesheet count");
+            Check(ToolCaption(lipTool) == "Lip Sync Test" && ToolCaption(simulationTool) == "Game Simulation",
+                "Existing tool headers follow live language changes without rebuilding a window");
             Check(Caption(grounded) == "Grounded", "Existing built-in radial control switches live to English");
             Check(Caption(state) == "State" && Caption(states) == "States", "Equal Chinese captions retain their distinct original source keys");
             Check(focusLabel.text == "The window is not focused!", "Existing focus notice switches live to English");
@@ -197,20 +189,9 @@ public static class UnityProChecks
             Check(avatar.name == "Tools" && module.Name == "Tools", "Live switching leaves avatar metadata unchanged");
             Check(module.GetGestureTextNameByIndex(1) == "[GESTURE] Fist", "Gesture animation resource identifier is preserved");
             EditorLocalization.Language = ProLanguage.SimplifiedChinese;
-            Check(WindowStylesPreserved(controlledWindow, defaultWindowStyles, externalWindowStyle, windowStyleCount), "Switching back to Chinese preserves the editor theme and stylesheet count");
             Check(Caption(grounded) == EditorLocalization.Tr("Grounded"), "Existing radial control switches back to Chinese");
             Check(Caption(state) == EditorLocalization.Tr("State") && Caption(states) == EditorLocalization.Tr("States"), "Distinct sources survive a second language switch");
 
-            manager = new GameObject("Pro validation manager").AddComponent<GestureManager>();
-            window.Show();
-            LipSyncTestWindow.Open(manager);
-            ControlledModeWindow.Open(manager);
-            Check(typeof(LipSyncTestWindow).GetField("_manager", Any).GetValue(window) == manager &&
-                typeof(ControlledModeWindow).GetField("_manager", Any).GetValue(controlledWindow) == manager,
-                "Inspector feature actions bind their windows to the originating emulator");
-            var inspectorTools = (Action<GestureManager>)typeof(GestureManagerEditor).GetField("InspectorToolsGUI", Any).GetValue(null);
-            Check(inspectorTools != null && inspectorTools.GetInvocationList().Length == 2,
-                "Game simulation and lip sync each contribute one Inspector action across assembly boundaries");
             inspector = UnityEditor.Editor.CreateEditor(manager);
             Check(inspector is GestureManagerEditor, "Pro component has its own custom inspector");
             Check(((GestureManagerEditor)inspector).CreateInspectorGUI() != null, "Pro custom inspector creates its visual root");
@@ -236,9 +217,8 @@ public static class UnityProChecks
             analyzer?.Dispose();
             if (inspector) UnityEngine.Object.DestroyImmediate(inspector);
             if (manager) UnityEngine.Object.DestroyImmediate(manager.gameObject);
-            if (window) UnityEngine.Object.DestroyImmediate(window);
-            if (controlledWindow) UnityEngine.Object.DestroyImmediate(controlledWindow);
-            if (externalWindowStyle) UnityEngine.Object.DestroyImmediate(externalWindowStyle);
+            lipTool?.Dispose();
+            simulationTool?.Dispose();
             if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
             if (expressionMenu) UnityEngine.Object.DestroyImmediate(expressionMenu);
             if (onLanguageChange != null) EditorLocalization.Changed -= onLanguageChange;
@@ -263,9 +243,8 @@ public static class UnityProChecks
             owner.Name + " exposes one direct Tools action: " + path);
     }
 
-    private static bool WindowStylesPreserved(EditorWindow window, StyleSheet[] defaults, StyleSheet external, int count) =>
-        defaults.All(window.rootVisualElement.styleSheets.Contains) && window.rootVisualElement.styleSheets.Contains(external) &&
-        window.rootVisualElement.styleSheets.count == count;
+    private static string ToolCaption(GmgDynamicFunction tool) =>
+        (string)tool.GetType().GetProperty("Name", Any).GetValue(tool);
 
     private static void CheckBuiltInControllers()
     {
