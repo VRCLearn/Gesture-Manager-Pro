@@ -1181,6 +1181,7 @@ public static class UnityProPlayChecks
                 "The observer fixture owns a real active SceneView with a scene camera");
             CheckSceneCameraObserverSwitch(observer, avatar, manager, module, originalCamera);
             CheckSceneCameraLifecycle(observer, module);
+            CheckGameSimulationSceneCamera(observer);
             var originalPivot = observer.pivot;
             var originalRotation = observer.rotation;
             var originalSize = observer.size;
@@ -1706,6 +1707,311 @@ public static class UnityProPlayChecks
             observer.Repaint();
             observer.SendEvent(new Event { type = EventType.Repaint });
         }
+    }
+
+    private static void CheckGameSimulationSceneCamera(SceneView observer)
+    {
+        const string preference = "GM3 SceneCamera";
+        const BindingFlags instance = BindingFlags.Instance | BindingFlags.NonPublic;
+        const BindingFlags shared = BindingFlags.Static | BindingFlags.NonPublic;
+        var sceneType = typeof(AvatarTools.UpdateSceneCamera);
+        var targetField = sceneType.GetField("_camera", shared);
+        var stateField = sceneType.GetField("_originalState", shared);
+        var instancesField = sceneType.GetField("_instances", shared);
+        var set = sceneType.GetMethod("Set", shared);
+        var restore = sceneType.GetMethod("RestoreCamera", shared);
+        var sceneToggle = sceneType.GetMethod("Toggle", instance);
+        var sceneUpdate = sceneType.GetMethod("Update", instance);
+        var active = sceneType.GetProperty("Active", instance);
+        var previousTarget = targetField.GetValue(null);
+        var previousState = stateField.GetValue(null);
+        var previousInstances = instancesField.GetValue(null);
+        var previousBridge = AvatarTools.UpdateSceneCamera.SimulationView;
+        var hadPreference = EditorPrefs.HasKey(preference);
+        var previousPreference = EditorPrefs.GetBool(preference);
+        var previousPivot = observer.pivot;
+        var previousRotation = observer.rotation;
+        var previousSize = observer.size;
+        var previousOrthographic = observer.orthographic;
+        var paused = EditorApplication.isPaused;
+        GameObject avatar = null;
+        GameObject originalCameraObject = null;
+        GestureManager manager = null;
+        GameSimulationTool gameTool = null;
+        GameSimulationTool duplicateTool = null;
+        AvatarTools.UpdateSceneCamera sceneTool = null;
+        GmgDynamicFunction[] registeredTools = null;
+        try
+        {
+            EditorApplication.isPaused = false;
+            AvatarTools.UpdateSceneCamera.SimulationView = null;
+            targetField.SetValue(null, null);
+            stateField.SetValue(null, null);
+            instancesField.SetValue(null, 0);
+            EditorPrefs.SetBool(preference, false);
+            avatar = new GameObject("Pro game Scene Camera bridge avatar");
+            avatar.transform.SetPositionAndRotation(new Vector3(35f, 20f, -45f), Quaternion.Euler(0f, 23f, 0f));
+            avatar.AddComponent<Animator>();
+            var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
+            descriptor.ViewPosition = new Vector3(0f, 1.6f, 0f);
+            var module = new ModuleVrc3(descriptor) { Active = true, Settings = new ModuleSettings() };
+            foreach (var name in ParameterNames)
+                module.Params.Add(name, new Vrc3Param(name, AnimatorControllerParameterType.Float));
+            manager = new GameObject("Pro game Scene Camera bridge manager").AddComponent<GestureManager>();
+            manager.Module = module;
+            originalCameraObject = new GameObject("Pro game Scene Camera bridge original Main Camera");
+            var originalCamera = originalCameraObject.AddComponent<Camera>();
+            originalCamera.transform.SetPositionAndRotation(new Vector3(29f, 24f, -52f), Quaternion.Euler(11f, 33f, 0f));
+            originalCamera.fieldOfView = 51f;
+            originalCamera.farClipPlane = 413f;
+            originalCamera.nearClipPlane = 0.19f;
+            originalCamera.orthographicSize = 6.7f;
+            originalCamera.aspect = 1.31f;
+            module.SimulationCamera = originalCamera;
+            var initialMainState = new SceneCameraState(originalCamera);
+            var moduleTools = (AvatarTools)typeof(ModuleVrc3).GetField("AvatarTools", instance).GetValue(module);
+            registeredTools = ((IEnumerable<GmgDynamicFunction>)typeof(AvatarTools).GetMethod("GetRegisteredTools", instance)
+                .Invoke(moduleTools, new object[] { module })).ToArray();
+            Check(registeredTools.OfType<GameSimulationTool>().Count() == 1,
+                "The module registers exactly one real Game Simulation tool for the bridge fixture");
+            gameTool = registeredTools.OfType<GameSimulationTool>().Single();
+            sceneTool = moduleTools.SceneCamera;
+            Check(ReferenceEquals(sceneTool, moduleTools.SceneCamera), "The bridge fixture uses the module's ordinary Scene Camera tool instance");
+            ((MicrophoneLipSync)typeof(GameSimulationTool).GetField("_lipSync", instance).GetValue(gameTool)).Enabled = false;
+            var session = (ControlledModeSession)typeof(GameSimulationTool).GetField("_session", instance).GetValue(gameTool);
+            var gameToggle = typeof(GameSimulationTool).GetMethod("Toggle", instance);
+            var keyboardField = typeof(GameSimulationTool).GetField("_keyboard", instance);
+            void ClickGame() => gameToggle.Invoke(gameTool, new object[] { module });
+            void ClickScene() => sceneToggle.Invoke(sceneTool, new object[] { module });
+            bool SceneActive() => (bool)active.GetValue(sceneTool);
+            KeyboardMotionInputSource Keyboard() => (KeyboardMotionInputSource)keyboardField.GetValue(gameTool);
+            Action F5() => (Action)typeof(KeyboardMotionInputSource).GetField("ViewToggleRequested", instance).GetValue(Keyboard());
+            Action<float> Zoom() => (Action<float>)typeof(KeyboardMotionInputSource).GetField("CameraZoomRequested", instance).GetValue(Keyboard());
+            void Navigate(bool orthographic, int step)
+            {
+                observer.Focus();
+                observer.LookAt(avatar.transform.position + new Vector3(step * 0.1f, 0.9f, 0f),
+                    Quaternion.Euler(17f + step * 2f, 151f + step * 7f, 0f), 4.3f + step * 0.2f, orthographic, true);
+                observer.Repaint();
+                observer.SendEvent(new Event { type = EventType.Repaint });
+            }
+
+            void CheckPlayerLens(Camera camera, float fieldOfView, float far, float size, string label)
+            {
+                Check(!camera.orthographic && Mathf.Abs(camera.fieldOfView - fieldOfView) < 0.0001f &&
+                    Mathf.Abs(camera.farClipPlane - far) < 0.001f && Mathf.Abs(camera.orthographicSize - size) < 0.0001f &&
+                    Mathf.Abs(camera.nearClipPlane - Mathf.Clamp(session.ViewCamera.Height * 0.01f, 0.005f, 0.1f)) < 0.0001f,
+                    label + " restores the player's perspective lens and height-based near plane after the Scene projection");
+            }
+
+            void CheckCentered(string label)
+            {
+                var preview = session.ViewCamera;
+                preview.ApplyView();
+                var camera = preview.PreviewCamera;
+                var eye = avatar.transform.TransformPoint(descriptor.ViewPosition);
+                var eyeViewport = camera.WorldToViewportPoint(eye);
+                var rootViewport = camera.WorldToViewportPoint(avatar.transform.position);
+                Check(eyeViewport.z > 0f && Mathf.Abs(eyeViewport.x - 0.5f) < 0.0001f &&
+                    Mathf.Abs(eyeViewport.y - 0.5f) < 0.0001f && Mathf.Abs(rootViewport.x - 0.5f) < 0.0001f,
+                    label + " keeps the avatar eye and root horizontally centered without a third-person shoulder offset");
+            }
+
+            void CheckReleased(string label)
+            {
+                Check(!session.Running && AvatarTools.UpdateSceneCamera.SimulationView == null &&
+                    !manager.IsPlayerControlled && module.SimulationCamera == originalCamera &&
+                    !Resources.FindObjectsOfTypeAll<MotionPreviewCamera>().Any(camera => camera.Target == avatar.transform),
+                    label + " clears the bridge, ownership, and temporary camera while restoring the module camera");
+            }
+
+            // Run with both ordinary preferences: Game Simulation must own the
+            // button's displayed state without persisting its view selection.
+            for (var preferenceRound = 0; preferenceRound < 2; preferenceRound++)
+            {
+                var ordinaryEnabled = preferenceRound != 0;
+                Navigate(true, preferenceRound);
+                set.Invoke(null, new object[] { ordinaryEnabled ? originalCamera : null });
+                if (ordinaryEnabled) sceneUpdate.Invoke(sceneTool, new object[] { module });
+                var ordinaryMainState = new SceneCameraState(originalCamera);
+                var ordinarySnapshot = stateField.GetValue(null);
+                ClickGame();
+                Check(session.Running && ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, session) &&
+                    session.ViewMode == SimulationViewMode.SceneCamera && SceneActive() && Keyboard().ObserverView,
+                    "Registered Game Simulation owns the ordinary Scene Camera button in its default observer view: " + session.Error);
+                var ownedObject = session.ViewCamera.gameObject;
+                var camera = session.ViewCamera.PreviewCamera;
+                Navigate(false, preferenceRound + 2);
+                session.Poll();
+                sceneUpdate.Invoke(sceneTool, new object[] { module });
+                Check(ordinaryMainState.Matches(originalCamera) && ReferenceEquals(stateField.GetValue(null), ordinarySnapshot) &&
+                    EditorPrefs.GetBool(preference) == ordinaryEnabled,
+                    "While simulation owns the view, ordinary Scene Camera updates preserve Main Camera, its snapshot, and its preference");
+                ClickScene();
+                Check(session.ViewMode == SimulationViewMode.FirstPerson && !session.ThirdPersonEnabled && !SceneActive() &&
+                    !Keyboard().ObserverView && (bool)typeof(KeyboardMotionInputSource).GetField("_captureRequested", instance).GetValue(Keyboard()),
+                    "The real ordinary Scene Camera button leaves the initial observer for first person and requests fresh Game capture");
+                Check(!camera.orthographic && Mathf.Abs(camera.farClipPlane - 1000f) < 0.001f,
+                    "Leaving the initial Scene observer restores the player's perspective and original far clip instead of the Scene lens");
+                camera.fieldOfView = 53f;
+                camera.farClipPlane = 731f;
+                camera.orthographicSize = 7.3f;
+                var playerAspect = camera.aspect;
+                for (var repeat = 0; repeat < 3; repeat++)
+                {
+                    Navigate(repeat % 2 == 0, repeat + 4);
+                    ClickScene();
+                    session.Poll();
+                    Check(SceneActive() && session.ViewMode == SimulationViewMode.SceneCamera &&
+                        camera.orthographic == observer.camera.orthographic &&
+                        Mathf.Abs(camera.fieldOfView - observer.camera.fieldOfView) < 0.0001f,
+                        "The ordinary button re-enters the actual perspective or orthographic Scene observer");
+                    ClickScene();
+                    Check(!SceneActive() && session.ViewMode == SimulationViewMode.FirstPerson && !session.ThirdPersonEnabled,
+                        "Repeated ordinary Scene Camera on/off restores the previous first-person mode");
+                    CheckPlayerLens(camera, 53f, 731f, 7.3f, "Repeated first-person return");
+                    Check(Mathf.Abs(camera.aspect - playerAspect) < 0.0001f,
+                        "Scene/first-person transitions keep the Game camera's own aspect ratio");
+                }
+
+                F5()();
+                Check(!SceneActive() && session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson,
+                    "F5 and the ordinary Scene Camera Active state reflect the same third-person player view");
+                session.SetCameraDistance(2.5f);
+                CheckCentered("The initial third-person player view");
+                for (var repeat = 0; repeat < 2; repeat++)
+                {
+                    Navigate(repeat == 0, repeat + 8);
+                    ClickScene();
+                    Check(SceneActive() && !session.ThirdPersonEnabled, "Entering the Scene observer remembers the enabled third-person feature");
+                    ClickScene();
+                    Check(!SceneActive() && session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson &&
+                        session.CameraDistance == 2.5f,
+                        "Disabling the Scene observer returns to the previous third-person mode and distance");
+                    CheckPlayerLens(camera, 53f, 731f, 7.3f, "Third-person return");
+                    session.ViewCamera.Pitch = repeat == 0 ? 17f : -12f;
+                    CheckCentered("Third person after an orthographic/perspective observer");
+                }
+
+                Zoom()(100f);
+                Check(session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.FirstPerson && !SceneActive(),
+                    "Wheel zoom to first person keeps the third-person feature enabled and the ordinary observer button inactive");
+                ClickScene();
+                ClickScene();
+                Check(session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.FirstPerson && session.CameraDistance == 0f && !SceneActive(),
+                    "A Scene Camera round trip preserves enabled third person at its zero-distance first-person limit");
+                Zoom()(-1f);
+                Check(session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson && session.CameraDistance == 0.25f,
+                    "Wheel zoom outward still works after returning from the Scene observer at zero distance");
+                CheckCentered("Third person after the nearest-distance observer round trip");
+                session.SetViewMode(SimulationViewMode.SceneCamera);
+                Check(SceneActive(), "Selecting Scene Camera through the same session API as the dropdown activates the ordinary button");
+                F5()();
+                Check(!SceneActive() && session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson,
+                    "F5 leaves a dropdown-selected observer and updates the ordinary button immediately");
+                F5()();
+                Check(!SceneActive() && !session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.FirstPerson,
+                    "F5 disabling third person keeps the ordinary button aligned with first person");
+                session.SetViewMode(SimulationViewMode.ThirdPerson);
+                Check(!SceneActive(), "The dropdown's explicit third-person selection leaves the ordinary observer inactive");
+                session.SetViewMode(SimulationViewMode.SceneCamera);
+                ClickScene();
+                Check(!SceneActive() && session.ViewMode == SimulationViewMode.ThirdPerson,
+                    "The ordinary button restores third person after a dropdown-selected observer");
+
+                duplicateTool = new GameSimulationTool(manager);
+                ((MicrophoneLipSync)typeof(GameSimulationTool).GetField("_lipSync", instance).GetValue(duplicateTool)).Enabled = false;
+                gameToggle.Invoke(duplicateTool, new object[] { module });
+                var duplicateSession = (ControlledModeSession)typeof(GameSimulationTool).GetField("_session", instance).GetValue(duplicateTool);
+                Check(!duplicateSession.Running && session.Running && ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, session),
+                    "A duplicate Game Simulation owner is rejected without replacing the active view bridge");
+                duplicateTool.Dispose();
+                Check(ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, session),
+                    "Disposing a rejected duplicate cannot clear the successful session's bridge");
+                duplicateTool = null;
+                Check(ordinaryMainState.Matches(originalCamera) && EditorPrefs.GetBool(preference) == ordinaryEnabled,
+                    "All ordinary-button, F5, wheel, and dropdown changes preserve the original Main Camera and ordinary preference");
+                ClickGame();
+                CheckReleased("Exiting through the registered Game Simulation tool");
+                Check(!ownedObject && SceneActive() == ordinaryEnabled && ordinaryMainState.Matches(originalCamera) &&
+                    EditorPrefs.GetBool(preference) == ordinaryEnabled,
+                    "Exit restores ordinary Scene Camera Active to its unchanged saved preference");
+                restore.Invoke(null, null);
+                Check(initialMainState.Matches(originalCamera), "Ordinary Scene Camera cleanup still restores its own pre-simulation camera snapshot");
+            }
+
+            EditorPrefs.SetBool(preference, false);
+            using (var adapter = new ControlledModeSession())
+            using (var keyboard = new KeyboardMotionInputSource(false))
+            {
+                Check(adapter.Start(manager, keyboard, previewCamera: true), "A non-game keyboard adapter starts independently of the Game Simulation bridge");
+                Check(AvatarTools.UpdateSceneCamera.SimulationView == null && !SceneActive(),
+                    "An ordinary controlled-input adapter cannot claim the Game Simulation Scene Camera bridge");
+            }
+
+            var foreignView = new SimulationViewStub();
+            AvatarTools.UpdateSceneCamera.SimulationView = foreignView;
+            ClickGame();
+            Check(!session.Running && ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, foreignView) &&
+                module.SimulationCamera == originalCamera && !manager.IsPlayerControlled &&
+                !Resources.FindObjectsOfTypeAll<MotionPreviewCamera>().Any(camera => camera.Target == avatar.transform),
+                "A late startup failure with an occupied bridge restores temporary resources without clearing the other bridge owner");
+            AvatarTools.UpdateSceneCamera.SimulationView = null;
+            ClickGame();
+            Check(session.Running && ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, session),
+                "Game Simulation can claim its bridge again after a rejected late startup");
+            var failingInput = new SessionMotionInput { Error = new InvalidOperationException("Injected bridge input failure") };
+            typeof(CharacterMotionMotor).GetField("_input", instance).SetValue(session.Motor, failingInput);
+            typeof(KeyboardMotionInputSource).GetField("<Suspended>k__BackingField", instance).SetValue(Keyboard(), false);
+            session.Motor.Step(0.02f);
+            CheckReleased("A real motor input failure");
+            Check(session.Error.Contains("Injected bridge input failure"), "The failed bridge session retains the actual input diagnostic");
+            ClickGame();
+            Check(session.Running && ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, session),
+                "The Game Simulation bridge restarts after input failure");
+            EditorApplication.isPaused = true;
+            session.Poll();
+            CheckReleased("Pausing Game Simulation");
+            EditorApplication.isPaused = false;
+            ClickGame();
+            Check(session.Running && ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, session),
+                "The Game Simulation bridge restarts after pause cleanup");
+            manager.Module = null;
+            session.Poll();
+            CheckReleased("Unlinking the controlled module");
+            manager.Module = module;
+            gameTool.Dispose();
+            gameTool.Dispose();
+            Check(AvatarTools.UpdateSceneCamera.SimulationView == null && initialMainState.Matches(originalCamera),
+                "Repeated final tool disposal leaves no bridge and preserves the original camera");
+        }
+        finally
+        {
+            duplicateTool?.Dispose();
+            if (registeredTools != null)
+                foreach (var tool in registeredTools) tool.Dispose();
+            else gameTool?.Dispose();
+            sceneTool?.Dispose();
+            restore.Invoke(null, null);
+            AvatarTools.UpdateSceneCamera.SimulationView = previousBridge;
+            targetField.SetValue(null, previousTarget);
+            stateField.SetValue(null, previousState);
+            instancesField.SetValue(null, previousInstances);
+            if (hadPreference) EditorPrefs.SetBool(preference, previousPreference);
+            else EditorPrefs.DeleteKey(preference);
+            if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
+            if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            if (originalCameraObject) UnityEngine.Object.DestroyImmediate(originalCameraObject);
+            observer.LookAt(previousPivot, previousRotation, previousSize, previousOrthographic, true);
+            observer.Repaint();
+            observer.SendEvent(new Event { type = EventType.Repaint });
+            EditorApplication.isPaused = paused;
+        }
+    }
+
+    private sealed class SimulationViewStub : AvatarTools.UpdateSceneCamera.ISimulationView
+    {
+        public bool SceneCameraEnabled { get; set; }
     }
 
     private sealed class SceneCameraState

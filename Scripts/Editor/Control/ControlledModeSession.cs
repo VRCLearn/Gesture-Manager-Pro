@@ -2,13 +2,14 @@ using System;
 using System.Collections.Generic;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace VRCLearn.GestureManagerPro.Control.Editor
 {
-    public sealed class ControlledModeSession : IDisposable
+    public sealed class ControlledModeSession : IDisposable, AvatarTools.UpdateSceneCamera.ISimulationView
     {
         private static readonly Dictionary<GestureManager, ControlledModeSession> Owners = new Dictionary<GestureManager, ControlledModeSession>();
         private static ControlledModeSession _gameSimulationOwner;
@@ -34,6 +35,10 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private float _lastThirdPersonDistance = 2f;
         private Vector3 _observerPosition;
         private Vector3 _fallbackObserverOffset;
+        private bool _thirdPersonBeforeObserver;
+        private float _playerFieldOfView;
+        private float _playerFarClipPlane;
+        private float _playerOrthographicSize;
 
         public CharacterMotionMotor Motor { get; private set; }
         public MotionPreviewCamera ViewCamera { get; private set; }
@@ -41,6 +46,22 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public bool FollowObserverCamera { get; private set; }
         public bool ThirdPersonEnabled { get; private set; }
         public float CameraDistance => _cameraDistance;
+        public bool SceneCameraEnabled
+        {
+            get => ViewMode == SimulationViewMode.SceneCamera;
+            set
+            {
+                if (!Running || value == SceneCameraEnabled) return;
+                if (value) SetViewMode(SimulationViewMode.SceneCamera);
+                else
+                {
+                    ThirdPersonEnabled = _thirdPersonBeforeObserver;
+                    ApplyViewMode(ThirdPersonEnabled && _cameraDistance > 0f
+                        ? SimulationViewMode.ThirdPerson : SimulationViewMode.FirstPerson);
+                    if (_input is KeyboardMotionInputSource keyboard) keyboard.RequestCapture();
+                }
+            }
+        }
         public bool Running { get; private set; }
         public string Error { get; private set; }
         public event Action Stopped;
@@ -97,6 +118,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 manager.IsPlayerControlled = true;
                 var height = CapsuleHeight(module);
                 _height = height;
+                _thirdPersonBeforeObserver = false;
                 SetObserverCameraFollow(followObserverCamera);
                 SetViewMode(viewMode);
                 SetCameraDistance(cameraDistance);
@@ -115,6 +137,12 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 {
                     CreateGroundIfNeeded();
                     CreatePreviewCamera(height);
+                }
+                if (gameSimulation)
+                {
+                    if (AvatarTools.UpdateSceneCamera.SimulationView != null)
+                        throw new InvalidOperationException("Another game simulation is already active.");
+                    AvatarTools.UpdateSceneCamera.SimulationView = this;
                 }
                 EditorApplication.update += Poll;
                 EditorApplication.playModeStateChanged += OnPlayModeChanged;
@@ -187,6 +215,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         {
             var selected = mode == SimulationViewMode.FirstPerson || mode == SimulationViewMode.ThirdPerson
                 ? mode : SimulationViewMode.SceneCamera;
+            if (selected == SimulationViewMode.SceneCamera && ViewMode != SimulationViewMode.SceneCamera)
+                _thirdPersonBeforeObserver = ThirdPersonEnabled;
             ThirdPersonEnabled = selected == SimulationViewMode.ThirdPerson;
             if (ThirdPersonEnabled && _cameraDistance == 0f) _cameraDistance = _lastThirdPersonDistance;
             ApplyViewMode(selected);
@@ -194,11 +224,21 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         private void ApplyViewMode(SimulationViewMode mode)
         {
+            var wasObserver = ViewMode == SimulationViewMode.SceneCamera;
+            if (!wasObserver && mode == SimulationViewMode.SceneCamera && _ownedCamera)
+                CapturePlayerProjection();
             ViewMode = mode;
             if (_input is KeyboardMotionInputSource keyboard) keyboard.ObserverView = ViewMode == SimulationViewMode.SceneCamera;
             if (!ViewCamera) return;
             ViewCamera.Mode = ViewMode;
             ViewCamera.Distance = _height * _cameraDistance;
+            if (wasObserver && ViewMode != SimulationViewMode.SceneCamera)
+            {
+                _ownedCamera.orthographic = false;
+                _ownedCamera.orthographicSize = _playerOrthographicSize;
+                _ownedCamera.fieldOfView = _playerFieldOfView;
+                _ownedCamera.farClipPlane = _playerFarClipPlane;
+            }
             ViewCamera.ApplyView();
             SyncObserverCamera();
         }
@@ -350,6 +390,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _ownedCamera = null;
                 _hasPreviewCamera = false;
                 ThirdPersonEnabled = false;
+                if (ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, this))
+                    AvatarTools.UpdateSceneCamera.SimulationView = null;
                 if (ReferenceEquals(_gameSimulationOwner, this)) _gameSimulationOwner = null;
                 Motor = null;
                 if (wasRunning) TryRestore(() => Stopped?.Invoke());
@@ -402,6 +444,13 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             return height > 0.1f ? Mathf.Clamp(height, 0.2f, 10f) : 1.8f;
         }
 
+        private void CapturePlayerProjection()
+        {
+            _playerFieldOfView = _ownedCamera.fieldOfView;
+            _playerFarClipPlane = _ownedCamera.farClipPlane;
+            _playerOrthographicSize = _ownedCamera.orthographicSize;
+        }
+
         private void CreatePreviewCamera(float height)
         {
             _cameraObject = TemporaryObject("Gesture Manager Pro Preview Camera", _avatar.gameObject.scene);
@@ -429,6 +478,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             _module.SimulationCamera = camera;
             _hasPreviewCamera = true;
             follow.ApplyView();
+            CapturePlayerProjection();
             follow.Mode = ViewMode;
             SyncObserverCamera();
         }

@@ -1,12 +1,15 @@
 # Development validation
 
-## Centered third-person preview (unreleased)
+## Unified simulation camera controls (unreleased)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
 
-- Remove the forced lateral shoulder offset and keep the camera on the descriptor viewpoint's backward viewing axis. Collision avoidance shortens the same path and leaves model assets unchanged.
-- This intermediate camera change passed 725 editor assertions and 653 Play Mode assertions independently of the subsequent simulation-switch integration. Actual viewport checks cover heading, pitch, distance, near-eye placement, obstruction recovery and camera-scoped renderer visibility. Production sources and runners matched the isolated fixture.
-- Physical input and a VRChat client comparison were not performed; centered placement is not a measurement of client defaults or an implementation of the client's configurable offsets.
+- The ordinary Scene Camera switch now controls the active Game Simulation observer and reflects View/F5 changes. Disabling it restores the previous player-camera state, including third person enabled at zero distance. The session suspends ordinary Main Camera synchronization and preserves its original selection, snapshot and saved preference. Cleanup releases the camera-control bridge only for its owner.
+- Player views restore their perspective lens after leaving either an orthographic or perspective observer. Third person no longer adds a hardcoded lateral shoulder offset, and collision avoidance follows the centered path behind the descriptor viewpoint.
+- The editor runner passed 725 assertions and the Play Mode runner passed 748 assertions. Tests use the real registered Game Simulation tool and ordinary Scene Camera instance, with both saved preference values, repeated on/off, F5/zoom/dropdown changes, zero-distance third person, custom player lens restoration and viewport centering. Cleanup covers normal exit, duplicate owners, an occupied bridge, non-game adapters, input failure, pause, unlink and repeated disposal. Camera component tests also cover heading, pitch, distance, near-eye views, obstruction recovery and visibility restoration.
+- Package validation passed 1,752 checks and localization passed 15,066 checks across 486 keys in each of five languages. Production source hashes matched both the isolated fixture and the backed-up/synchronized Test-Avatar installation; camera test runners matched the fixture.
+- Test-Avatar compiled without Console errors. A temporary preview-scene camera rendered the actual Chocolat scene through the production camera component: both descriptor eye and root projected to horizontal viewport coordinate 0.5, and the inspected image was centered. Avatar root position/rotation and the scene's unsaved flag were preserved. No model, animation or scene asset was edited. The render probe ran in Edit Mode and does not validate locomotion animation or client equivalence.
+- F5/zoom and ordinary tool actions were invoked through their actual subscribed events and tool methods. Physical UI/key input, actual Play transitions with domain reload disabled and VRChat client comparison were not performed.
 
 ## Scene Camera restoration (unreleased)
 

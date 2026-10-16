@@ -114,6 +114,13 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
         public class UpdateSceneCamera : GmgDynamicFunction
         {
+            public interface ISimulationView
+            {
+                bool SceneCameraEnabled { get; set; }
+            }
+
+            public static ISimulationView SimulationView { get; set; }
+
             private static Camera _camera;
             private static CameraState _originalState;
             private static int _instances;
@@ -155,7 +162,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
             protected internal override string Name => EditorLocalization.Tr("Scene Camera");
             protected override string Description => EditorLocalization.Tr("This will match your game view with your scene view!\n\nClick the button to setup the main camera automatically~");
-            protected internal override bool Active => IsActive.Property;
+            protected internal override bool Active => SimulationView?.SceneCameraEnabled ?? IsActive.Property;
 
             static UpdateSceneCamera()
             {
@@ -170,7 +177,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             public UpdateSceneCamera()
             {
                 _instances++;
-                if (IsActive.Property && !_camera && ModuleVrc3.MainCamera) Set(ModuleVrc3.MainCamera);
+                if (SimulationView == null && IsActive.Property && !_camera && ModuleVrc3.MainCamera) Set(ModuleVrc3.MainCamera);
             }
 
             public override void Dispose()
@@ -180,15 +187,28 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
                 if (--_instances == 0) RestoreCamera();
             }
 
-            protected internal override void Toggle(ModuleVrc3 module) => AutoToggle();
+            protected internal override void Toggle(ModuleVrc3 module)
+            {
+                if (SimulationView != null) SimulationView.SceneCameraEnabled = !SimulationView.SceneCameraEnabled;
+                else AutoToggle();
+            }
 
             protected override void Gui(ModuleVrc3 module)
             {
+                if (SimulationView != null)
+                {
+                    var active = Active;
+                    var selected = GmgLayoutHelper.ToggleRight(EditorLocalization.Tr("Enabled: "), active);
+                    if (selected != active) SimulationView.SceneCameraEnabled = selected;
+                    return;
+                }
                 if (GmgLayoutHelper.ButtonObjectField(EditorLocalization.Tr("Scene Camera: "), _camera, !_camera ? 'A' : 'X', Set)) AutoToggle();
             }
 
             protected override void Update(ModuleVrc3 module)
             {
+                // Game Simulation supplies the displayed camera while it owns the view.
+                if (SimulationView != null) return;
                 if (!_camera && IsActive.Property && ModuleVrc3.MainCamera) Set(ModuleVrc3.MainCamera);
                 if (_camera && (_camera.gameObject.hideFlags & HideFlags.DontSave) != 0) return;
                 var sceneView = SceneView.lastActiveSceneView;
