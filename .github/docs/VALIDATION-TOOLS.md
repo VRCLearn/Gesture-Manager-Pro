@@ -36,6 +36,8 @@ Game observer handoff checks run the regular Scene Camera tool's real update bef
 
 Scene Camera lifecycle checks use the real constructor, target setter, toggle, update and disposal paths. They cover repeated enable/disable and subsequent Scene navigation, independent restoration when switching targets, parent-relative pose restoration, shared ownership across two tools, rejection of temporary cameras, and recovery when the Main Camera becomes available. Lifecycle cleanup is invoked directly to verify idempotent restoration and preference preservation. The fixture restores its original preferences, shared state, camera enable flags and Scene view framing; it does not exercise physical UI clicks or actual Play transitions with domain reload disabled.
 
+Third-person camera component checks project the actual descriptor viewpoint into the camera viewport and require horizontal centering through heading, pitch, zoom, near-eye placement, collision shortening and obstruction removal. They also preserve renderer visibility across first-/third-person transitions.
+
 The GitHub workflow builds an archive only. It does not replace Unity integration or hardware validation.
 
 `UnityProLocalizationChecks` covers stable persisted enum values, native-language selector order, automatic script/region selection, forward/reverse switching across all five languages, cached radial captions, structured nested formats, and preservation of user names that contain punctuation, line breaks or text equal to a translated caption. It also checks the displayed SDK friend-parameter identifier, semantic mode labels and performance terminology. Only explicitly localized strings carry translation provenance; user-provided text is never recovered by matching translated sentences.

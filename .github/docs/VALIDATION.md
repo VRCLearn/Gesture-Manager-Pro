@@ -1,5 +1,13 @@
 # Development validation
 
+## Centered third-person preview (unreleased)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
+
+- Remove the forced lateral shoulder offset and keep the camera on the descriptor viewpoint's backward viewing axis. Collision avoidance shortens the same path and leaves model assets unchanged.
+- This intermediate camera change passed 725 editor assertions and 653 Play Mode assertions independently of the subsequent simulation-switch integration. Actual viewport checks cover heading, pitch, distance, near-eye placement, obstruction recovery and camera-scoped renderer visibility. Production sources and runners matched the isolated fixture.
+- Physical input and a VRChat client comparison were not performed; centered placement is not a measurement of client defaults or an implementation of the client's configurable offsets.
+
 ## Scene Camera restoration (unreleased)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.

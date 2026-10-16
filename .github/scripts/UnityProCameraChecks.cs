@@ -42,20 +42,36 @@ public static class UnityProCameraChecks
             preview.Distance = 3f;
             preview.ApplyView();
             var eye = avatar.transform.TransformPoint(preview.ViewPosition);
-            var offset = Quaternion.Euler(0f, 90f, 0f) * new Vector3(0.32f, 0f, -3f);
+            var offset = Quaternion.Euler(0f, 90f, 0f) * Vector3.back * 3f;
             check(Close(preview.transform.position, eye + offset),
-                "Third-person camera orbits behind the avatar with a height-scaled shoulder offset");
+                "Third-person camera stays directly behind the descriptor viewpoint without a lateral offset");
+            CheckCentered(camera, eye, check, "Default third-person framing");
             check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(0f, 90f, 0f)) < 0.001f,
                 "Changing view mode preserves the avatar heading");
             preview.Distance = 0.02f;
             preview.ApplyView();
-            check(Close(preview.transform.position, eye + Quaternion.Euler(0f, 90f, 0f) * new Vector3(0.004f, 0f, -0.02f)) &&
+            check(Close(preview.transform.position, eye + Quaternion.Euler(0f, 90f, 0f) * Vector3.back * 0.02f) &&
                 Vector3.Distance(preview.transform.position, eye) < 0.03f,
-                "Close third-person placement shrinks the shoulder offset with distance instead of retaining a fixed side offset");
+                "Close third-person placement approaches the descriptor viewpoint without moving sideways");
+            CheckCentered(camera, eye, check, "Close third-person framing");
             preview.Distance = 0.001f;
             preview.ApplyView();
             check(Vector3.Distance(preview.transform.position, eye) < 0.003f,
                 "Positive near-eye third-person distances are not clamped back to a tenth of a meter");
+            CheckCentered(camera, eye, check, "Positive near-eye third-person framing");
+            foreach (var heading in new[] { -90f, 0f, 45f, 135f })
+            foreach (var pitch in new[] { -35f, 0f, 45f })
+            foreach (var distance in new[] { 0.2f, 1f, 3f })
+            {
+                avatar.transform.rotation = Quaternion.Euler(0f, heading, 0f);
+                preview.Pitch = pitch;
+                preview.Distance = distance;
+                preview.ApplyView();
+                CheckCentered(camera, avatar.transform.TransformPoint(preview.ViewPosition), check,
+                    $"Third-person framing at heading {heading}, pitch {pitch} and distance {distance}");
+            }
+            avatar.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            preview.Pitch = 0f;
             preview.Distance = 3f;
             preview.ApplyView();
 
@@ -110,7 +126,7 @@ public static class UnityProCameraChecks
             preview.Distance = 3f;
             preview.Pitch = 0f;
             eye = avatar.transform.TransformPoint(preview.ViewPosition);
-            offset = new Vector3(0.32f, 0f, -3f);
+            offset = Vector3.back * 3f;
             var direction = offset.normalized;
             var self = Cube("Pro validation camera self collider", eye + direction, Vector3.one * 0.4f);
             self.transform.SetParent(avatar.transform, true);
@@ -122,11 +138,13 @@ public static class UnityProCameraChecks
             preview.ApplyView();
             check(Close(preview.transform.position, eye + offset),
                 "Camera collision ignores avatar descendants, the external motor and triggers");
+            CheckCentered(camera, eye, check, "Third-person framing with ignored colliders");
             wall = Cube("Pro validation camera obstruction", eye + direction * 2.2f, Vector3.one * 0.4f);
             Physics.SyncTransforms();
             preview.ApplyView();
             check(Vector3.Distance(preview.transform.position, eye) < 2f && Vector3.Distance(preview.transform.position, eye) > 1f,
                 "Third-person obstruction moves the camera in front of scene geometry");
+            CheckCentered(camera, eye, check, "Obstruction-shortened third-person framing");
 
             var visible = avatar.AddComponent<MeshRenderer>();
             var hidden = self.GetComponent<Renderer>();
@@ -165,9 +183,18 @@ public static class UnityProCameraChecks
             preview.Mode = SimulationViewMode.ThirdPerson;
             check(!visible.forceRenderingOff && hidden.forceRenderingOff,
                 "Switching to third-person restores renderer visibility immediately");
+            preview.ApplyView();
+            CheckCentered(camera, eye, check, "Third-person framing after restoring first-person visibility");
             RenderScope(preview, "BeginCameraRendering", camera);
-            check(!visible.forceRenderingOff, "Third-person rendering keeps the avatar visible");
+            check(!visible.forceRenderingOff && hidden.forceRenderingOff,
+                "Obstruction-shortened third-person rendering preserves each renderer's original visibility");
             RenderScope(preview, "EndCameraRendering", camera);
+            UnityEngine.Object.DestroyImmediate(wall);
+            Physics.SyncTransforms();
+            preview.ApplyView();
+            check(Close(preview.transform.position, eye + offset) && !visible.forceRenderingOff && hidden.forceRenderingOff,
+                "Removing the obstruction restores the centered camera distance and leaves original renderer visibility intact");
+            CheckCentered(camera, eye, check, "Third-person framing after obstruction removal");
             preview.Distance = 0.001f;
             preview.ApplyView();
             RenderScope(preview, "BeginCameraRendering", camera);
@@ -241,6 +268,12 @@ public static class UnityProCameraChecks
 
     private static void RenderScope(MotionPreviewCamera preview, string method, Camera camera) =>
         typeof(MotionPreviewCamera).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(preview, new object[] { camera });
+    private static void CheckCentered(Camera camera, Vector3 viewpoint, Action<bool, string> check, string label)
+    {
+        var viewport = camera.WorldToViewportPoint(viewpoint);
+        check(viewport.z > 0f && Mathf.Abs(viewport.x - 0.5f) < 0.001f,
+            label + " keeps the descriptor viewpoint at viewport center X: " + viewport);
+    }
     private static bool Close(Vector3 left, Vector3 right) => Vector3.Distance(left, right) < 0.001f;
     private static bool Finite(Vector3 value) => !float.IsNaN(value.x) && !float.IsNaN(value.y) && !float.IsNaN(value.z) &&
         !float.IsInfinity(value.x) && !float.IsInfinity(value.y) && !float.IsInfinity(value.z);

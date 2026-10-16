@@ -86,9 +86,8 @@ namespace VRCLearn.GestureManagerPro.Control
             if (Mode != SimulationViewMode.FirstPerson)
             {
                 var distance = SafePositive(Distance, 3f, 0.001f, 100f);
-                var offset = rotation * new Vector3(Mathf.Min(height * 0.2f, distance * 0.2f), 0f, -distance);
-                var length = offset.magnitude;
-                var direction = offset / length;
+                var direction = rotation * Vector3.back;
+                var length = distance;
                 var radius = Mathf.Clamp(height * 0.05f, 0.01f, 0.3f);
                 foreach (var hit in Physics.SphereCastAll(eyePosition, radius, direction, length,
                     Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))

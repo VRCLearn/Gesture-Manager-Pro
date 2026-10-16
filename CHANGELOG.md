@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Remove the forced right-side shoulder offset from third person and keep the descriptor viewpoint horizontally centered through turning, pitch, zoom and collision avoidance.
 - Restore the selected Game camera's original local pose and projection settings when Scene Camera is disabled or its target changes. Release the override when the last emulator unlinks, Play Mode changes or scripts reload, preserving the enabled preference for the next emulator session.
 
 ## 0.4.6
