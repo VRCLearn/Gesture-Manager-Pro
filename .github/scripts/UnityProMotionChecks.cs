@@ -243,6 +243,16 @@ public static class UnityProMotionChecks
                 }
                 keyboard.Reset();
                 check(keyboard.Suspended && !keyboard.Captured && Cursor.lockState == cursorLock && Cursor.visible == cursorVisible, "Resetting inactive game input preserves the original cursor state");
+                keyboard.RequestCapture();
+                keyboard.ObserverView = true;
+                keyboard.RequestCapture();
+                var captureRequested = typeof(KeyboardMotionInputSource).GetField("_captureRequested", BindingFlags.Instance | BindingFlags.NonPublic);
+                check(keyboard.ObserverView && !keyboard.Captured && !(bool)captureRequested.GetValue(keyboard) &&
+                    Cursor.lockState == cursorLock && Cursor.visible == cursorVisible,
+                    "Observer input clears a pending mouse capture and keeps the cursor free");
+                keyboard.ObserverView = false;
+                check(keyboard.Suspended && !keyboard.Captured,
+                    "Switching from observer input to a player camera requires fresh focused input before capture");
                 keyboard.Dispose();
                 keyboard.RequestCapture();
                 check(keyboard.Sample().Move == Vector2.zero && !keyboard.Captured, "Disposed keyboard input cannot capture or resume movement");

@@ -14,6 +14,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private static ControlledModeSession _gameSimulationOwner;
         private static readonly string[] ParameterNames = { "VelocityX", "VelocityY", "VelocityZ", "VelocityMagnitude", "AngularY", "Grounded" };
         private readonly Dictionary<string, (Vrc3Param parameter, float value)> _originalParameters = new Dictionary<string, (Vrc3Param, float)>();
+        private readonly Dictionary<SceneView, Vector3> _observerOffsets = new Dictionary<SceneView, Vector3>();
         private GestureManager _manager;
         private ModuleVrc3 _module;
         private Transform _avatar;
@@ -30,10 +31,13 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private bool _stopping;
         private float _height;
         private float _cameraDistance = 2f;
+        private Vector3 _observerPosition;
+        private Vector3 _fallbackObserverOffset;
 
         public CharacterMotionMotor Motor { get; private set; }
         public MotionPreviewCamera ViewCamera { get; private set; }
-        public SimulationViewMode ViewMode { get; private set; } = SimulationViewMode.ThirdPerson;
+        public SimulationViewMode ViewMode { get; private set; } = SimulationViewMode.SceneCamera;
+        public bool FollowObserverCamera { get; private set; }
         public bool Running { get; private set; }
         public string Error { get; private set; }
         public event Action Stopped;
@@ -41,7 +45,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         public bool Start(GestureManager manager, IMotionInputSource input, float speed = 2f, float turnSpeed = 120f,
             bool collisions = true, bool gravity = false, bool previewCamera = false,
-            SimulationViewMode viewMode = SimulationViewMode.ThirdPerson, float cameraDistance = 2f)
+            SimulationViewMode viewMode = SimulationViewMode.SceneCamera, float cameraDistance = 2f,
+            bool followObserverCamera = false)
         {
             if (_stopping) return false;
             Stop();
@@ -75,6 +80,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _module = module;
                 _avatar = module.Avatar.transform;
                 _position = _avatar.position;
+                _observerPosition = _position;
                 _rotation = _avatar.rotation;
                 _originalControlled = manager.IsPlayerControlled;
                 _input = input;
@@ -84,6 +90,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 manager.IsPlayerControlled = true;
                 var height = CapsuleHeight(module);
                 _height = height;
+                SetObserverCameraFollow(followObserverCamera);
                 SetViewMode(viewMode);
                 SetCameraDistance(cameraDistance);
                 var radius = Mathf.Clamp(height * 0.12f, 0.05f, 0.5f);
@@ -129,6 +136,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _input.Reset();
                 Motor.Halt();
             }
+            UpdateObserverView();
         }
 
         private bool IsValid() => Running && EditorApplication.isPlaying && !EditorApplication.isPaused &&
@@ -150,6 +158,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             Set("VelocityMagnitude", result.LocalVelocity.magnitude);
             Set("AngularY", result.AngularDegreesPerSecond);
             Set("Grounded", result.Grounded ? 1f : 0f);
+            UpdateObserverView();
         }
 
         private void TogglePose(MotionPose pose)
@@ -169,10 +178,67 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         public void SetViewMode(SimulationViewMode mode)
         {
-            ViewMode = mode == SimulationViewMode.FirstPerson ? mode : SimulationViewMode.ThirdPerson;
+            ViewMode = mode == SimulationViewMode.FirstPerson || mode == SimulationViewMode.ThirdPerson
+                ? mode : SimulationViewMode.SceneCamera;
+            if (_input is KeyboardMotionInputSource keyboard) keyboard.ObserverView = ViewMode == SimulationViewMode.SceneCamera;
             if (!ViewCamera) return;
             ViewCamera.Mode = ViewMode;
             ViewCamera.ApplyView();
+            SyncObserverCamera();
+        }
+
+        public void SetObserverCameraFollow(bool enabled)
+        {
+            if (FollowObserverCamera == enabled) return;
+            FollowObserverCamera = enabled;
+            if (_avatar) _observerPosition = _avatar.position;
+        }
+
+        private void UpdateObserverView()
+        {
+            if (!_avatar) return;
+            var delta = _avatar.position - _observerPosition;
+            _observerPosition = _avatar.position;
+            var view = SceneView.lastActiveSceneView;
+            if (FollowObserverCamera && delta.sqrMagnitude > 0f)
+            {
+                if (view)
+                {
+                    view.pivot += delta;
+                    _observerOffsets.TryGetValue(view, out var offset);
+                    _observerOffsets[view] = offset + delta;
+                    view.Repaint();
+                }
+                else
+                {
+                    _fallbackObserverOffset += delta;
+                    if (_ownedCamera && ViewMode == SimulationViewMode.SceneCamera) _ownedCamera.transform.position += delta;
+                }
+            }
+            SyncObserverCamera();
+        }
+
+        private void SyncObserverCamera()
+        {
+            if (!_ownedCamera || ViewMode != SimulationViewMode.SceneCamera) return;
+            var view = SceneView.lastActiveSceneView;
+            var source = view && view.camera ? view.camera : _originalModuleCamera;
+            if (!source)
+                foreach (var camera in Camera.allCameras)
+                    if (camera != _ownedCamera && camera.cameraType == CameraType.Game && camera.targetDisplay == 0 &&
+                        !camera.targetTexture && (camera.gameObject.hideFlags & HideFlags.DontSave) == 0)
+                    {
+                        source = camera;
+                        break;
+                    }
+            if (!source || source == _ownedCamera) return;
+            var position = source.transform.position + (view ? Vector3.zero : _fallbackObserverOffset);
+            _ownedCamera.transform.SetPositionAndRotation(position, source.transform.rotation);
+            _ownedCamera.orthographic = source.orthographic;
+            _ownedCamera.orthographicSize = source.orthographicSize;
+            _ownedCamera.fieldOfView = source.fieldOfView;
+            _ownedCamera.nearClipPlane = source.nearClipPlane;
+            _ownedCamera.farClipPlane = source.farClipPlane;
         }
 
         public void SetCameraDistance(float avatarHeights)
@@ -182,8 +248,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             if (ViewCamera) ViewCamera.Distance = _height * _cameraDistance;
         }
 
-        private void ToggleView() => SetViewMode(ViewMode == SimulationViewMode.FirstPerson
-            ? SimulationViewMode.ThirdPerson : SimulationViewMode.FirstPerson);
+        private void ToggleView() => SetViewMode(ViewMode == SimulationViewMode.SceneCamera
+            ? SimulationViewMode.FirstPerson : ViewMode == SimulationViewMode.FirstPerson
+                ? SimulationViewMode.ThirdPerson : SimulationViewMode.SceneCamera);
 
         public void Stop()
         {
@@ -210,6 +277,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 if (_motorObject) TryRestore(() => UnityEngine.Object.DestroyImmediate(_motorObject));
                 if (_cameraObject) TryRestore(() => UnityEngine.Object.DestroyImmediate(_cameraObject));
                 if (_groundObject) TryRestore(() => UnityEngine.Object.DestroyImmediate(_groundObject));
+                foreach (var entry in _observerOffsets)
+                    if (entry.Key) TryRestore(() => { entry.Key.pivot -= entry.Value; entry.Key.Repaint(); });
                 if (_avatar) TryRestore(() => _avatar.SetPositionAndRotation(_position, _rotation));
                 if (_module != null && _module.Active && !_module.IsInvalid())
                     foreach (var entry in _originalParameters)
@@ -224,6 +293,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                     if (Owners.TryGetValue(_manager, out var owner) && ReferenceEquals(owner, this)) Owners.Remove(_manager);
                 }
                 _originalParameters.Clear();
+                _observerOffsets.Clear();
+                _fallbackObserverOffset = Vector3.zero;
                 _manager = null;
                 _module = null;
                 _avatar = null;
@@ -305,7 +376,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 float.IsInfinity(follow.ViewPosition.x) || float.IsInfinity(follow.ViewPosition.y) || float.IsInfinity(follow.ViewPosition.z))
                 follow.ViewPosition = _avatar.InverseTransformPoint(_avatar.position + Vector3.up * (height * 0.9f));
             follow.IgnoredCollider = Motor.Controller;
-            follow.Mode = ViewMode;
+            follow.Mode = ViewMode == SimulationViewMode.SceneCamera ? SimulationViewMode.ThirdPerson : ViewMode;
             follow.Distance = height * _cameraDistance;
             follow.Pitch = Motor.ViewPitch;
             ViewCamera = follow;
@@ -314,6 +385,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             _module.SimulationCamera = camera;
             _hasPreviewCamera = true;
             follow.ApplyView();
+            follow.Mode = ViewMode;
+            SyncObserverCamera();
         }
     }
 }

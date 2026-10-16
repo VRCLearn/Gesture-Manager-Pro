@@ -19,6 +19,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private EditorWindow _focusedWindow;
         private int _sceneNavigationButtons;
         private bool _sceneNavigation;
+        private bool _observerView;
 
         public KeyboardMotionInputSource(bool gameSimulation = false)
         {
@@ -27,6 +28,11 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         }
 
         public bool GameSimulation { get; }
+        public bool ObserverView
+        {
+            get => _observerView;
+            set { if (_observerView == value) return; Reset(); _observerView = value; }
+        }
         public bool Captured => _captured;
         public float LookSensitivity { get; set; } = 2f;
         public bool Suspended { get; private set; } = true;
@@ -45,7 +51,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             if (!HasInputFocus) { Reset(); return default; }
             ObserveFocus(EditorWindow.focusedWindow);
             if (GameSimulation && HasSceneViewFocus) return SampleSceneInput();
-            if (GameSimulation)
+            if (GameSimulation && !ObserverView)
             {
                 if (Input.GetKey(KeyCode.Escape)) { Reset(); return default; }
                 if (_captured && Cursor.lockState != CursorLockMode.Locked) { Reset(); return default; }
@@ -79,8 +85,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             Suspended = false;
             if (!GameSimulation) return new MotionInputFrame(move, turn);
             var sensitivity = float.IsNaN(LookSensitivity) || float.IsInfinity(LookSensitivity) ? 2f : Mathf.Clamp(LookSensitivity, 0f, 20f);
-            var look = new Vector2(Input.GetAxisRaw("Mouse X"), -Input.GetAxisRaw("Mouse Y")) * sensitivity;
+            var look = ObserverView ? Vector2.zero : new Vector2(Input.GetAxisRaw("Mouse X"), -Input.GetAxisRaw("Mouse Y")) * sensitivity;
             if (Input.GetKeyDown(KeyCode.V)) ViewToggleRequested?.Invoke();
+            if (Suspended) return default;
             var sprint = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             var pose = Input.GetKeyDown(KeyCode.C) ? MotionPose.Crouch :
                 Input.GetKeyDown(KeyCode.Z) ? MotionPose.Prone : MotionPose.None;
@@ -89,7 +96,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         public void RequestCapture()
         {
-            if (_disposed || !GameSimulation) return;
+            if (_disposed || !GameSimulation || ObserverView) return;
             _captureRequested = true;
             _needsRelease = true;
             Suspended = true;

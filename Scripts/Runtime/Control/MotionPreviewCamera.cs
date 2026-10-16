@@ -8,7 +8,8 @@ namespace VRCLearn.GestureManagerPro.Control
     public enum SimulationViewMode
     {
         FirstPerson,
-        ThirdPerson
+        ThirdPerson,
+        SceneCamera
     }
 
     [DefaultExecutionOrder(10000)]
@@ -70,6 +71,8 @@ namespace VRCLearn.GestureManagerPro.Control
         {
             // Also recover if rendering was interrupted before its matching end callback.
             ResetRenderState();
+            // The editor session supplies the observer camera pose and projection.
+            if (Mode == SimulationViewMode.SceneCamera) return;
             if (!Target) return;
             var height = SafePositive(Height, 1.6f, 0.05f, 100f);
             var localView = Finite(ViewPosition) ? ViewPosition : new Vector3(0f, 1.6f, 0f);

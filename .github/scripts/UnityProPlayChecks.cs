@@ -66,6 +66,7 @@ public static class UnityProPlayChecks
             UnityProStatisticsLifecycleChecks.Run(Check);
             ExecuteChecks();
             CheckTemporaryGround();
+            CheckObserverCamera();
             CheckSimulationMicrophone();
             UnityProCameraChecks.Run(Check);
             UnityProGraphChecks.RunChecks(Check);
@@ -658,6 +659,309 @@ public static class UnityProPlayChecks
             EditorApplication.isPaused = paused;
             Physics.SyncTransforms();
         }
+    }
+
+    private static void CheckObserverCamera()
+    {
+        SceneView observer = null;
+        SceneView secondObserver = null;
+        var previousObserver = SceneView.lastActiveSceneView;
+        GameObject avatar = null;
+        GameObject originalCameraObject = null;
+        GestureManager manager = null;
+        ControlledModeSession session = null;
+        var paused = EditorApplication.isPaused;
+        try
+        {
+            EditorApplication.isPaused = false;
+            Check((int)SimulationViewMode.FirstPerson == 0 && (int)SimulationViewMode.ThirdPerson == 1 &&
+                (int)SimulationViewMode.SceneCamera == 2, "Adding observer mode preserves the existing serialized view values");
+            avatar = new GameObject("Pro observer camera validation avatar");
+            avatar.transform.position = new Vector3(1200f, 70f, 1300f);
+            avatar.AddComponent<Animator>();
+            var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
+            descriptor.ViewPosition = new Vector3(0f, 1.6f, 0f);
+            var module = new ModuleVrc3(descriptor) { Active = true, Settings = new ModuleSettings() };
+            foreach (var name in ParameterNames)
+                module.Params.Add(name, new Vrc3Param(name, AnimatorControllerParameterType.Float));
+            module.GetParam("Upright").Set(module, 1f);
+            manager = new GameObject("Pro observer camera validation manager").AddComponent<GestureManager>();
+            manager.Module = module;
+            originalCameraObject = new GameObject("Pro observer original camera");
+            var originalCamera = originalCameraObject.AddComponent<Camera>();
+            originalCamera.transform.SetPositionAndRotation(new Vector3(50f, 30f, 10f), Quaternion.Euler(13f, 27f, 0f));
+            originalCamera.orthographic = true;
+            originalCamera.orthographicSize = 9f;
+            originalCamera.aspect = 1.25f;
+            var originalCameraPosition = originalCamera.transform.position;
+            var originalCameraRotation = originalCamera.transform.rotation;
+            var originalProjection = originalCamera.projectionMatrix;
+            module.SimulationCamera = originalCamera;
+            var originalPosition = avatar.transform.position;
+            var input = new SessionMotionInput();
+            session = new ControlledModeSession();
+
+            // This runner owns an isolated batch fixture. Close its editor Scene
+            // windows so the existing scene-camera fallback is exercised for real.
+            foreach (var view in SceneView.sceneViews.Cast<SceneView>().ToArray())
+                if (view) view.Close();
+            Check(!SceneView.lastActiveSceneView && SceneView.sceneViews.Count == 0,
+                "The fallback fixture has no SceneView window or active Scene observer");
+            Check(session.Start(manager, input, previewCamera: true),
+                "Observer simulation starts with only its existing scene camera: " + session.Error);
+            var fallbackObject = session.ViewCamera.gameObject;
+            var fallbackCamera = session.ViewCamera.PreviewCamera;
+            session.Poll();
+            Check(session.ViewMode == SimulationViewMode.SceneCamera && !session.FollowObserverCamera &&
+                Vector3.Distance(fallbackCamera.transform.position, originalCameraPosition) < 0.0001f &&
+                Quaternion.Angle(fallbackCamera.transform.rotation, originalCameraRotation) < 0.001f,
+                "The default Game observer mirrors the existing scene camera when Scene views are closed");
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            for (var frame = 0; frame < 3; frame++) { session.Motor.Step(0.1f); session.Poll(); }
+            Check(Vector3.Distance(avatar.transform.position, originalPosition) > 0.3f &&
+                Vector3.Distance(fallbackCamera.transform.position, originalCameraPosition) < 0.0001f &&
+                originalCamera.transform.position == originalCameraPosition,
+                "Movement leaves both the fixed Game fallback and its original scene camera in place by default");
+            session.SetObserverCameraFollow(true);
+            session.Poll();
+            Check(Vector3.Distance(fallbackCamera.transform.position, originalCameraPosition) < 0.0001f,
+                "Enabling fallback follow does not catch up movement from the fixed-view period");
+            var fallbackBeforeMove = avatar.transform.position;
+            input.Frame = new MotionInputFrame(Vector2.right, 0f);
+            session.Motor.Step(0.1f);
+            session.Poll();
+            var fallbackDelta = avatar.transform.position - fallbackBeforeMove;
+            Check(fallbackDelta.sqrMagnitude > 0.001f &&
+                Vector3.Distance(fallbackCamera.transform.position, originalCameraPosition + fallbackDelta) < 0.001f &&
+                originalCamera.transform.position == originalCameraPosition && originalCamera.transform.rotation == originalCameraRotation,
+                "Following without a SceneView translates only the owned Game observer by actual avatar displacement");
+            var followedFallbackPosition = fallbackCamera.transform.position;
+            session.Poll();
+            Check(Vector3.Distance(fallbackCamera.transform.position, followedFallbackPosition) < 0.0001f,
+                "Repeated fallback polling does not add the same displacement twice");
+            session.SetObserverCameraFollow(false);
+            var beforeDisabledMove = avatar.transform.position;
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            session.Motor.Step(0.1f);
+            session.Poll();
+            Check(Vector3.Distance(avatar.transform.position, beforeDisabledMove) > 0.05f &&
+                Vector3.Distance(fallbackCamera.transform.position, followedFallbackPosition) < 0.0001f,
+                "Disabling fallback follow keeps its accumulated view position while the avatar continues moving");
+            session.SetObserverCameraFollow(true);
+            session.Poll();
+            Check(Vector3.Distance(fallbackCamera.transform.position, followedFallbackPosition) < 0.0001f,
+                "Re-enabling fallback follow does not replay movement accumulated while disabled");
+            session.Stop();
+            Check(!fallbackObject && module.SimulationCamera == originalCamera &&
+                Vector3.Distance(avatar.transform.position, originalPosition) < 0.0001f &&
+                originalCamera.transform.position == originalCameraPosition && originalCamera.transform.rotation == originalCameraRotation &&
+                MatricesClose(originalCamera.projectionMatrix, originalProjection),
+                "Fallback cleanup destroys its owned camera and restores the module reference without modifying the original camera");
+
+            observer = ScriptableObject.CreateInstance<SceneView>();
+            observer.titleContent = new GUIContent("Pro observer validation");
+            observer.Show();
+            observer.Focus();
+            observer.LookAt(avatar.transform.position + new Vector3(0f, 1f, 0f), Quaternion.Euler(24f, 145f, 0f), 5.5f, true, true);
+            observer.Repaint();
+            observer.SendEvent(new Event { type = EventType.Repaint });
+            Check(SceneView.lastActiveSceneView == observer && observer.camera,
+                "The observer fixture owns a real active SceneView with a scene camera");
+            var originalPivot = observer.pivot;
+            var originalRotation = observer.rotation;
+            var originalSize = observer.size;
+            var originalOrthographic = observer.orthographic;
+            Check(session.Start(manager, input, gravity: true, previewCamera: true),
+                "Observer game simulation starts with its default view: " + session.Error);
+            Check(session.ViewMode == SimulationViewMode.SceneCamera && !session.FollowObserverCamera &&
+                session.ViewCamera && session.ViewCamera.Mode == SimulationViewMode.SceneCamera,
+                "A default session keeps a temporary game camera in fixed Scene camera mode");
+            var ownedCameraObject = session.ViewCamera.gameObject;
+
+            void CheckMirroredCamera(SceneView view, string label)
+            {
+                view.Repaint();
+                view.SendEvent(new Event { type = EventType.Repaint });
+                session.Poll();
+                var source = view.camera;
+                var game = session.ViewCamera.PreviewCamera;
+                Check(Vector3.Distance(game.transform.position, source.transform.position) < 0.001f &&
+                    Quaternion.Angle(game.transform.rotation, source.transform.rotation) < 0.001f &&
+                    game.orthographic == source.orthographic &&
+                    Mathf.Abs(game.orthographicSize - source.orthographicSize) < 0.0001f &&
+                    Mathf.Abs(game.fieldOfView - source.fieldOfView) < 0.0001f &&
+                    Mathf.Abs(game.nearClipPlane - source.nearClipPlane) < 0.0001f &&
+                    Mathf.Abs(game.farClipPlane - source.farClipPlane) < 0.01f,
+                    label + " mirrors the actual Scene camera transform and projection settings after its view update");
+                var position = game.transform.position;
+                var rotation = game.transform.rotation;
+                var projection = game.projectionMatrix;
+                session.ViewCamera.ApplyView();
+                Check(Vector3.Distance(game.transform.position, position) < 0.0001f &&
+                    Quaternion.Angle(game.transform.rotation, rotation) < 0.001f && MatricesClose(game.projectionMatrix, projection),
+                    "Runtime camera updates preserve the synchronized observer view instead of following the avatar");
+            }
+
+            CheckMirroredCamera(observer, "Initial observer view");
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            for (var frame = 0; frame < 3; frame++) { session.Motor.Step(0.1f); session.Poll(); }
+            input.Frame = default;
+            for (var frame = 0; frame < 2; frame++) { session.Motor.Step(0.1f); session.Poll(); }
+            Check(Vector3.Distance(avatar.transform.position, originalPosition) > 0.3f &&
+                Vector3.Distance(observer.pivot, originalPivot) < 0.001f &&
+                Quaternion.Angle(observer.rotation, originalRotation) < 0.001f &&
+                Mathf.Abs(observer.size - originalSize) < 0.0001f && observer.orthographic == originalOrthographic,
+                "Default avatar movement leaves the Scene observer's pivot, rotation, zoom, and projection mode unchanged");
+            CheckMirroredCamera(observer, "Fixed observer after avatar movement");
+
+            session.SetObserverCameraFollow(true);
+            session.Poll();
+            Check(session.FollowObserverCamera && Vector3.Distance(observer.pivot, originalPivot) < 0.001f,
+                "Enabling observer follow starts from the current avatar position without catching up prior movement");
+            var ownedTranslation = Vector3.zero;
+            Vector3 FollowStep(SceneView view, MotionInputFrame frame, float time, string label)
+            {
+                var pivot = view.pivot;
+                var position = avatar.transform.position;
+                var rotation = view.rotation;
+                var size = view.size;
+                var orthographic = view.orthographic;
+                input.Frame = frame;
+                session.Motor.Step(time);
+                session.Poll();
+                var delta = avatar.transform.position - position;
+                Check(Vector3.Distance(view.pivot - pivot, delta) < 0.001f &&
+                    Quaternion.Angle(view.rotation, rotation) < 0.001f && Mathf.Abs(view.size - size) < 0.0001f &&
+                    view.orthographic == orthographic,
+                    label + " translates the observer by actual avatar displacement while retaining manual rotation and zoom");
+                var followedPivot = view.pivot;
+                session.Poll();
+                session.Poll();
+                Check(Vector3.Distance(view.pivot, followedPivot) < 0.0001f,
+                    "Repeated observer polling does not apply an already consumed avatar displacement again");
+                return delta;
+            }
+
+            ownedTranslation += FollowStep(observer, new MotionInputFrame(Vector2.up, 0f), 0.1f, "Following horizontal movement");
+            ownedTranslation += FollowStep(observer, new MotionInputFrame(Vector2.zero, 0f, pose: MotionPose.Crouch), 0.02f, "Changing posture during observer follow");
+            Check(module.GetParam("Upright").FloatValue() == 0.6f, "Observer following leaves explicit posture control available");
+            var jumpDelta = FollowStep(observer, new MotionInputFrame(Vector2.zero, 0f, jump: true), 0.02f, "Following a jump");
+            ownedTranslation += jumpDelta;
+            Check(jumpDelta.y > 0.04f, "Observer following includes actual vertical jump displacement");
+            for (var frame = 0; frame < 100 && !session.Motor.LastResult.Grounded; frame++)
+                ownedTranslation += FollowStep(observer, default, 0.02f, "Following airborne motion and landing");
+            Check(session.Motor.LastResult.Grounded, "The observer jump fixture returns to its physical floor");
+            session.Motor.Halt();
+            ownedTranslation += FollowStep(observer, new MotionInputFrame(Vector2.zero, 1f), 0.1f, "Turning without observer orbit");
+
+            session.SetObserverCameraFollow(false);
+            var fixedPivot = observer.pivot;
+            input.Frame = new MotionInputFrame(Vector2.right, 0f);
+            for (var frame = 0; frame < 3; frame++) { session.Motor.Step(0.1f); session.Poll(); }
+            Check(!session.FollowObserverCamera && Vector3.Distance(observer.pivot, fixedPivot) < 0.001f,
+                "Disabling observer follow immediately stops translating the Scene view");
+            session.SetObserverCameraFollow(true);
+            session.Poll();
+            Check(Vector3.Distance(observer.pivot, fixedPivot) < 0.001f,
+                "Re-enabling observer follow does not replay movement accumulated while disabled");
+            ownedTranslation += FollowStep(observer, new MotionInputFrame(Vector2.up, 0f), 0.1f, "Following after a live toggle");
+            var manualPan = new Vector3(2f, -1f, 3f);
+            var manualRotation = Quaternion.Euler(31f, 209f, 0f);
+            observer.LookAt(observer.pivot + manualPan, manualRotation, 8f, false, true);
+            CheckMirroredCamera(observer, "Manual Scene navigation");
+            ownedTranslation += FollowStep(observer, new MotionInputFrame(Vector2.up, 0f), 0.1f, "Following after manual Scene navigation");
+
+            secondObserver = ScriptableObject.CreateInstance<SceneView>();
+            secondObserver.titleContent = new GUIContent("Pro second observer validation");
+            secondObserver.Show();
+            secondObserver.Focus();
+            secondObserver.LookAt(avatar.transform.position + new Vector3(3f, 2f, -1f), Quaternion.Euler(18f, 70f, 0f), 4f, true, true);
+            secondObserver.Repaint();
+            secondObserver.SendEvent(new Event { type = EventType.Repaint });
+            Check(SceneView.lastActiveSceneView == secondObserver && secondObserver.camera,
+                "A second real SceneView can become the current observer during one session");
+            var secondPivot = secondObserver.pivot;
+            var firstInactivePivot = observer.pivot;
+            session.Poll();
+            Check(Vector3.Distance(secondObserver.pivot, secondPivot) < 0.001f,
+                "Switching observers does not apply translations from the previously active Scene view");
+            var secondOwnedTranslation = FollowStep(secondObserver, new MotionInputFrame(Vector2.down, 0f), 0.1f, "Following in the second observer");
+            Check(Vector3.Distance(observer.pivot, firstInactivePivot) < 0.001f,
+                "Avatar movement updates only the current observer rather than moving every open Scene view");
+            var secondManualPan = new Vector3(-1f, 0.5f, 2f);
+            var secondManualRotation = Quaternion.Euler(37f, 115f, 0f);
+            secondObserver.LookAt(secondObserver.pivot + secondManualPan, secondManualRotation, 6f, false, true);
+            CheckMirroredCamera(secondObserver, "Second observer after independent manual navigation");
+            secondOwnedTranslation += FollowStep(secondObserver, default, 0.1f, "Following after switching observers");
+            Check(Vector3.Distance(observer.pivot - ownedTranslation, originalPivot + manualPan) < 0.001f &&
+                Vector3.Distance(secondObserver.pivot - secondOwnedTranslation, secondPivot + secondManualPan) < 0.001f,
+                "The fixture distinguishes owned follow translations from each observer's manual navigation");
+            session.Stop();
+            Check(Vector3.Distance(observer.pivot, originalPivot + manualPan) < 0.001f &&
+                Quaternion.Angle(observer.rotation, manualRotation) < 0.001f && Mathf.Abs(observer.size - 8f) < 0.0001f && !observer.orthographic,
+                "Stop removes owned following from the first observer while preserving manual pan, rotation, and zoom");
+            Check(Vector3.Distance(secondObserver.pivot, secondPivot + secondManualPan) < 0.001f &&
+                Quaternion.Angle(secondObserver.rotation, secondManualRotation) < 0.001f && Mathf.Abs(secondObserver.size - 6f) < 0.0001f && !secondObserver.orthographic,
+                "Stop independently restores the second observer's owned translation without undoing manual navigation");
+            Check(!ownedCameraObject && module.SimulationCamera == originalCamera &&
+                Vector3.Distance(avatar.transform.position, originalPosition) < 0.0001f &&
+                originalCamera.transform.position == originalCameraPosition && originalCamera.transform.rotation == originalCameraRotation &&
+                MatricesClose(originalCamera.projectionMatrix, originalProjection),
+                "Observer cleanup restores the avatar and module camera without modifying the original camera object");
+            session.Stop();
+            Check(Vector3.Distance(observer.pivot, originalPivot + manualPan) < 0.001f,
+                "Repeated observer cleanup cannot subtract the same owned translation twice");
+
+            using (var keyboard = new KeyboardMotionInputSource(true))
+            {
+                var cursorLock = Cursor.lockState;
+                var cursorVisible = Cursor.visible;
+                module.SimulationCamera = null;
+                Check(session.Start(manager, keyboard, collisions: false, followObserverCamera: true),
+                    "Keyboard simulation starts in the default observer mode with the optional follow setting");
+                Check(session.FollowObserverCamera && keyboard.ObserverView && !keyboard.Captured &&
+                    Cursor.lockState == cursorLock && Cursor.visible == cursorVisible,
+                    "Default Game observer input does not capture or move the cursor");
+                session.SetViewMode(SimulationViewMode.FirstPerson);
+                Check(!keyboard.ObserverView, "Selecting first person returns keyboard input to its capture-based mode");
+                session.SetViewMode(SimulationViewMode.SceneCamera);
+                Check(keyboard.ObserverView && !keyboard.Captured && keyboard.Suspended,
+                    "Returning to observer mode resets the previous camera input state");
+                session.SetViewMode(SimulationViewMode.ThirdPerson);
+                var toggle = (Action)typeof(KeyboardMotionInputSource)
+                    .GetField("ViewToggleRequested", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(keyboard);
+                toggle();
+                Check(session.ViewMode == SimulationViewMode.SceneCamera && keyboard.ObserverView,
+                    "The V view event cycles from third person into the Scene observer");
+                toggle();
+                Check(session.ViewMode == SimulationViewMode.FirstPerson && !keyboard.ObserverView,
+                    "The next V view event cycles from Scene observer into first person");
+                toggle();
+                Check(session.ViewMode == SimulationViewMode.ThirdPerson && !keyboard.ObserverView,
+                    "The V view cycle continues from first person back to third person");
+                session.Stop();
+                Check(module.SimulationCamera == null,
+                    "Observer cleanup restores an originally empty module camera reference to null");
+            }
+        }
+        finally
+        {
+            session?.Dispose();
+            if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
+            if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            if (originalCameraObject) UnityEngine.Object.DestroyImmediate(originalCameraObject);
+            if (secondObserver) secondObserver.Close();
+            if (observer) observer.Close();
+            if (previousObserver) previousObserver.Focus();
+            EditorApplication.isPaused = paused;
+        }
+    }
+
+    private static bool MatricesClose(Matrix4x4 first, Matrix4x4 second)
+    {
+        for (var index = 0; index < 16; index++)
+            if (Mathf.Abs(first[index] - second[index]) > 0.0001f) return false;
+        return true;
     }
 
     private static RaycastHit[] SupportBelow(Vector3 feet, CharacterController ignoredController = null) =>

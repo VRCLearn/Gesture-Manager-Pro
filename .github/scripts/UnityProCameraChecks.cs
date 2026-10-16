@@ -48,6 +48,21 @@ public static class UnityProCameraChecks
             check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(0f, 90f, 0f)) < 0.001f,
                 "Changing view mode preserves the avatar heading");
 
+            check((int)SimulationViewMode.FirstPerson == 0 && (int)SimulationViewMode.ThirdPerson == 1 &&
+                (int)SimulationViewMode.SceneCamera == 2, "Adding observer mode preserves existing view identifiers");
+            preview.Mode = SimulationViewMode.SceneCamera;
+            var observerPosition = preview.transform.position;
+            var observerRotation = preview.transform.rotation;
+            camera.nearClipPlane = 0.123f;
+            avatar.transform.position += new Vector3(2f, 1f, 3f);
+            preview.Pitch = 40f;
+            preview.ApplyView();
+            check(Close(preview.transform.position, observerPosition) &&
+                Quaternion.Angle(preview.transform.rotation, observerRotation) < 0.001f && camera.nearClipPlane == 0.123f,
+                "Observer mode leaves externally supplied camera pose and projection independent of avatar movement and pitch");
+            avatar.transform.position -= new Vector3(2f, 1f, 3f);
+            preview.Pitch = 0f;
+
             avatar.transform.localScale = Vector3.one * 2f;
             avatar.transform.rotation = Quaternion.Euler(10f, 90f, 5f);
             preview.Height = 3.2f;
@@ -141,6 +156,11 @@ public static class UnityProCameraChecks
                 "Switching to third-person restores renderer visibility immediately");
             RenderScope(preview, "BeginCameraRendering", camera);
             check(!visible.forceRenderingOff, "Third-person rendering keeps the avatar visible");
+            RenderScope(preview, "EndCameraRendering", camera);
+            preview.Mode = SimulationViewMode.SceneCamera;
+            RenderScope(preview, "BeginCameraRendering", camera);
+            check(!visible.forceRenderingOff && hidden.forceRenderingOff,
+                "Observer rendering keeps the avatar visible and preserves pre-existing renderer hiding");
             RenderScope(preview, "EndCameraRendering", camera);
             preview.Mode = SimulationViewMode.FirstPerson;
             preview.HideAvatarInFirstPerson = false;
