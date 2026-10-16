@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0
 
 - Orbit third person around an upright body-axis pivot between the head and torso instead of the descriptor viewpoint. Keep first-person placement unchanged and prevent descriptor offsets or independent body turns from dragging the free camera.
 - During Tab free rotation, route comma/period (`<`/`>`) to camera-only yaw while A/D keeps turning the avatar independently. Preserve ordinary turning after free rotation ends and add regression coverage and five-language help.

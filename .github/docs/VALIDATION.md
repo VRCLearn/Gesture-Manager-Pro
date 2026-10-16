@@ -1,6 +1,15 @@
 # Development validation
 
-## Third-person body-axis orbit and keyboard camera turning (unreleased)
+## Release validation (1.0.0)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5, Python 3.14 and PowerShell on Windows.
+
+- The complete 1.0.0 candidate passed 803 editor assertions and 836 Play Mode assertions with graphics enabled. The separate body-axis camera commit passed 792 editor and 828 Play Mode assertions before the keyboard camera-turn fix. Coverage includes independent camera/body turning, view transitions, obstruction, collision, jumping, landing and restoration.
+- All 44 distribution, release and VPM-listing tests passed in the real user environment, including the PowerShell build entry point. Package validation passed 1,752 checks and localization passed 15,097 checks across 487 keys in each of five languages.
+- The ten changed production scripts, package manifest and three validation runners matched the disposable fixture by SHA-256. No model, animation or scene asset was changed. Version metadata, the download URL, displayed version and changelog agree on 1.0.
+- Physical keyboard/mouse input, VR hardware and a VRChat client comparison were not performed for this release. The body-axis pivot remains the documented fallback because an exact client orbit formula is not publicly specified. SDK locomotion proxy replacement and client IK remain unsupported; the 1.0 version does not add those capabilities.
+
+## Third-person body-axis orbit and keyboard camera turning (1.0.0)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
 

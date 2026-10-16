@@ -1,6 +1,6 @@
 # VPM publishing conventions
 
-Gesture Manager Pro uses the existing VRCLearn distribution pattern: versioned GitHub Release assets, an official-template GitHub Pages website, and a VPM `index.json` generated from numeric releases that are not marked as prereleases. The canonical repository is `VRCLearn/Gesture-Manager-Pro`, with `main` as its default branch. The package remains an initial development release despite being visible in the default package list.
+Gesture Manager Pro uses the existing VRCLearn distribution pattern: versioned GitHub Release assets, an official-template GitHub Pages website, and a VPM `index.json` generated from numeric releases that are not marked as prereleases. The canonical repository is `VRCLearn/Gesture-Manager-Pro`, with `main` as its default branch. See the compatibility and validation records for supported simulator behavior, tested configurations and remaining limitations.
 
 ## Install and update
 
