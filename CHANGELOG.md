@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.4
+
+- Stop generating `Documentation~/SOURCE.json` and its metadata during packaging, fixing repeated missing-folder warnings in Unity. Source repository and revision information remains in the published `package.json`.
+- Preserve empty asset folders in VPM ZIPs and reject orphan metadata. Exclude Unity-ignored names, temporary files and their metadata from both distribution formats.
+- Use the validated Python builder for the PowerShell development entry point, keeping asset filtering, GUIDs, licenses and validation consistent. `Build-Package.ps1` now requires Python 3.10 or later and produces the ZIP, UnityPackage, manifest and checksums.
+- Add Japanese, Korean and Traditional Chinese interfaces alongside English and Simplified Chinese. Improve English wording, Simplified Chinese terminology, automatic language selection and language-specific font fallbacks while preserving user text, parameter identifiers and persisted language values.
+- Restore the original emulator Inspector layout with the language selector in gear settings and Model Statistics beside Enter Play Mode. Place Game Simulation in the standard Tools group and radial Tools submenu, with shared inline settings and session state.
+- Integrate default-enabled microphone lip sync into Game Simulation, removing the separate lip-sync tool and standalone simulation windows. Preserve running sessions across foldout and tab changes, and release microphone recording and restore owned state on stop, pause, avatar loss and failure.
+
 ## 0.4.3
 
 - Use shared, language-specific system font chains in Model Statistics, Lip Sync Test and Game Simulation, following NDMF's editor localization approach. Regular faces and synthetic bold keep Chinese body text and headings consistent without adding a font binary or NDMF dependency.

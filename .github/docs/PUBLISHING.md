@@ -13,13 +13,15 @@ Open https://vrclearn.github.io/Gesture-Manager-Pro/ and click **Add to VCC/ALCO
 3. Run `python -m unittest discover -s .github/scripts -v` and the existing Unity checks appropriate to the changes. The release workflow gates publication on the distribution tests and archive checks on Windows/macOS/Linux with Python 3.10 and 3.12. These checks do not replace Unity licensing or hardware acceptance.
 4. Commit the reviewed change, confirm the remote state and existing releases, then push the new tag. Never move an already published tag, overwrite its assets or remove old versions that projects may depend on.
 
-The workflow builds from the tagged revision and uploads the VPM ZIP, UnityPackage and staged `package.json`. Both archives preserve source asset GUIDs, the upstream MIT notice and the separate Meta SDK notices/binary. The manifest records the exact published ZIP URL and changelog link. Generated `Documentation~/SOURCE.json` records the repository and full revision. Publishing scripts, their tests and Unity validation runners live in `.github/scripts`; maintenance documentation lives in `.github/docs`. Neither development directory is included in the release archives.
+The workflow builds from the tagged revision and uploads the VPM ZIP, UnityPackage and staged `package.json`. Both archives preserve source asset GUIDs, the upstream MIT notice and the separate Meta SDK notices/binary. The manifest records the exact published ZIP URL and changelog link, plus the source repository and full commit through `repository.url`, `repository.revision`, and `sourceRevision`. The same manifest is included in both archives. Publishing scripts, their tests and Unity validation runners live in `.github/scripts`; maintenance documentation lives in `.github/docs`. Neither development directory is included in the release archives.
 
 ## Build locally
 
 ```powershell
-python .github/scripts/build_package.py --output Output~/Release --download-url "https://github.com/VRCLearn/Gesture-Manager-Pro/releases/download/0.4.0/com.vrclearn.gesture-manager-pro-0.4.0.zip" --repository "VRCLearn/Gesture-Manager-Pro" --revision "<full-source-commit-sha>"
+python .github/scripts/build_package.py --output Output~/Release --repository "VRCLearn/Gesture-Manager-Pro" --revision "<full-source-commit-sha>"
 ```
+
+`Build-Package.ps1 -OutputDirectory Output~/Release` invokes the same builder for local development without adding source-revision metadata. It requires Python 3.10 or later available as `python` and produces the VPM ZIP, UnityPackage, staged `package.json`, and `SHA256SUMS.txt`. Both entry points use the same asset filters and metadata/license validation. Unity-ignored names and their metadata are excluded; VPM ZIP directory entries preserve empty asset folders.
 
 The `.unitypackage` is a separate installation format. VPM can migrate its specifically identified Pro folder. Since 0.1.1, `legacyPackages` also removes the original VPM package `vrchat.blackstartx.gesture-manager` when Pro is installed or updated. It does not remove an original GM folder manually imported under `Assets`, modify unrelated Assets folders, or convert original GM scene components. Replace the old scene emulator with Pro before switching. UnityPackage and direct UPM installs do not process this VPM replacement. Install only one Pro distribution format per project.
 

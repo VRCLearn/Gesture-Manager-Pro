@@ -1,6 +1,17 @@
 # Development validation
 
-## Five-language localization audit (unreleased)
+## Package metadata and build entry points (0.4.4)
+
+Validated on 2026-10-16 with Python 3.14, PowerShell, Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows.
+
+- Removed generated source-documentation assets; published manifests retain source identity. Audited tracked assets and both archive formats for orphan metadata, ignored-name metadata and duplicate asset identities.
+- Distribution and publishing tests passed all 44 cases, including regression checks for empty-folder extraction, orphan metadata rejection and ignored names with their metadata. The PowerShell entry point was executed against an isolated fixture to verify filtering and a nonzero exit on validation failure.
+- Built and validated actual VPM ZIP and UnityPackage archives. A separate fixture archive added nested empty asset folders and deliberately ignored scratch files. Unity imported the extracted package successfully, retained the empty folder's original GUID and confirmed that generated documentation and ignored scratch entries were absent. No missing-folder metadata warning or script compilation error occurred.
+- Restored the disposable Unity project's previous package after the fixture check. The working Test-Avatar installation was not changed by these packaging checks.
+
+These checks cover packaging and Unity import. They do not add hardware, visual-layout or other-platform validation beyond the existing records below; the release workflow separately runs distribution tests on Windows, macOS and Linux with Python 3.10 and 3.12.
+
+## Five-language localization audit (0.4.4)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
 
@@ -13,7 +24,7 @@ Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on 
 
 The visual review used the Windows dark theme at pixelsPerPoint 1 and a generic fixture avatar. Physical dropdown interaction, light theme, higher display scaling, other operating systems and hardware behavior were not revalidated for this localization change.
 
-## Microphone lip sync integrated into Game Simulation (unreleased)
+## Microphone lip sync integrated into Game Simulation (0.4.4)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
 
@@ -25,7 +36,7 @@ Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on 
 
 Recording lifecycle and signal flow were tested with an available USB microphone, and the analyzer was also given deterministic PCM. Spoken-phoneme recognition accuracy, visible humanoid mouth motion, physical movement controls, light theme, higher display scaling and other operating systems were not revalidated. This integrated microphone presentation supersedes the separate lip-sync tool in the following records.
 
-## Main tool group and radial shortcuts (unreleased)
+## Main tool group and radial shortcuts (0.4.4)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
 
@@ -37,7 +48,7 @@ Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on 
 
 The audio check uses a synthetic silent AudioClip. Microphone hardware, physical input, light theme, higher display scaling and other operating systems were not revalidated. This grouping and radial access supersede the Extra Tools placement in the following record.
 
-## Standard inline avatar tools (unreleased)
+## Standard inline avatar tools (0.4.4)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in the disposable Windows fixture with Direct3D 11.
 
@@ -49,7 +60,7 @@ Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in 
 
 Audio uses a looping synthetic silent clip; microphone hardware, physical keyboard/mouse input, light theme, higher display scaling and other operating systems were not revalidated. This shared inline-tool presentation supersedes the standalone feature windows and special button row described in earlier records.
 
-## Original Inspector layout and contextual tools (unreleased)
+## Original Inspector layout and contextual tools (0.4.4)
 
 Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in the disposable Windows fixture with Direct3D 11.
 

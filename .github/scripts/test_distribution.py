@@ -4,6 +4,8 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -105,8 +107,12 @@ class DistributionTests(PackageFixture):
         self.assertEqual(manifest["changelogUrl"], self.manifest["changelogUrl"])
         self.assertEqual(manifest["sourceRevision"], "a1" * 20)
         self.assertEqual(manifest["repository"], {"type": "git", "url": "https://github.com/" + builder.REPOSITORY + ".git", "revision": "a1" * 20})
-        source = json.loads(files["Documentation~/SOURCE.json"])
-        self.assertEqual(source, {"repository": builder.REPOSITORY, "revision": "a1" * 20, "package": builder.PACKAGE_ID, "version": "0.1.0"})
+        self.assertEqual(json.loads(files["package.json"]), manifest)
+        self.assertEqual(json.loads(assets[builder.UNITY_ROOT + "/package.json"]["asset"]), manifest)
+        self.assertNotIn("Documentation~.meta", files)
+        self.assertFalse(any(name.startswith("Documentation~/") for name in files))
+        self.assertNotIn(builder.UNITY_ROOT + "/Documentation~", assets)
+        self.assertFalse(any(path.startswith(builder.UNITY_ROOT + "/Documentation~/") for path in assets))
         for name in ("LICENSE.md", self.vendor + "LICENSE.txt", self.vendor + "THIRD_PARTY_NOTICES.txt", self.vendor + "Plugins/Win64/VRCLearnOVRLipSync.dll"):
             self.assertEqual(files[name], (self.package / name).read_bytes())
             self.assertEqual(assets[builder.UNITY_ROOT + "/" + name]["asset"], files[name])
@@ -152,7 +158,8 @@ class DistributionTests(PackageFixture):
         self.assertNotIn("Documentation~.meta", after)
 
     def test_development_fixtures_and_python_caches_are_excluded(self):
-        excluded = (".github/scripts/test_private.py", ".github/scripts/UnityPrivateChecks.cs", ".github/docs/VALIDATION.md", "Output~/old.zip", ".git/config", ".github/workflows/private.yml", "Scripts/fixtures/fake.cs", "Scripts/__pycache__/x.pyc", "Scripts/x.pyc.meta", "Scripts/__pycache__.meta")
+        excluded = (".github/scripts/test_private.py", ".github/scripts/UnityPrivateChecks.cs", ".github/docs/VALIDATION.md", "Output~/old.zip", ".git/config", ".github/workflows/private.yml", "Scripts/fixtures/fake.cs", "Scripts/__pycache__/x.pyc", "Scripts/x.pyc.meta", "Scripts/__pycache__.meta",
+                    "Scripts/Notes~/note.txt", "Scripts/Notes~/note.txt.meta", "Scripts/Notes~.meta", "Resources/.cache/preview.txt", "Resources/.cache.meta", "Scripts/.meta/hidden.cs", "Scripts/.meta.meta", "Scripts/CVS/Entries", "Scripts/CVS.meta", "Scripts/scratch.tmp", "Scripts/scratch.tmp.meta", "Scripts/scratch~", "Scripts/scratch~.meta")
         for name in excluded:
             path = self.package / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -164,6 +171,52 @@ class DistributionTests(PackageFixture):
         for name in excluded:
             self.assertNotIn(name, files)
             self.assertNotIn(builder.UNITY_ROOT + "/" + name, assets)
+
+    def test_empty_asset_directories_survive_zip_extraction(self):
+        directories = ("Resources/Empty", "Resources/Empty/Nested")
+        for name in directories:
+            directory = self.package / name
+            directory.mkdir(parents=True, exist_ok=True)
+            directory.with_name(directory.name + ".meta").write_bytes(builder.generated_metadata(name, folder=True))
+        result = self.build()
+        unpacked = self.root / "unpacked"
+        with zipfile.ZipFile(result["archive"]) as archive:
+            archive.extractall(unpacked)
+        manifest = json.loads(Path(result["manifest"]).read_bytes())
+        assets = builder.validate_unitypackage(Path(result["unitypackage"]), manifest)
+        for name in directories:
+            self.assertTrue((unpacked / name).is_dir(), name)
+            self.assertEqual((unpacked / (name + ".meta")).read_bytes(), (self.package / (name + ".meta")).read_bytes())
+            self.assertNotIn("asset", assets[builder.UNITY_ROOT + "/" + name])
+        broken = self.root / "missing-directory.zip"
+        with zipfile.ZipFile(result["archive"]) as source, zipfile.ZipFile(broken, "w") as target:
+            for entry in source.infolist():
+                if entry.filename != directories[-1] + "/":
+                    target.writestr(entry, source.read(entry))
+        with self.assertRaisesRegex(ValueError, "Orphan metadata"):
+            builder.validate_zip(broken, manifest)
+
+    @unittest.skipUnless(shutil.which("pwsh") or shutil.which("powershell"), "PowerShell is not installed")
+    def test_powershell_entrypoint_preserves_release_filtering_and_validation(self):
+        scripts = self.package / ".github/scripts"
+        scripts.mkdir(parents=True)
+        for name in ("Build-Package.ps1", "build_package.py"):
+            shutil.copyfile(ROOT / ".github/scripts" / name, scripts / name)
+        for name in ("Plugins/Win64/VRCLearnOVRLipSync.dll", "PROVENANCE.json"):
+            shutil.copyfile(ROOT / self.vendor / name, self.package / self.vendor / name)
+        excluded = "Scripts/fixtures/fake.cs"
+        (self.package / excluded).parent.mkdir()
+        (self.package / excluded).write_bytes(b"Must not ship.")
+        output = self.root / "development build"
+        command = [shutil.which("pwsh") or shutil.which("powershell"), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(scripts / "Build-Package.ps1"), "-OutputDirectory", str(output)]
+        environment = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ.get("PATH", ""))
+        completed = subprocess.run(command, capture_output=True, text=True, env=environment, timeout=60)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        with zipfile.ZipFile(output / (builder.PACKAGE_ID + "-0.1.0.zip")) as archive:
+            self.assertNotIn(excluded, archive.namelist())
+        (self.package / "GestureManagerPro.prefab.meta").unlink()
+        failed = subprocess.run(command, capture_output=True, text=True, env=environment, timeout=60)
+        self.assertNotEqual(failed.returncode, 0, failed.stdout + failed.stderr)
 
     def test_native_hash_and_license_removal_are_rejected_before_writing_output(self):
         native = self.package / (self.vendor + "Plugins/Win64/VRCLearnOVRLipSync.dll")

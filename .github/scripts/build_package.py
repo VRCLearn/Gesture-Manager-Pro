@@ -24,7 +24,7 @@ ROOT_GUID = uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/" + REPOSITORY + 
 OVR_BINARY_SHA256 = "2318c42eb806753e340b426d0b83dd3278f5b8d3b851ccf90a5be0ea8e1d2cd3"
 DIRECTORIES = ("Scripts", "Resources", "ThirdParty")
 ROOT_FILES = ("package.json", "GestureManagerPro.prefab", "LICENSE.md", "README.md", "CHANGELOG.md")
-EXCLUDED = {"Tools~", "Tests~", "Output~", "__pycache__", "fixtures", "testfixtures", "UnityValidation~", "FixturePackages~"}
+EXCLUDED = {"__pycache__", "fixtures", "testfixtures"}
 
 
 @dataclass(frozen=True)
@@ -49,9 +49,12 @@ def safe_relative(path: str) -> bool:
 def included(path: str) -> bool:
     if not safe_relative(path):
         return False
-    parts = PurePosixPath(path).parts
-    return not any(part.startswith(".") or part in EXCLUDED or part.endswith((".pyc", ".pyc.meta")) or
-                   part == "__pycache__.meta" or part.removesuffix(".meta") in EXCLUDED for part in parts)
+    for part in PurePosixPath(path).parts:
+        name = part.removesuffix(".meta")
+        if part.startswith(".") or name.endswith(("~", ".pyc")) or name in EXCLUDED or \
+                name.lower() == "cvs" or name.lower().endswith(".tmp"):
+            return False
+    return True
 
 
 def generated_metadata(relative: str, folder: bool = False, root: bool = False) -> bytes:
@@ -104,7 +107,7 @@ def validate_https(url: str) -> None:
         raise ValueError("Hosted metadata URLs must use a real HTTPS address without credentials.")
 
 
-def source_assets(manifest: dict, repository: str | None, revision: str | None) -> list[Asset]:
+def source_assets(manifest: dict) -> list[Asset]:
     encoded_manifest = encode_json(manifest)
     assets = [Asset(UNITY_ROOT, generated_metadata(UNITY_ROOT, folder=True, root=True), None)]
     entries = []
@@ -131,15 +134,6 @@ def source_assets(manifest: dict, repository: str | None, revision: str | None) 
             raise ValueError("Package folder metadata does not match its source asset: " + relative)
         content = None if folder else encoded_manifest if relative == "package.json" else entry.read_bytes()
         assets.append(Asset(UNITY_ROOT + "/" + relative, metadata, content))
-    if repository and revision:
-        source_path = UNITY_ROOT + "/Documentation~/SOURCE.json"
-        source = {"repository": repository, "revision": revision.lower(), "package": PACKAGE_ID, "version": manifest["version"]}
-        assets = [asset for asset in assets if asset.path != source_path]
-        if not any(asset.path == UNITY_ROOT + "/Documentation~" for asset in assets):
-            assets.append(Asset(UNITY_ROOT + "/Documentation~", generated_metadata("Documentation~", folder=True), None))
-        source_meta = PACKAGE / "Documentation~/SOURCE.json.meta"
-        metadata = source_meta.read_bytes() if source_meta.is_file() else generated_metadata("Documentation~/SOURCE.json")
-        assets.append(Asset(source_path, metadata, encode_json(source)))
     assets.sort(key=lambda asset: asset.path)
     seen = set()
     for asset in assets:
@@ -177,11 +171,13 @@ def write_zip(path: Path, assets: list[Asset]) -> None:
         records[relative + ".meta"] = asset.metadata
         if asset.content is not None:
             records[relative] = asset.content
+        else:
+            records[relative + "/"] = b""
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name, content in sorted(records.items()):
             info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
             info.create_system = 3
-            info.external_attr = 0o100644 << 16
+            info.external_attr = (0o40755 << 16) | 0x10 if name.endswith("/") else 0o100644 << 16
             info.compress_type = zipfile.ZIP_DEFLATED
             archive.writestr(info, content, compresslevel=9)
 
@@ -206,13 +202,19 @@ def write_unitypackage(path: Path, assets: list[Asset]) -> None:
 def validate_zip(path: Path, manifest: dict) -> dict[str, bytes]:
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
-        if len(names) != len(set(names)) or any(not included(name) for name in names):
+        if len(names) != len(set(names)) or any(not included(name.removesuffix("/")) for name in names):
             raise ValueError("VPM archive contains duplicate, excluded or unsafe entry paths.")
         if archive.testzip() is not None:
             raise ValueError("VPM archive failed its CRC check.")
-        files = {name: archive.read(name) for name in names}
+        files = {entry.filename: archive.read(entry) for entry in archive.infolist() if not entry.is_dir()}
+        directories = {entry.filename.removesuffix("/") for entry in archive.infolist() if entry.is_dir()}
     if json.loads(files.get("package.json", b"{}")) != manifest:
         raise ValueError("VPM archive staged package.json differs from its release manifest.")
+    for name, metadata in files.items():
+        if name.endswith(".meta"):
+            folder = re.search(rb"^folderAsset:\s*yes\s*$", metadata, re.MULTILINE) is not None
+            if name.removesuffix(".meta") not in (directories if folder else files):
+                raise ValueError("Orphan metadata in VPM archive: " + name)
     return files
 
 
@@ -255,7 +257,7 @@ def build(output: Path, download_url: str | None = None, repository: str | None 
     if output == PACKAGE.resolve() or any(output.is_relative_to((PACKAGE / folder).resolve()) for folder in DIRECTORIES):
         raise ValueError("Release output must not overwrite the source package or its asset folders.")
     manifest = staged_manifest(output, download_url, repository, revision)
-    assets = source_assets(manifest, repository, revision)
+    assets = source_assets(manifest)
     output.mkdir(parents=True, exist_ok=True)
     prefix = f"{PACKAGE_ID}-{manifest['version']}"
     archive = output / (prefix + ".zip")
