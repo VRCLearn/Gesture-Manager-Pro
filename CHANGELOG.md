@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Orbit third person around an upright body-axis pivot between the head and torso instead of the descriptor viewpoint. Keep first-person placement unchanged and prevent descriptor offsets or independent body turns from dragging the free camera.
+- During Tab free rotation, route comma/period (`<`/`>`) to camera-only yaw while A/D keeps turning the avatar independently. Preserve ordinary turning after free rotation ends and add regression coverage and five-language help.
+
 ## 0.5.0
 
 - Add captured Game-view Tab free rotation in third person. Mouse look rotates the camera independently of the avatar; A/D turns the avatar in place, and a new W/S press restores camera-relative movement. Preserve held forward/backward movement and repeated Tab orbits; clear free rotation on first-person/observer transitions and session cleanup. Add five-language controls help.

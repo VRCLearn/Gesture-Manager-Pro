@@ -1237,10 +1237,48 @@ public static class UnityProPlayChecks
 
             for (var direction = -1; direction <= 1; direction += 2)
             {
+                var beforeViewYaw = session.Motor.ViewYaw;
+                var beforeRotation = avatar.transform.rotation;
+                var beforePosition = avatar.transform.position;
+                Step(Vector2.zero, turn: direction);
+                Check(frames.LastFrame.Move == Vector2.zero && frames.LastFrame.Turn == 0f && frames.LastFrame.ViewTurn == direction &&
+                    Mathf.Abs(Mathf.DeltaAngle(beforeViewYaw, session.Motor.ViewYaw) - direction * 12f) < 0.001f &&
+                    Mathf.Abs(Mathf.DeltaAngle(session.ViewCamera.transform.eulerAngles.y, session.Motor.ViewYaw)) < 0.001f &&
+                    Quaternion.Angle(avatar.transform.rotation, beforeRotation) < 0.001f &&
+                    Vector3.Distance(avatar.transform.position, beforePosition) < StandingHeightTolerance &&
+                    Mathf.Abs(module.GetParam("AngularY").FloatValue()) < 0.001f,
+                    "After Tab, " + (direction < 0 ? "comma" : "period") + " rotates only the camera through the production Game input path");
+            }
+            orbitYaw = session.Motor.ViewYaw;
+            orbitPosition = session.ViewCamera.transform.position;
+            GameKeys(true);
+            session.ViewCamera.ApplyView();
+            Check(Mathf.Abs(Mathf.DeltaAngle(session.Motor.ViewYaw, orbitYaw)) < 0.001f &&
+                Vector3.Distance(session.ViewCamera.transform.position, orbitPosition) < 0.0001f,
+                "Repeated Tab preserves the camera orbit established by comma/period turning");
+
+            for (var direction = -1; direction <= 1; direction += 2)
+            {
+                var beforeBodyYaw = avatar.transform.eulerAngles.y;
+                var beforeViewYaw = session.Motor.ViewYaw;
+                var beforePosition = avatar.transform.position;
+                Step(Vector2.right * direction, turn: -direction);
+                Check(frames.LastFrame.Move == Vector2.zero && frames.LastFrame.Turn == direction && frames.LastFrame.ViewTurn == -direction &&
+                    Mathf.Abs(Mathf.DeltaAngle(beforeBodyYaw, avatar.transform.eulerAngles.y) - direction * 12f) < 0.001f &&
+                    Mathf.Abs(Mathf.DeltaAngle(beforeViewYaw, session.Motor.ViewYaw) + direction * 12f) < 0.001f &&
+                    Mathf.Abs(Mathf.DeltaAngle(session.ViewCamera.transform.eulerAngles.y, session.Motor.ViewYaw)) < 0.001f &&
+                    Vector3.Distance(avatar.transform.position, beforePosition) < StandingHeightTolerance &&
+                    Mathf.Abs(module.GetParam("AngularY").FloatValue() - direction * 120f) < 0.02f,
+                    "Opposite A/D and comma/period inputs independently rotate the body and camera without cancellation, direction " + direction);
+            }
+            orbitYaw = session.Motor.ViewYaw;
+
+            for (var direction = -1; direction <= 1; direction += 2)
+            {
                 var beforeYaw = avatar.transform.eulerAngles.y;
                 var beforePosition = avatar.transform.position;
                 Step(Vector2.right * direction);
-                Check(frames.LastFrame.Move == Vector2.zero && frames.LastFrame.Turn == direction &&
+                Check(frames.LastFrame.Move == Vector2.zero && frames.LastFrame.Turn == direction && frames.LastFrame.ViewTurn == 0f &&
                     Mathf.Abs(Mathf.DeltaAngle(beforeYaw, avatar.transform.eulerAngles.y) - direction * 12f) < 0.001f &&
                     Vector3.Distance(avatar.transform.position, beforePosition) < StandingHeightTolerance &&
                     Mathf.Abs(Mathf.DeltaAngle(session.Motor.ViewYaw, orbitYaw)) < 0.001f &&
@@ -1252,7 +1290,7 @@ public static class UnityProPlayChecks
             for (var direction = 1; direction >= -1; direction -= 2)
             {
                 if (!session.Motor.FreeLook) EnterFreeLook();
-                Step(Vector2.zero, new Vector2(direction * 31f, 0f));
+                Step(Vector2.zero, new Vector2(direction * 31f, 0f), turn: direction);
                 session.Motor.Halt();
                 var targetYaw = session.Motor.ViewYaw;
                 var beforeYaw = avatar.transform.eulerAngles.y;
@@ -1277,9 +1315,19 @@ public static class UnityProPlayChecks
             session.Motor.Halt();
             bodyRotation = avatar.transform.rotation;
             Step(Vector2.right);
-            Check(frames.LastFrame.Move == Vector2.right && frames.LastFrame.Turn == 0f &&
+            Check(frames.LastFrame.Move == Vector2.right && frames.LastFrame.Turn == 0f && frames.LastFrame.ViewTurn == 0f &&
                 Quaternion.Angle(avatar.transform.rotation, bodyRotation) < 0.001f && session.Motor.LastResult.LocalVelocity.x > 0.5f,
                 "After free look ends, the same production Game frame restores ordinary A/D strafing");
+            for (var direction = -1; direction <= 1; direction += 2)
+            {
+                var beforeYaw = avatar.transform.eulerAngles.y;
+                Step(Vector2.zero, turn: direction);
+                Check(frames.LastFrame.Turn == direction && frames.LastFrame.ViewTurn == 0f &&
+                    Mathf.Abs(Mathf.DeltaAngle(beforeYaw, avatar.transform.eulerAngles.y) - direction * 12f) < 0.001f &&
+                    Mathf.Abs(Mathf.DeltaAngle(session.ViewCamera.transform.eulerAngles.y, avatar.transform.eulerAngles.y)) < 0.001f &&
+                    Mathf.Abs(module.GetParam("AngularY").FloatValue() - direction * 120f) < 0.02f,
+                    "After W/S leaves free look, comma/period again turn the body and camera together, direction " + direction);
+            }
             Step(Vector2.up);
             Step(Vector2.up);
             var heldStart = avatar.transform.position;
@@ -1299,19 +1347,26 @@ public static class UnityProPlayChecks
             GameKeys(true);
             Check(!session.Motor.FreeLook && !keyboard.FreeLook, "The Scene observer cannot enter free look with Tab");
             EnterFreeLook();
-            Step(Vector2.zero, new Vector2(23f, 0f));
+            Step(Vector2.zero, new Vector2(23f, 0f), turn: 1f);
             CameraKeys(f5: true);
             CheckViewReset("F5 returning to first person");
             Check(session.ViewMode == SimulationViewMode.FirstPerson && !session.ThirdPersonEnabled,
                 "F5 retains its normal third-person feature toggle while clearing free look");
+            var firstPersonYaw = avatar.transform.eulerAngles.y;
+            Step(Vector2.zero, turn: -1f);
+            Check(frames.LastFrame.Turn == -1f && frames.LastFrame.ViewTurn == 0f &&
+                Mathf.Abs(Mathf.DeltaAngle(firstPersonYaw, avatar.transform.eulerAngles.y) + 12f) < 0.001f &&
+                Mathf.Abs(Mathf.DeltaAngle(session.ViewCamera.transform.eulerAngles.y, avatar.transform.eulerAngles.y)) < 0.001f,
+                "F5 restores first-person comma/period body turning without retaining a camera-only turn channel");
             EnterFreeLook();
-            Step(Vector2.zero, new Vector2(-17f, 0f));
+            Step(Vector2.zero, new Vector2(-17f, 0f), turn: -1f);
             CameraKeys(wheel: 100f);
             CheckViewReset("Zooming to the nearest first-person distance");
             Check(session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.FirstPerson && session.CameraDistance == 0f,
                 "Nearest-distance free-look cleanup preserves the enabled third-person feature");
             CameraKeys(wheel: -1f);
             EnterFreeLook();
+            Step(Vector2.zero, turn: 1f);
             var stoppedKeyboard = keyboard;
             ClickGame();
             CheckStopped(stoppedKeyboard, "Normal exit from free look");
@@ -1321,6 +1376,7 @@ public static class UnityProPlayChecks
 
             Start();
             EnterFreeLook();
+            Step(Vector2.zero, turn: -1f);
             stoppedKeyboard = keyboard;
             EditorApplication.isPaused = true;
             session.Poll();
@@ -1328,6 +1384,7 @@ public static class UnityProPlayChecks
             EditorApplication.isPaused = false;
             Start();
             EnterFreeLook();
+            Step(Vector2.zero, turn: 1f);
             stoppedKeyboard = keyboard;
             frames.Error = new InvalidOperationException("Injected free-look input failure");
             session.Motor.Step(0.1f);

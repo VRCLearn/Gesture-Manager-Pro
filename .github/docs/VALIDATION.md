@@ -1,5 +1,16 @@
 # Development validation
 
+## Third-person body-axis orbit and keyboard camera turning (unreleased)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
+
+- Third person now orbits the upright body axis at 75% of the movement capsule's world height, between the head and torso. First person retains the complete descriptor viewpoint. The public client documentation does not specify an exact orbit-pivot formula; this is the user's requested body-axis fallback, not a measured client default.
+- During captured Game-view Tab free rotation, comma/period (`<`/`>`) changes camera yaw only; A/D independently turns the body. A new W/S press still restores camera-relative movement. The independent camera-turn channel is sanitized and uses the configured turn rate without contributing to body `AngularY`. Scene and ordinary first-/third-person turning retain their existing mapping. Updated all five languages' controls help.
+- The new camera regression failed against the old implementation because it orbited the descriptor viewpoint. With the new frame mapper but the old motor, the camera-turn regression failed because keyboard camera yaw did not advance. The fixed editor runner passed 803 assertions and the Play Mode runner passed 836 assertions. Coverage includes descriptor offsets, independent body turns, tilt, scale, translation, pitch, zoom, obstruction, opposing simultaneous body/camera inputs, W/S/F5 restoration, collision, jumping, landing and cleanup.
+- Package validation passed 1,752 checks and localization passed 15,097 checks across 487 keys in each of five languages. The nine changed production scripts and three test runners matched the disposable fixture by SHA-256. The production scripts were backed up and synchronized to Test-Avatar, which compiled without Console errors.
+- An Edit Mode render probe used the actual Chocolat avatar and the production camera component. Its body-axis pivot was (0, 0.866667, 0), projecting to viewport (0.5, 0.5); the root stayed horizontally centered, changing only the preview's descriptor offset left third-person placement unchanged, and first-person position error was zero. The probe preserved the avatar root transform, descriptor, selected manager, unsaved scene flag and Scene view framing, then removed its temporary objects. No model, animation or scene asset was edited.
+- Physical keyboard/mouse input and a VRChat client comparison were not performed. Automated input mapping/session checks and the Edit Mode framing probe do not establish complete client camera or locomotion equivalence.
+
 ## Release validation (0.5.0)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5, Python 3.14 and PowerShell on Windows.

@@ -21,6 +21,7 @@ public static class UnityProMotionChecks
                 new Vector2(float.NaN, float.PositiveInfinity), float.NaN);
             check(malformedLook.LookDelta == Vector2.zero && malformedLook.SpeedMultiplier == 1f, "External input sanitizes nonfinite look and sprint values");
             check(new MotionInputFrame(Vector2.zero, 0f).LookDelta == Vector2.zero &&
+                new MotionInputFrame(Vector2.zero, 0f).ViewTurn == 0f &&
                 new MotionInputFrame(Vector2.zero, 0f).SpeedMultiplier == 1f &&
                 !new MotionInputFrame(Vector2.zero, 0f).Jump &&
                 new MotionInputFrame(Vector2.zero, 0f).Pose == MotionPose.None,
@@ -33,6 +34,12 @@ public static class UnityProMotionChecks
                 new MotionInputFrame(Vector2.zero, 0f, default, -2f).SpeedMultiplier == 1f, "Sprint input respects the public speed multiplier bounds");
             var diagonal = new MotionInputFrame(Vector2.one, 5f);
             check(Mathf.Abs(diagonal.Move.magnitude - 1f) < 0.0001f && diagonal.Turn == 1f, "Diagonal and rotation inputs respect the public interface bounds");
+            check(new MotionInputFrame(Vector2.zero, 0f, viewTurn: float.NaN).ViewTurn == 0f &&
+                new MotionInputFrame(Vector2.zero, 0f, viewTurn: float.PositiveInfinity).ViewTurn == 0f &&
+                new MotionInputFrame(Vector2.zero, 0f, viewTurn: float.NegativeInfinity).ViewTurn == 0f &&
+                new MotionInputFrame(Vector2.zero, 0f, viewTurn: 5f).ViewTurn == 1f &&
+                new MotionInputFrame(Vector2.zero, 0f, viewTurn: -5f).ViewTurn == -1f,
+                "External camera-turn input rejects nonfinite values and clamps both directions independently of body turning");
 
             avatar = new GameObject("Pro validation motion avatar");
             avatar.transform.SetPositionAndRotation(new Vector3(3f, 2f, -1f), Quaternion.Euler(8f, 90f, 4f));
@@ -407,14 +414,24 @@ public static class UnityProMotionChecks
                 (MotionInputFrame)create.Invoke(keyboard, new object[] { move, turn, look, sprint, true, MotionPose.Crouch });
             var turning = frame(Vector2.right, -0.25f, true);
             var advancing = frame(new Vector2(-1f, 1f), 0f);
-            check(turning.Move == Vector2.zero && turning.Turn == 0.75f && turning.LookDelta == look &&
+            check(turning.Move == Vector2.zero && turning.Turn == 1f && turning.ViewTurn == -0.25f && turning.LookDelta == look &&
                 turning.SpeedMultiplier == 2f && turning.Jump && turning.Pose == MotionPose.Crouch,
-                "Free-look A/D become additive body turning without losing mouse, sprint, jump or posture input");
-            check(advancing.Move == Vector2.up && advancing.Turn == -1f,
+                "Free-look A/D body turning remains independent of opposing comma/period camera turning without losing other input");
+            check(advancing.Move == Vector2.up && advancing.Turn == -1f && advancing.ViewTurn == 0f,
                 "Free-look forward movement retains full speed while simultaneous A turns the body without strafing");
+            for (var direction = -1; direction <= 1; direction += 2)
+            {
+                var orbit = frame(Vector2.zero, direction);
+                var opposed = frame(Vector2.right * direction, -direction);
+                check(orbit.Move == Vector2.zero && orbit.Turn == 0f && orbit.ViewTurn == direction,
+                    "Free-look " + (direction < 0 ? "comma" : "period") + " maps only to camera turning");
+                check(opposed.Move == Vector2.zero && opposed.Turn == direction && opposed.ViewTurn == -direction,
+                    "Simultaneous opposite body and camera keys do not cancel either turn channel, direction " + direction);
+            }
             send(false, true, false, false);
             var strafing = frame(Vector2.right, -0.25f);
-            check(resumeCount == 1 && !keyboard.FreeLook && strafing.Move == Vector2.right && strafing.Turn == -0.25f,
+            check(resumeCount == 1 && !keyboard.FreeLook && strafing.Move == Vector2.right && strafing.Turn == -0.25f &&
+                strafing.ViewTurn == 0f,
                 "A new W/S press resumes normal movement, restoring A/D strafing independently of comma/period turning");
             send(true, false, false, false);
             send(false, true, false, true);
@@ -432,9 +449,13 @@ public static class UnityProMotionChecks
             sceneEvent.Invoke(keyboard, new object[] { tab });
             sceneEvent.Invoke(keyboard, new object[] { new Event { type = EventType.KeyDown, keyCode = KeyCode.A } });
             var sceneFrame = (MotionInputFrame)sceneSample.Invoke(keyboard, null);
-            check(tab.type == EventType.KeyDown && sceneFrame.Move == Vector2.left && sceneFrame.Turn == 0f &&
+            check(tab.type == EventType.KeyDown && sceneFrame.Move == Vector2.left && sceneFrame.Turn == 0f && sceneFrame.ViewTurn == 0f &&
                 orbitCount == beforeReset && resumeCount == 2,
                 "Scene input leaves Tab with the editor and keeps A/D strafing even when Game free look is enabled");
+            sceneEvent.Invoke(keyboard, new object[] { new Event { type = EventType.KeyDown, keyCode = KeyCode.Period } });
+            sceneFrame = (MotionInputFrame)sceneSample.Invoke(keyboard, null);
+            check(sceneFrame.Turn == 1f && sceneFrame.ViewTurn == 0f,
+                "Scene period input remains body turning instead of inheriting the Game-only free-camera mapping");
             keyboard.Dispose();
             check(!keyboard.FreeLook &&
                 typeof(KeyboardMotionInputSource).GetField("FreeLookRequested", any).GetValue(keyboard) == null &&
@@ -483,6 +504,28 @@ public static class UnityProMotionChecks
             motor.EnableFreeLook();
             check(Mathf.Abs(Mathf.DeltaAngle(165f, motor.ViewYaw)) < 0.001f,
                 "Repeated free-look enable calls do not recenter the existing camera orbit");
+            for (var direction = -1; direction <= 1; direction += 2)
+            {
+                var beforeViewYaw = motor.ViewYaw;
+                input.Frame = new MotionInputFrame(Vector2.zero, 0f, new Vector2(direction * 3f, 0f), viewTurn: direction);
+                motor.Step(0.1f);
+                check(Mathf.Abs(Mathf.DeltaAngle(beforeViewYaw, motor.ViewYaw) - direction * 15f) < 0.001f &&
+                    Quaternion.Angle(body, motor.transform.rotation) < 0.001f &&
+                    Vector3.Distance(position, avatar.transform.position) < 0.0005f && motor.LastResult.AngularDegreesPerSecond == 0f,
+                    "Free-look camera turning integrates the configured rate plus mouse delta without publishing body AngularY, direction " + direction);
+            }
+            for (var direction = -1; direction <= 1; direction += 2)
+            {
+                var beforeBodyYaw = motor.transform.eulerAngles.y;
+                var beforeViewYaw = motor.ViewYaw;
+                input.Frame = new MotionInputFrame(Vector2.zero, direction, viewTurn: -direction);
+                motor.Step(0.1f);
+                check(Mathf.Abs(Mathf.DeltaAngle(beforeBodyYaw, motor.transform.eulerAngles.y) - direction * 12f) < 0.001f &&
+                    Mathf.Abs(Mathf.DeltaAngle(beforeViewYaw, motor.ViewYaw) + direction * 12f) < 0.001f &&
+                    Mathf.Abs(motor.LastResult.AngularDegreesPerSecond - direction * 120f) < 0.01f &&
+                    Vector3.Distance(position, avatar.transform.position) < 0.0005f,
+                    "Opposing free-look body and camera inputs rotate independently and AngularY reports only the body, direction " + direction);
+            }
             input.Frame = new MotionInputFrame(Vector2.zero, 1f, new Vector2(0f, 5f));
             motor.Step(0.1f);
             check(Mathf.Abs(Mathf.DeltaAngle(102f, motor.transform.eulerAngles.y)) < 0.001f &&
@@ -497,6 +540,12 @@ public static class UnityProMotionChecks
             check(!motor.FreeLook && Quaternion.Angle(body, motor.transform.rotation) < 0.001f &&
                 Mathf.Abs(Mathf.DeltaAngle(motor.ViewYaw, motor.transform.eulerAngles.y)) < 0.001f,
                 "Leaving free look without alignment restores body-relative camera yaw without rotating the avatar");
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, viewTurn: 1f);
+            motor.Step(0.1f);
+            check(Quaternion.Angle(body, motor.transform.rotation) < 0.001f &&
+                Mathf.Abs(Mathf.DeltaAngle(motor.ViewYaw, motor.transform.eulerAngles.y)) < 0.001f &&
+                motor.LastResult.AngularDegreesPerSecond == 0f,
+                "A camera-only turn cannot leak into body rotation after free look has been cleared");
             input.Frame = new MotionInputFrame(Vector2.up, 0f);
             motor.Step(0.1f);
             motor.EnableFreeLook();

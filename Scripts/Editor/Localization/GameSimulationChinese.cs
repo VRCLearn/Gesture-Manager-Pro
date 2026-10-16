@@ -23,7 +23,7 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Move the Scene view and its Game-view camera with the avatar. Rotation and zoom stay under your control."] = "让场景视图及其游戏视图相机随角色移动。旋转与缩放仍由你控制。",
             ["First Person"] = "第一人称",
             ["Third Person"] = "第三人称",
-            ["Third person: Tab enters free camera rotation without turning the avatar. New W/S input resumes camera-relative movement; A/D turns the avatar in place during free rotation. Mouse look requires captured Game input."] = "第三人称：Tab 启用相机自由旋转，不带动角色转向。新按 W/S 会恢复沿相机方向前后移动；自由旋转期间，A/D 让角色原地转向。鼠标视角需要先捕获游戏视图输入。",
+            ["Third person: Tab enters free camera rotation without turning the avatar. New W/S input resumes camera-relative movement; A/D turns the avatar in place during free rotation. < / > rotates only the camera during free rotation. Mouse look requires captured Game input."] = "第三人称：Tab 启用相机自由旋转，不带动角色转向。新按 W/S 会恢复沿相机方向前后移动；自由旋转期间，A/D 让角色原地转向。自由旋转期间，< / > 只旋转相机。鼠标视角需要先捕获游戏视图输入。",
             ["Third-Person Distance (avatar heights; zero returns to first person)"] = "第三人称距离（角色身高倍数；0 返回第一人称）",
             ["Mouse Look Sensitivity"] = "鼠标视角灵敏度",
             ["Esc releases captured Game-view input. Click the Game view or use Resume Input to continue. Select Scene Camera in View for a free observer cursor. First person hides the local avatar from the simulation camera; observer and third-person views still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor."] = "Esc 释放已捕获的游戏视图输入。点击游戏视图或使用“继续控制”恢复。在“视角”中选择“场景相机”可使用鼠标自由的旁观视角。第一人称会在模拟相机中隐藏本地角色；旁观视角和第三人称仍会显示角色。目前尚不支持在第一人称下显示身体 / 手臂。退出后恢复角色姿势、运动参数、相机和光标。",

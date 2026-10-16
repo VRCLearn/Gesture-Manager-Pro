@@ -123,7 +123,7 @@ namespace VRCLearn.GestureManagerPro.Control
                 yawDelta += Mathf.DeltaAngle(beforeYaw, _pendingViewYawAlignment.Value);
                 _pendingViewYawAlignment = null;
             }
-            if (FreeLook) ViewYaw = WrapYaw(ViewYaw + input.LookDelta.x);
+            if (FreeLook) ViewYaw = WrapYaw(ViewYaw + input.LookDelta.x + input.ViewTurn * SafeSpeed(TurnSpeed, 720f) * deltaTime);
             else yawDelta += input.LookDelta.x;
             var yaw = WrapYaw(beforeYaw + yawDelta);
             if (!FreeLook) ViewYaw = yaw;

@@ -104,12 +104,14 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         private MotionInputFrame CreateGameFrame(Vector2 move, float turn, Vector2 look, bool sprint, bool jump, MotionPose pose)
         {
+            var viewTurn = 0f;
             if (FreeLook)
             {
-                turn += move.x;
+                viewTurn = turn;
+                turn = move.x;
                 move.x = 0f;
             }
-            return new MotionInputFrame(move, turn, look, sprint ? 2f : 1f, jump, pose);
+            return new MotionInputFrame(move, turn, look, sprint ? 2f : 1f, jump, pose, viewTurn);
         }
 
         private void ProcessGameFreeLookInput(bool tab, bool forwardPressed, bool modified, bool shift)
