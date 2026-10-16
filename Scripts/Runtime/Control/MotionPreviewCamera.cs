@@ -77,14 +77,18 @@ namespace VRCLearn.GestureManagerPro.Control
             if (!Target) return;
             var height = SafePositive(Height, 1.6f, 0.05f, 100f);
             var localView = Finite(ViewPosition) ? ViewPosition : new Vector3(0f, 1.6f, 0f);
-            var eyePosition = Target.TransformPoint(localView);
+            // Keep the third-person orbit on the upright body axis. The descriptor
+            // viewpoint belongs to first person and may be offset from that axis.
+            var focusPosition = Mode == SimulationViewMode.FirstPerson
+                ? Target.TransformPoint(localView)
+                : Target.position + Vector3.up * (height * 0.75f);
             var yaw = Target.eulerAngles.y;
             if (Mode == SimulationViewMode.ThirdPerson && YawOverride.HasValue && Finite(YawOverride.Value))
                 yaw = Mathf.Repeat(YawOverride.Value % 360f, 360f);
-            if (!Finite(eyePosition) || !Finite(yaw)) return;
+            if (!Finite(focusPosition) || !Finite(yaw)) return;
             var pitch = Finite(Pitch) ? Mathf.Clamp(Pitch, -85f, 85f) : 0f;
             var rotation = Quaternion.Euler(pitch, yaw, 0f);
-            var position = eyePosition;
+            var position = focusPosition;
             PreviewCamera.nearClipPlane = Mathf.Clamp(height * 0.01f, 0.005f, 0.1f);
             if (Mode != SimulationViewMode.FirstPerson)
             {
@@ -92,7 +96,7 @@ namespace VRCLearn.GestureManagerPro.Control
                 var direction = rotation * Vector3.back;
                 var length = distance;
                 var radius = Mathf.Clamp(height * 0.05f, 0.01f, 0.3f);
-                foreach (var hit in Physics.SphereCastAll(eyePosition, radius, direction, length,
+                foreach (var hit in Physics.SphereCastAll(focusPosition, radius, direction, length,
                     Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
                 {
                     if (!hit.collider || hit.collider == IgnoredCollider || hit.collider.transform.IsChildOf(Target)) continue;

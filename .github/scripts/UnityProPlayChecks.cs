@@ -259,9 +259,12 @@ public static class UnityProPlayChecks
             session.SetViewMode(SimulationViewMode.ThirdPerson);
             session.SetCameraDistance(3f);
             camera.ApplyView();
+            var boomLength = Vector3.Distance(camera.transform.position,
+                avatar.transform.position + Vector3.up * (camera.Height * 0.75f));
             Check(session.ViewMode == SimulationViewMode.ThirdPerson && camera.Distance > 4f &&
-                Vector3.Distance(camera.transform.position, avatar.transform.TransformPoint(descriptor.ViewPosition)) > 4f,
-                "Third person switches live and respects the configurable distance");
+                boomLength > 4f && boomLength <= camera.Distance + 0.001f,
+                "Third person switches live and respects the configurable distance, allowing scene obstruction: " +
+                boomLength + " / " + camera.Distance);
 
             competing = new ControlledModeSession();
             Check(!competing.Start(manager, new SessionMotionInput(), collisions: false), "A second session cannot take the same manager");
@@ -1027,15 +1030,15 @@ public static class UnityProPlayChecks
                 }
 
                 preview.ApplyView();
-                var eye = avatar.transform.TransformPoint(descriptor.ViewPosition);
-                var direction = (preview.transform.position - eye).normalized;
+                var bodyPivot = avatar.transform.position + Vector3.up * (preview.Height * 0.75f);
+                var direction = (preview.transform.position - bodyPivot).normalized;
                 wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                wall.name = "Pro third-person near-eye obstruction";
-                wall.transform.position = eye + direction * 0.2f;
+                wall.name = "Pro third-person near-body-pivot obstruction";
+                wall.transform.position = bodyPivot + direction * 0.2f;
                 wall.transform.localScale = Vector3.one * 0.15f;
                 Physics.SyncTransforms();
                 preview.ApplyView();
-                Check(Vector3.Distance(preview.transform.position, eye) < 0.2f &&
+                Check(Vector3.Distance(preview.transform.position, bodyPivot) < 0.2f &&
                     session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson && session.CameraDistance == 3f,
                     "A wall can shorten the physical camera boom without disabling third person or changing its configured distance");
                 render("BeginCameraRendering");
@@ -1044,7 +1047,7 @@ public static class UnityProPlayChecks
                 UnityEngine.Object.DestroyImmediate(wall);
                 Physics.SyncTransforms();
                 preview.ApplyView();
-                Check(Vector3.Distance(preview.transform.position, eye) > 4f && session.ThirdPersonEnabled,
+                Check(Vector3.Distance(preview.transform.position, bodyPivot) > 4f && session.ThirdPersonEnabled,
                     "Removing an obstruction restores the configured third-person distance without another toggle");
 
                 session.SetViewMode(SimulationViewMode.SceneCamera);
@@ -1225,10 +1228,10 @@ public static class UnityProPlayChecks
             var distance = session.CameraDistance;
             CameraKeys(wheel: 1f);
             Step(Vector2.zero, new Vector2(0f, -4f));
-            var eye = avatar.transform.TransformPoint(descriptor.ViewPosition);
+            var bodyPivot = avatar.transform.position + Vector3.up * (session.ViewCamera.Height * 0.75f);
             Check(session.Motor.FreeLook && keyboard.FreeLook && session.CameraDistance == distance - 0.25f &&
                 session.Motor.ViewPitch == 9f && Quaternion.Angle(avatar.transform.rotation, bodyRotation) < 0.001f &&
-                Mathf.Abs(Vector3.Distance(session.ViewCamera.transform.position, eye) -
+                Mathf.Abs(Vector3.Distance(session.ViewCamera.transform.position, bodyPivot) -
                     session.ViewCamera.Height * session.CameraDistance) < 0.001f,
                 "Wheel zoom and vertical mouse look remain active while the horizontal free-camera yaw stays independent");
 
@@ -2084,12 +2087,12 @@ public static class UnityProPlayChecks
                 var preview = session.ViewCamera;
                 preview.ApplyView();
                 var camera = preview.PreviewCamera;
-                var eye = avatar.transform.TransformPoint(descriptor.ViewPosition);
-                var eyeViewport = camera.WorldToViewportPoint(eye);
+                var bodyPivot = avatar.transform.position + Vector3.up * (preview.Height * 0.75f);
+                var pivotViewport = camera.WorldToViewportPoint(bodyPivot);
                 var rootViewport = camera.WorldToViewportPoint(avatar.transform.position);
-                Check(eyeViewport.z > 0f && Mathf.Abs(eyeViewport.x - 0.5f) < 0.0001f &&
-                    Mathf.Abs(eyeViewport.y - 0.5f) < 0.0001f && Mathf.Abs(rootViewport.x - 0.5f) < 0.0001f,
-                    label + " keeps the avatar eye and root horizontally centered without a third-person shoulder offset");
+                Check(pivotViewport.z > 0f && Mathf.Abs(pivotViewport.x - 0.5f) < 0.0001f &&
+                    Mathf.Abs(pivotViewport.y - 0.5f) < 0.0001f && Mathf.Abs(rootViewport.x - 0.5f) < 0.0001f,
+                    label + " centers the body-axis pivot between head and torso without a third-person shoulder offset");
             }
 
             void CheckReleased(string label)

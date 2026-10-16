@@ -41,24 +41,24 @@ public static class UnityProCameraChecks
             preview.Pitch = 0f;
             preview.Distance = 3f;
             preview.ApplyView();
-            var eye = avatar.transform.TransformPoint(preview.ViewPosition);
+            var pivot = avatar.transform.position + Vector3.up * 1.2f;
             var offset = Quaternion.Euler(0f, 90f, 0f) * Vector3.back * 3f;
-            check(Close(preview.transform.position, eye + offset),
-                "Third-person camera stays directly behind the descriptor viewpoint without a lateral offset");
-            CheckCentered(camera, eye, check, "Default third-person framing");
+            check(Close(preview.transform.position, pivot + offset),
+                "Third-person camera orbits the body axis between head and torso, independently of the descriptor viewpoint");
+            CheckCentered(camera, pivot, check, "Default third-person framing");
             check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(0f, 90f, 0f)) < 0.001f,
                 "Changing view mode preserves the avatar heading");
             preview.Distance = 0.02f;
             preview.ApplyView();
-            check(Close(preview.transform.position, eye + Quaternion.Euler(0f, 90f, 0f) * Vector3.back * 0.02f) &&
-                Vector3.Distance(preview.transform.position, eye) < 0.03f,
-                "Close third-person placement approaches the descriptor viewpoint without moving sideways");
-            CheckCentered(camera, eye, check, "Close third-person framing");
+            check(Close(preview.transform.position, pivot + Quaternion.Euler(0f, 90f, 0f) * Vector3.back * 0.02f) &&
+                Vector3.Distance(preview.transform.position, pivot) < 0.03f,
+                "Close third-person placement approaches the body-axis pivot without moving sideways");
+            CheckCentered(camera, pivot, check, "Close third-person framing");
             preview.Distance = 0.001f;
             preview.ApplyView();
-            check(Vector3.Distance(preview.transform.position, eye) < 0.003f,
-                "Positive near-eye third-person distances are not clamped back to a tenth of a meter");
-            CheckCentered(camera, eye, check, "Positive near-eye third-person framing");
+            check(Vector3.Distance(preview.transform.position, pivot) < 0.003f,
+                "Positive near-pivot third-person distances are not clamped back to a tenth of a meter");
+            CheckCentered(camera, pivot, check, "Positive near-pivot third-person framing");
             foreach (var heading in new[] { -90f, 0f, 45f, 135f })
             foreach (var pitch in new[] { -35f, 0f, 45f })
             foreach (var distance in new[] { 0.2f, 1f, 3f })
@@ -67,7 +67,7 @@ public static class UnityProCameraChecks
                 preview.Pitch = pitch;
                 preview.Distance = distance;
                 preview.ApplyView();
-                CheckCentered(camera, avatar.transform.TransformPoint(preview.ViewPosition), check,
+                CheckCentered(camera, avatar.transform.position + Vector3.up * 1.2f, check,
                     $"Third-person framing at heading {heading}, pitch {pitch} and distance {distance}");
             }
             avatar.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
@@ -87,20 +87,44 @@ public static class UnityProCameraChecks
                 check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(pitch, yaw, 0f)) < 0.001f &&
                     Quaternion.Angle(avatar.transform.rotation, bodyRotation) < 0.001f,
                     $"Free-look camera yaw {yaw} and pitch {pitch} do not rotate the model at distance {distance}");
-                CheckCentered(camera, avatar.transform.TransformPoint(preview.ViewPosition), check,
+                CheckCentered(camera, avatar.transform.position + Vector3.up * 1.2f, check,
                     $"Free-look viewport at yaw {yaw}, pitch {pitch} and distance {distance}");
             }
+            preview.ViewPosition = new Vector3(0.4f, 2.5f, 0.8f);
+            preview.YawOverride = 35f;
+            preview.Pitch = -15f;
+            preview.Distance = 3f;
+            preview.ApplyView();
+            var independentPosition = preview.transform.position;
+            var independentRotation = preview.transform.rotation;
+            preview.ViewPosition = new Vector3(-0.7f, 0.5f, -1.1f);
+            avatar.transform.rotation = Quaternion.Euler(20f, 130f, -15f);
+            preview.ApplyView();
+            check(Close(preview.transform.position, independentPosition) &&
+                Quaternion.Angle(preview.transform.rotation, independentRotation) < 0.001f,
+                "Descriptor offsets and body tilt cannot move a free third-person camera off the upright body-axis orbit");
+            var translation = new Vector3(1f, 0.5f, -2f);
+            avatar.transform.position += translation;
+            preview.ApplyView();
+            check(Close(preview.transform.position, independentPosition + translation),
+                "Body-axis third person follows actual root translation, including vertical movement");
+            avatar.transform.position -= translation;
+            avatar.transform.rotation = bodyRotation;
+            preview.ViewPosition = new Vector3(0f, 1.6f, 0.1f);
             preview.YawOverride = 725f;
             preview.Pitch = 20f;
             preview.Distance = 3f;
             preview.ApplyView();
             var orbitRotation = preview.transform.rotation;
+            var orbitPosition = preview.transform.position;
             avatar.transform.rotation = Quaternion.Euler(0f, 170f, 0f);
             preview.ApplyView();
             check(Quaternion.Angle(orbitRotation, Quaternion.Euler(20f, 5f, 0f)) < 0.001f &&
                 Quaternion.Angle(preview.transform.rotation, orbitRotation) < 0.001f,
                 "Free-look yaw wraps and stays independent when the avatar turns beneath the camera");
-            CheckCentered(camera, avatar.transform.TransformPoint(preview.ViewPosition), check,
+            check(Close(preview.transform.position, orbitPosition),
+                "Turning the body below a free camera cannot shift its orbit through descriptor X/Z offsets");
+            CheckCentered(camera, avatar.transform.position + Vector3.up * 1.2f, check,
                 "Free-look framing after independent body turning");
             foreach (var yaw in new float?[] { null, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
             {
@@ -155,6 +179,14 @@ public static class UnityProCameraChecks
             check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(0f, avatar.transform.eulerAngles.y, 0f)) < 0.001f,
                 "Avatar body tilt does not roll the simulated view");
 
+            preview.Mode = SimulationViewMode.ThirdPerson;
+            preview.Pitch = 25f;
+            preview.ApplyView();
+            var scaledPivot = avatar.transform.position + Vector3.up * 2.4f;
+            CheckCentered(camera, scaledPivot, check, "Scaled and tilted avatar body-axis framing");
+            check(Close(preview.transform.position, scaledPivot + preview.transform.rotation * Vector3.back * preview.Distance),
+                "Third-person world height is applied once and body tilt does not tilt the orbit center");
+
             preview.Height = float.NaN;
             preview.Pitch = float.PositiveInfinity;
             preview.Distance = float.NegativeInfinity;
@@ -178,39 +210,39 @@ public static class UnityProCameraChecks
             preview.Mode = SimulationViewMode.ThirdPerson;
             preview.Distance = 3f;
             preview.Pitch = 0f;
-            eye = avatar.transform.TransformPoint(preview.ViewPosition);
+            pivot = avatar.transform.position + Vector3.up * 1.2f;
             offset = Vector3.back * 3f;
             var direction = offset.normalized;
-            var self = Cube("Pro validation camera self collider", eye + direction, Vector3.one * 0.4f);
+            var self = Cube("Pro validation camera self collider", pivot + direction, Vector3.one * 0.4f);
             self.transform.SetParent(avatar.transform, true);
-            motorObject = Cube("Pro validation camera motor collider", eye + direction * 1.4f, Vector3.one * 0.4f);
+            motorObject = Cube("Pro validation camera motor collider", pivot + direction * 1.4f, Vector3.one * 0.4f);
             preview.IgnoredCollider = motorObject.GetComponent<Collider>();
-            trigger = Cube("Pro validation camera trigger", eye + direction * 1.8f, Vector3.one * 0.4f);
+            trigger = Cube("Pro validation camera trigger", pivot + direction * 1.8f, Vector3.one * 0.4f);
             trigger.GetComponent<Collider>().isTrigger = true;
             Physics.SyncTransforms();
             preview.ApplyView();
-            check(Close(preview.transform.position, eye + offset),
+            check(Close(preview.transform.position, pivot + offset),
                 "Camera collision ignores avatar descendants, the external motor and triggers");
-            CheckCentered(camera, eye, check, "Third-person framing with ignored colliders");
-            wall = Cube("Pro validation camera obstruction", eye + direction * 2.2f, Vector3.one * 0.4f);
+            CheckCentered(camera, pivot, check, "Third-person framing with ignored colliders");
+            wall = Cube("Pro validation camera obstruction", pivot + direction * 2.2f, Vector3.one * 0.4f);
             Physics.SyncTransforms();
             preview.ApplyView();
-            check(Vector3.Distance(preview.transform.position, eye) < 2f && Vector3.Distance(preview.transform.position, eye) > 1f,
+            check(Vector3.Distance(preview.transform.position, pivot) < 2f && Vector3.Distance(preview.transform.position, pivot) > 1f,
                 "Third-person obstruction moves the camera in front of scene geometry");
-            CheckCentered(camera, eye, check, "Obstruction-shortened third-person framing");
+            CheckCentered(camera, pivot, check, "Obstruction-shortened third-person framing");
             preview.YawOverride = 90f;
             preview.Pitch = 15f;
-            wall.transform.position = eye + Quaternion.Euler(15f, 90f, 0f) * Vector3.back * 2.2f;
+            wall.transform.position = pivot + Quaternion.Euler(15f, 90f, 0f) * Vector3.back * 2.2f;
             Physics.SyncTransforms();
             preview.ApplyView();
-            check(Vector3.Distance(preview.transform.position, eye) < 2f && Vector3.Distance(preview.transform.position, eye) > 1f &&
+            check(Vector3.Distance(preview.transform.position, pivot) < 2f && Vector3.Distance(preview.transform.position, pivot) > 1f &&
                 Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(15f, 90f, 0f)) < 0.001f &&
                 Quaternion.Angle(avatar.transform.rotation, Quaternion.identity) < 0.001f,
                 "Free-look obstruction avoidance follows the independent camera direction without turning the model");
-            CheckCentered(camera, eye, check, "Obstruction-shortened free-look framing");
+            CheckCentered(camera, pivot, check, "Obstruction-shortened free-look framing");
             preview.YawOverride = null;
             preview.Pitch = 0f;
-            wall.transform.position = eye + direction * 2.2f;
+            wall.transform.position = pivot + direction * 2.2f;
             Physics.SyncTransforms();
             preview.ApplyView();
 
@@ -252,7 +284,7 @@ public static class UnityProCameraChecks
             check(!visible.forceRenderingOff && hidden.forceRenderingOff,
                 "Switching to third-person restores renderer visibility immediately");
             preview.ApplyView();
-            CheckCentered(camera, eye, check, "Third-person framing after restoring first-person visibility");
+            CheckCentered(camera, pivot, check, "Third-person framing after restoring first-person visibility");
             RenderScope(preview, "BeginCameraRendering", camera);
             check(!visible.forceRenderingOff && hidden.forceRenderingOff,
                 "Obstruction-shortened third-person rendering preserves each renderer's original visibility");
@@ -260,14 +292,14 @@ public static class UnityProCameraChecks
             UnityEngine.Object.DestroyImmediate(wall);
             Physics.SyncTransforms();
             preview.ApplyView();
-            check(Close(preview.transform.position, eye + offset) && !visible.forceRenderingOff && hidden.forceRenderingOff,
+            check(Close(preview.transform.position, pivot + offset) && !visible.forceRenderingOff && hidden.forceRenderingOff,
                 "Removing the obstruction restores the centered camera distance and leaves original renderer visibility intact");
-            CheckCentered(camera, eye, check, "Third-person framing after obstruction removal");
+            CheckCentered(camera, pivot, check, "Third-person framing after obstruction removal");
             preview.Distance = 0.001f;
             preview.ApplyView();
             RenderScope(preview, "BeginCameraRendering", camera);
             check(!visible.forceRenderingOff && hidden.forceRenderingOff,
-                "A positive near-eye distance retains third-person visibility until the session selects first person");
+                "A positive near-pivot distance retains third-person visibility until the session selects first person");
             RenderScope(preview, "EndCameraRendering", camera);
             preview.Mode = SimulationViewMode.FirstPerson;
             RenderScope(preview, "BeginCameraRendering", camera);
@@ -340,7 +372,7 @@ public static class UnityProCameraChecks
     {
         var viewport = camera.WorldToViewportPoint(viewpoint);
         check(viewport.z > 0f && Mathf.Abs(viewport.x - 0.5f) < 0.001f,
-            label + " keeps the descriptor viewpoint at viewport center X: " + viewport);
+            label + " keeps the body-axis pivot at viewport center X: " + viewport);
     }
     private static bool Close(Vector3 left, Vector3 right) => Vector3.Distance(left, right) < 0.001f;
     private static bool Finite(Vector3 value) => !float.IsNaN(value.x) && !float.IsNaN(value.y) && !float.IsNaN(value.z) &&
