@@ -137,14 +137,13 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
                 if (!camera || !_camera) return;
                 var sceneTransform = camera.transform;
                 var transform = _camera.transform;
-                var positionVector = sceneTransform.position;
                 transform.rotation = sceneTransform.rotation;
                 _camera.orthographicSize = camera.orthographicSize;
                 _camera.nearClipPlane = camera.nearClipPlane;
                 _camera.farClipPlane = camera.farClipPlane;
                 _camera.orthographic = camera.orthographic;
                 _camera.fieldOfView = camera.fieldOfView;
-                transform.position = new Vector3(positionVector.x, positionVector.y + 0.001f, positionVector.z);
+                transform.position = sceneTransform.position;
             }
 
             private static void AutoToggle() => Set(!_camera ? ModuleVrc3.MainCamera : null);

@@ -1179,6 +1179,7 @@ public static class UnityProPlayChecks
             observer.SendEvent(new Event { type = EventType.Repaint });
             Check(SceneView.lastActiveSceneView == observer && observer.camera,
                 "The observer fixture owns a real active SceneView with a scene camera");
+            CheckSceneCameraObserverSwitch(observer, avatar, manager, module, originalCamera);
             var originalPivot = observer.pivot;
             var originalRotation = observer.rotation;
             var originalSize = observer.size;
@@ -1369,6 +1370,117 @@ public static class UnityProPlayChecks
             if (observer) observer.Close();
             if (previousObserver) previousObserver.Focus();
             EditorApplication.isPaused = paused;
+        }
+    }
+
+    private static void CheckSceneCameraObserverSwitch(SceneView observer, GameObject avatar, GestureManager manager,
+        ModuleVrc3 module, Camera originalCamera)
+    {
+        const BindingFlags instance = BindingFlags.Instance | BindingFlags.NonPublic;
+        var toolType = typeof(AvatarTools.UpdateSceneCamera);
+        var targetField = toolType.GetField("_camera", BindingFlags.Static | BindingFlags.NonPublic);
+        var update = toolType.GetMethod("Update", instance);
+        var previousTarget = targetField.GetValue(null);
+        // The public constructor calls Set, which persists the Scene Camera preference.
+        // Invoke its real Update without changing that user preference in this fixture.
+        var sceneCameraTool = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(toolType);
+        var originalPosition = originalCamera.transform.position;
+        var originalRotation = originalCamera.transform.rotation;
+        var originalOrthographic = originalCamera.orthographic;
+        var originalSize = originalCamera.orthographicSize;
+        var originalFieldOfView = originalCamera.fieldOfView;
+        var originalNear = originalCamera.nearClipPlane;
+        var originalFar = originalCamera.farClipPlane;
+        var originalAspect = originalCamera.aspect;
+        var originalPivot = observer.pivot;
+        var originalViewRotation = observer.rotation;
+        var originalViewSize = observer.size;
+        var originalViewOrthographic = observer.orthographic;
+        var avatarPosition = avatar.transform.position;
+        var worldPoints = new[] { avatarPosition, avatarPosition + new Vector3(0.37f, 1.27f, 0.18f) };
+        try
+        {
+            targetField.SetValue(null, originalCamera);
+            // Both Game cameras use their own full Game viewport, rather than
+            // adopting the differently shaped Scene window's aspect ratio.
+            originalCamera.ResetAspect();
+            var gameAspect = originalCamera.aspect;
+            for (var round = 0; round < 4; round++)
+            {
+                var orthographic = round % 2 != 0;
+                var label = (orthographic ? "Orthographic" : "Perspective") + " observer switch " + (round + 1);
+                observer.LookAt(avatarPosition + new Vector3(round * 0.15f, 0.85f + round * 0.07f, -round * 0.12f),
+                    Quaternion.Euler(15f + round * 3f, 145f + round * 8f, 0f), 4.75f + round * 0.35f, orthographic, true);
+                observer.Repaint();
+                observer.SendEvent(new Event { type = EventType.Repaint });
+                var source = observer.camera;
+                var sourcePosition = source.transform.position;
+                var sourceRotation = source.transform.rotation;
+                var sourceProjection = source.projectionMatrix;
+                var pivot = observer.pivot;
+                var rotation = observer.rotation;
+                var size = observer.size;
+
+                void CheckSyncedCamera(Camera camera, string stage)
+                {
+                    var drift = Vector3.Distance(camera.transform.position, sourcePosition);
+                    Check(drift < 0.0001f && Quaternion.Angle(camera.transform.rotation, sourceRotation) < 0.001f &&
+                        camera.orthographic == source.orthographic &&
+                        Mathf.Abs(camera.orthographicSize - source.orthographicSize) < 0.0001f &&
+                        Mathf.Abs(camera.fieldOfView - source.fieldOfView) < 0.0001f &&
+                        Mathf.Abs(camera.nearClipPlane - source.nearClipPlane) < 0.0001f &&
+                        Mathf.Abs(camera.farClipPlane - source.farClipPlane) < 0.01f &&
+                        Mathf.Abs(camera.aspect - gameAspect) < 0.0001f,
+                        label + " " + stage + " exactly mirrors the Scene transform and projection settings while retaining Game aspect; position drift=" + drift);
+                }
+
+                update.Invoke(sceneCameraTool, new object[] { module });
+                CheckSyncedCamera(originalCamera, "before simulation");
+                var before = worldPoints.Select(point => originalCamera.WorldToViewportPoint(point)).ToArray();
+                Check(before.All(point => point.z > 0f), label + " samples the avatar root and a second visible world point");
+                using (var transition = new ControlledModeSession())
+                {
+                    Check(transition.Start(manager, new SessionMotionInput(), gravity: true, previewCamera: true),
+                        label + " starts the real observer session: " + transition.Error);
+                    var ownedObject = transition.ViewCamera.gameObject;
+                    var game = transition.ViewCamera.PreviewCamera;
+                    CheckSyncedCamera(game, "on entry");
+                    Check(worldPoints.Select((point, index) => Vector3.Distance(game.WorldToViewportPoint(point), before[index]))
+                            .All(drift => drift < 0.00001f),
+                        label + " keeps both avatar viewport positions unchanged on the same-frame camera handoff");
+                    update.Invoke(sceneCameraTool, new object[] { module });
+                    transition.Poll();
+                    CheckSyncedCamera(game, "after normal updates");
+                    Check(Vector3.Distance(avatar.transform.position, avatarPosition) < 0.0001f &&
+                        Vector3.Distance(observer.pivot, pivot) < 0.0001f &&
+                        Quaternion.Angle(observer.rotation, rotation) < 0.001f && Mathf.Abs(observer.size - size) < 0.0001f &&
+                        observer.orthographic == orthographic && source.transform.position == sourcePosition &&
+                        source.transform.rotation == sourceRotation && MatricesClose(source.projectionMatrix, sourceProjection),
+                        label + " leaves the avatar and fixed Scene camera position, rotation, zoom, and projection unchanged");
+                    transition.Stop();
+                    update.Invoke(sceneCameraTool, new object[] { module });
+                    Check(!ownedObject && module.SimulationCamera == originalCamera,
+                        label + " restores the original Game camera and destroys the temporary observer");
+                    CheckSyncedCamera(originalCamera, "after stop");
+                    Check(worldPoints.Select((point, index) => Vector3.Distance(originalCamera.WorldToViewportPoint(point), before[index]))
+                            .All(drift => drift < 0.00001f) && Vector3.Distance(avatar.transform.position, avatarPosition) < 0.0001f,
+                        label + " restores both viewport positions and the avatar without a stop-time jump");
+                }
+            }
+        }
+        finally
+        {
+            targetField.SetValue(null, previousTarget);
+            originalCamera.transform.SetPositionAndRotation(originalPosition, originalRotation);
+            originalCamera.orthographic = originalOrthographic;
+            originalCamera.orthographicSize = originalSize;
+            originalCamera.fieldOfView = originalFieldOfView;
+            originalCamera.nearClipPlane = originalNear;
+            originalCamera.farClipPlane = originalFar;
+            originalCamera.aspect = originalAspect;
+            observer.LookAt(originalPivot, originalViewRotation, originalViewSize, originalViewOrthographic, true);
+            observer.Repaint();
+            observer.SendEvent(new Event { type = EventType.Repaint });
         }
     }
 
