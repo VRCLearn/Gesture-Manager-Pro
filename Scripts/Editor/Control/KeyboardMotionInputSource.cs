@@ -34,11 +34,14 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             set { if (_observerView == value) return; Reset(); _observerView = value; }
         }
         public bool Captured => _captured;
+        public bool FreeLook { get; set; }
         public float LookSensitivity { get; set; } = 2f;
         public bool Suspended { get; private set; } = true;
         public bool HasInputFocus => HasGameViewFocus || (GameSimulation && HasSceneViewFocus);
         public event Action ViewToggleRequested;
         public event Action<float> CameraZoomRequested;
+        public event Action FreeLookRequested;
+        public event Action ForwardMovementRequested;
         public static bool HasGameViewFocus => Application.isFocused && !EditorGUIUtility.editingTextField && EditorWindow.focusedWindow &&
             EditorWindow.focusedWindow.GetType().FullName == "UnityEditor.GameView";
         public static bool HasSceneViewFocus => UnityEditorInternal.InternalEditorUtility.isApplicationActive && !EditorGUIUtility.editingTextField &&
@@ -92,10 +95,28 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
             var sprint = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             ProcessGameCameraInput(Input.GetKeyDown(KeyCode.F5), Input.mouseScrollDelta.y, modified, sprint);
+            ProcessGameFreeLookInput(Input.GetKeyDown(KeyCode.Tab), Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.S), modified, sprint);
             if (Suspended) return default;
             var pose = Input.GetKeyDown(KeyCode.C) ? MotionPose.Crouch :
                 Input.GetKeyDown(KeyCode.Z) ? MotionPose.Prone : MotionPose.None;
-            return new MotionInputFrame(move, turn, look, sprint ? 2f : 1f, Input.GetKeyDown(KeyCode.Space), pose);
+            return CreateGameFrame(move, turn, look, sprint, Input.GetKeyDown(KeyCode.Space), pose);
+        }
+
+        private MotionInputFrame CreateGameFrame(Vector2 move, float turn, Vector2 look, bool sprint, bool jump, MotionPose pose)
+        {
+            if (FreeLook)
+            {
+                turn += move.x;
+                move.x = 0f;
+            }
+            return new MotionInputFrame(move, turn, look, sprint ? 2f : 1f, jump, pose);
+        }
+
+        private void ProcessGameFreeLookInput(bool tab, bool forwardPressed, bool modified, bool shift)
+        {
+            if (_disposed || !GameSimulation || Suspended || ObserverView || !_captured || modified) return;
+            if (tab && !shift) FreeLookRequested?.Invoke();
+            if (FreeLook && forwardPressed) ForwardMovementRequested?.Invoke();
         }
 
         private void ProcessGameCameraInput(bool toggle, float scroll, bool modified, bool shift)
@@ -141,6 +162,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             _disposed = true;
             ViewToggleRequested = null;
             CameraZoomRequested = null;
+            FreeLookRequested = null;
+            ForwardMovementRequested = null;
+            FreeLook = false;
         }
 
         private void ObserveFocus(EditorWindow window)
@@ -240,7 +264,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         private static float Axis(KeyCode negative, KeyCode positive) => (Input.GetKey(positive) ? 1f : 0f) - (Input.GetKey(negative) ? 1f : 0f);
         private static bool AnyControlKeyHeld() => Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) ||
-            Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.Comma) || Input.GetKey(KeyCode.Period) || Input.GetKey(KeyCode.F5) ||
+            Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.Comma) || Input.GetKey(KeyCode.Period) || Input.GetKey(KeyCode.F5) || Input.GetKey(KeyCode.Tab) ||
             Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ||
             Input.GetKey(KeyCode.C) || Input.GetKey(KeyCode.Z) ||
             Input.GetKey(KeyCode.Escape) || AnyMouseButtonHeld();

@@ -1,5 +1,14 @@
 # Development validation
 
+## Third-person free rotation (unreleased)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
+
+- Captured Game-view Tab enters an independent third-person camera yaw without rotating the avatar. Repeated Tab is idempotent, A/D supplies turning, and a new W/S press queues camera-heading alignment before moving. Previously held forward/backward input continues in free rotation. First-person and observer transitions clear the mode; suspended input retains the orbit, and session cleanup releases the input events and temporary objects.
+- The editor runner passed 787 assertions and the Play Mode runner passed 823 assertions. New motor tests exercise actual turning/displacement, delayed alignment and AngularY, held movement, blocked movement, tilt preservation, finite angle wrapping, physical wall collision, jumping and landing. Camera tests cover independent yaw, viewport centering, pitch, zoom, invalid overrides and obstruction. Keyboard tests cover capture/suspension/modifiers, Shift+Tab, new versus held movement, ordinary strafing, Scene Tab/WASD preservation and disposal.
+- Session checks invoke the real Game Simulation tool with its own keyboard subscriptions. A test adapter delegates frame construction to the production keyboard mapper; capture state is injected. They verify mouse/body separation, A/D turning, W/S forward/backward alignment, held-W Tab, first-/third-person and observer transitions, zoom-to-first-person, pause, input failure and cleanup. These are automated input-path checks; physical desktop input and a VRChat client comparison were not performed.
+- Package validation passed 1,752 checks and localization passed 15,097 checks across 487 keys in each of five languages. All nine changed production scripts matched the isolated fixture and the backed-up/synchronized Test-Avatar installation by SHA-256; the three changed test runners matched the fixture. Test-Avatar compiled without Console errors, and its previous simulation view, distance, movement settings and microphone preference were restored. No model, animation or scene asset was edited.
+
 ## Unified simulation camera controls (unreleased)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.

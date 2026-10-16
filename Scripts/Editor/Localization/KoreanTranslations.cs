@@ -465,6 +465,7 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Move the Scene view and its Game-view camera with the avatar. Rotation and zoom stay under your control."] = "씬 뷰와 게임 뷰의 씬 카메라를 아바타와 함께 이동합니다. 회전과 확대/축소는 직접 조작할 수 있습니다.",
             ["First Person"] = "1인칭",
             ["Third Person"] = "3인칭",
+            ["Third person: Tab enters free camera rotation without turning the avatar. New W/S input resumes camera-relative movement; A/D turns the avatar in place during free rotation. Mouse look requires captured Game input."] = "3인칭: Tab을 누르면 아바타를 회전시키지 않고 카메라를 자유롭게 회전합니다. W/S를 새로 누르면 카메라 방향을 기준으로 앞뒤 이동이 재개되며, 자유 회전 중에는 A/D로 아바타가 제자리에서 회전합니다. 마우스 시점 조작에는 게임 입력 캡처가 필요합니다.",
             ["Third-Person Distance (avatar heights; zero returns to first person)"] = "3인칭 거리 (아바타 키의 배수, 0이면 1인칭으로 복귀)",
             ["Mouse Look Sensitivity"] = "마우스 시점 감도",
             ["Esc releases captured Game-view input. Click the Game view or use Resume Input to continue. Select Scene Camera in View for a free observer cursor. First person hides the local avatar from the simulation camera; observer and third-person views still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor."] = "Esc를 누르면 캡처된 게임 뷰 입력이 해제됩니다. 게임 뷰를 클릭하거나 입력 재개 버튼을 누르면 계속할 수 있습니다. 시점에서 씬 카메라를 선택하면 커서를 자유롭게 사용하는 관찰 시점으로 전환됩니다. 1인칭에서는 시뮬레이션 카메라에 로컬 아바타가 보이지 않습니다. 관찰 시점과 3인칭에서는 그대로 보입니다. 1인칭 몸 / 팔 표시는 아직 구현되지 않았습니다. 종료 시 아바타 포즈, 이동 매개변수, 카메라와 커서가 복원됩니다.",

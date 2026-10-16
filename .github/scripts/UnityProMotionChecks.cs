@@ -258,6 +258,7 @@ public static class UnityProMotionChecks
                 check(keyboard.Sample().Move == Vector2.zero && !keyboard.Captured, "Disposed keyboard input cannot capture or resume movement");
             }
             CheckGameCameraInput(check);
+            CheckGameFreeLookInput(check);
             CheckSceneInput(check);
             CheckFreeLook(check);
             CheckStandingHeight(check);
@@ -345,6 +346,106 @@ public static class UnityProMotionChecks
         }
         check(Cursor.lockState == cursorLock && Cursor.visible == cursorVisible,
             "Deterministic Game camera dispatch checks leave the real cursor state unchanged");
+    }
+
+    private static void CheckGameFreeLookInput(Action<bool, string> check)
+    {
+        const BindingFlags any = BindingFlags.Instance | BindingFlags.NonPublic;
+        var cursorLock = Cursor.lockState;
+        var cursorVisible = Cursor.visible;
+        var process = typeof(KeyboardMotionInputSource).GetMethod("ProcessGameFreeLookInput", any);
+        var captured = typeof(KeyboardMotionInputSource).GetField("_captured", any);
+        var suspended = typeof(KeyboardMotionInputSource).GetField("<Suspended>k__BackingField", any);
+        using (var legacy = new KeyboardMotionInputSource())
+        {
+            var events = 0;
+            legacy.FreeLookRequested += () => events++;
+            legacy.ForwardMovementRequested += () => events++;
+            legacy.FreeLook = true;
+            captured.SetValue(legacy, true);
+            suspended.SetValue(legacy, false);
+            typeof(KeyboardMotionInputSource).GetField("_previousCursorLock", any).SetValue(legacy, cursorLock);
+            typeof(KeyboardMotionInputSource).GetField("_previousCursorVisible", any).SetValue(legacy, cursorVisible);
+            process.Invoke(legacy, new object[] { true, true, false, false });
+            check(events == 0, "Legacy motion input cannot dispatch Game-only free-look or forward-resume events");
+        }
+        using (var keyboard = new KeyboardMotionInputSource(true))
+        {
+            var orbitCount = 0;
+            var resumeCount = 0;
+            keyboard.FreeLookRequested += () => { orbitCount++; keyboard.FreeLook = true; };
+            keyboard.ForwardMovementRequested += () => { resumeCount++; keyboard.FreeLook = false; };
+            Action<bool, bool, bool, bool> send = (tab, forward, modified, shift) =>
+                process.Invoke(keyboard, new object[] { tab, forward, modified, shift });
+            typeof(KeyboardMotionInputSource).GetField("_previousCursorLock", any).SetValue(keyboard, cursorLock);
+            typeof(KeyboardMotionInputSource).GetField("_previousCursorVisible", any).SetValue(keyboard, cursorVisible);
+            keyboard.ObserverView = true;
+            suspended.SetValue(keyboard, false);
+            send(true, true, false, false);
+            keyboard.ObserverView = false;
+            suspended.SetValue(keyboard, false);
+            send(true, true, false, false);
+            captured.SetValue(keyboard, true);
+            suspended.SetValue(keyboard, true);
+            send(true, true, false, false);
+            suspended.SetValue(keyboard, false);
+            send(true, true, true, false);
+            send(true, false, false, true);
+            send(false, true, false, false);
+            check(orbitCount == 0 && resumeCount == 0 && !keyboard.FreeLook,
+                "Observer, uncaptured, suspended, modified, and Shift-Tab input cannot enter free look or spuriously resume movement");
+            send(true, false, false, false);
+            send(false, false, false, false);
+            check(orbitCount == 1 && resumeCount == 0 && keyboard.FreeLook,
+                "Captured Tab enters free look while an already-held forward key does not act as a new forward press");
+            send(true, false, false, false);
+            check(orbitCount == 2 && keyboard.FreeLook,
+                "A repeated Tab request remains an enable request instead of disabling free look");
+            var create = typeof(KeyboardMotionInputSource).GetMethod("CreateGameFrame", any);
+            var look = new Vector2(4f, -3f);
+            MotionInputFrame frame(Vector2 move, float turn, bool sprint = false) =>
+                (MotionInputFrame)create.Invoke(keyboard, new object[] { move, turn, look, sprint, true, MotionPose.Crouch });
+            var turning = frame(Vector2.right, -0.25f, true);
+            var advancing = frame(new Vector2(-1f, 1f), 0f);
+            check(turning.Move == Vector2.zero && turning.Turn == 0.75f && turning.LookDelta == look &&
+                turning.SpeedMultiplier == 2f && turning.Jump && turning.Pose == MotionPose.Crouch,
+                "Free-look A/D become additive body turning without losing mouse, sprint, jump or posture input");
+            check(advancing.Move == Vector2.up && advancing.Turn == -1f,
+                "Free-look forward movement retains full speed while simultaneous A turns the body without strafing");
+            send(false, true, false, false);
+            var strafing = frame(Vector2.right, -0.25f);
+            check(resumeCount == 1 && !keyboard.FreeLook && strafing.Move == Vector2.right && strafing.Turn == -0.25f,
+                "A new W/S press resumes normal movement, restoring A/D strafing independently of comma/period turning");
+            send(true, false, false, false);
+            send(false, true, false, true);
+            check(resumeCount == 2 && !keyboard.FreeLook,
+                "Shift plus a new forward press can resume normal movement even though Shift-Tab is reserved");
+            send(true, false, false, false);
+            var beforeReset = orbitCount;
+            keyboard.Reset();
+            send(true, true, false, false);
+            check(keyboard.FreeLook && !keyboard.Captured && keyboard.Suspended && orbitCount == beforeReset && resumeCount == 2,
+                "Reset releases input while preserving the orbit mode and cannot replay Tab or forward-resume requests");
+            var sceneEvent = typeof(KeyboardMotionInputSource).GetMethod("ProcessSceneEvent", any);
+            var sceneSample = typeof(KeyboardMotionInputSource).GetMethod("SampleSceneInput", any);
+            var tab = new Event { type = EventType.KeyDown, keyCode = KeyCode.Tab };
+            sceneEvent.Invoke(keyboard, new object[] { tab });
+            sceneEvent.Invoke(keyboard, new object[] { new Event { type = EventType.KeyDown, keyCode = KeyCode.A } });
+            var sceneFrame = (MotionInputFrame)sceneSample.Invoke(keyboard, null);
+            check(tab.type == EventType.KeyDown && sceneFrame.Move == Vector2.left && sceneFrame.Turn == 0f &&
+                orbitCount == beforeReset && resumeCount == 2,
+                "Scene input leaves Tab with the editor and keeps A/D strafing even when Game free look is enabled");
+            keyboard.Dispose();
+            check(!keyboard.FreeLook &&
+                typeof(KeyboardMotionInputSource).GetField("FreeLookRequested", any).GetValue(keyboard) == null &&
+                typeof(KeyboardMotionInputSource).GetField("ForwardMovementRequested", any).GetValue(keyboard) == null,
+                "Disposing keyboard input clears the orbit state and both free-look event subscriptions");
+            send(true, true, false, false);
+            check(orbitCount == beforeReset && resumeCount == 2,
+                "Disposed keyboard input cannot deliver free-look or forward-resume actions");
+        }
+        check(Cursor.lockState == cursorLock && Cursor.visible == cursorVisible,
+            "Free-look input checks preserve the real cursor state");
     }
 
     private static void CheckFreeLook(Action<bool, string> check)

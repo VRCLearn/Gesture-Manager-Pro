@@ -465,6 +465,7 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Move the Scene view and its Game-view camera with the avatar. Rotation and zoom stay under your control."] = "Scene ビューとそれを映す Game ビューのカメラをアバターに追従させます。回転とズームは引き続き手動で操作できます。",
             ["First Person"] = "一人称",
             ["Third Person"] = "三人称",
+            ["Third person: Tab enters free camera rotation without turning the avatar. New W/S input resumes camera-relative movement; A/D turns the avatar in place during free rotation. Mouse look requires captured Game input."] = "三人称：Tab でアバターを旋回させずにカメラを自由回転できます。W/S を新たに押すとカメラ方向への前後移動に戻り、自由回転中は A/D でアバターがその場で旋回します。マウスの視点操作には Game ビューの入力固定が必要です。",
             ["Third-Person Distance (avatar heights; zero returns to first person)"] = "三人称視点の距離（アバターの身長倍率。0 で一人称に戻る）",
             ["Mouse Look Sensitivity"] = "マウスの視点感度",
             ["Esc releases captured Game-view input. Click the Game view or use Resume Input to continue. Select Scene Camera in View for a free observer cursor. First person hides the local avatar from the simulation camera; observer and third-person views still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor."] = "Esc で固定された Game ビューの入力を解除します。Game ビューをクリックするか「入力を再開」を押すと再開します。「視点」で「シーンカメラ」を選ぶと、カーソルを自由に使える観察視点になります。一人称ではシミュレーション用カメラから自分のアバターが非表示になります。観察視点や三人称では引き続き表示されます。一人称での体・腕の表示にはまだ対応していません。終了するとアバターのポーズ、移動パラメーター、カメラ、カーソルが元に戻ります。",

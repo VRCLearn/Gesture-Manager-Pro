@@ -70,6 +70,7 @@ public static class UnityProPlayChecks
             CheckTemporaryGround();
             CheckGameSimulationGravity();
             CheckThirdPersonCamera();
+            CheckGameSimulationFreeLook();
             CheckObserverCamera();
             CheckSimulationMicrophone();
             UnityProCameraChecks.Run(Check);
@@ -1073,6 +1074,280 @@ public static class UnityProPlayChecks
         }
     }
 
+    private static void CheckGameSimulationFreeLook()
+    {
+        const BindingFlags instance = BindingFlags.Instance | BindingFlags.NonPublic;
+        const string preference = "GM3 SceneCamera";
+        var previousBridge = AvatarTools.UpdateSceneCamera.SimulationView;
+        var hadPreference = EditorPrefs.HasKey(preference);
+        var previousPreference = EditorPrefs.GetBool(preference);
+        var previousFocus = EditorWindow.focusedWindow;
+        var cursorLock = Cursor.lockState;
+        var cursorVisible = Cursor.visible;
+        var paused = EditorApplication.isPaused;
+        GameObject avatar = null;
+        GestureManager manager = null;
+        GameSimulationTool tool = null;
+        try
+        {
+            EditorApplication.isPaused = false;
+            AvatarTools.UpdateSceneCamera.SimulationView = null;
+            avatar = new GameObject("Pro Game free-look validation avatar");
+            avatar.transform.SetPositionAndRotation(new Vector3(85f, 30f, 75f), Quaternion.Euler(0f, 25f, 0f));
+            avatar.AddComponent<Animator>();
+            var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
+            descriptor.ViewPosition = new Vector3(0f, 1.6f, 0f);
+            var originalPosition = avatar.transform.position;
+            var originalRotation = avatar.transform.rotation;
+            var module = new ModuleVrc3(descriptor) { Active = true, Settings = new ModuleSettings() };
+            foreach (var name in ParameterNames)
+                module.Params.Add(name, new Vrc3Param(name, AnimatorControllerParameterType.Float));
+            manager = new GameObject("Pro Game free-look validation manager").AddComponent<GestureManager>();
+            manager.Module = module;
+            tool = new GameSimulationTool(manager);
+            typeof(GameSimulationTool).GetField("_viewMode", instance).SetValue(tool, SimulationViewMode.ThirdPerson);
+            ((MicrophoneLipSync)typeof(GameSimulationTool).GetField("_lipSync", instance).GetValue(tool)).Enabled = false;
+            var session = (ControlledModeSession)typeof(GameSimulationTool).GetField("_session", instance).GetValue(tool);
+            var gameToggle = typeof(GameSimulationTool).GetMethod("Toggle", instance);
+            var keyboardField = typeof(GameSimulationTool).GetField("_keyboard", instance);
+            var inputField = typeof(CharacterMotionMotor).GetField("_input", instance);
+            var suspendedField = typeof(KeyboardMotionInputSource).GetField("<Suspended>k__BackingField", instance);
+            var capturedField = typeof(KeyboardMotionInputSource).GetField("_captured", instance);
+            var freeLookInput = typeof(KeyboardMotionInputSource).GetMethod("ProcessGameFreeLookInput", instance);
+            var cameraInput = typeof(KeyboardMotionInputSource).GetMethod("ProcessGameCameraInput", instance);
+            KeyboardMotionInputSource keyboard = null;
+            GameFrameMotionInput frames = null;
+            void ClickGame() => gameToggle.Invoke(tool, new object[] { module });
+            void Start()
+            {
+                ClickGame();
+                Check(session.Running && session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson,
+                    "The real Game Simulation tool starts a third-person free-look fixture: " + session.Error);
+                keyboard = (KeyboardMotionInputSource)keyboardField.GetValue(tool);
+                frames = new GameFrameMotionInput(keyboard);
+                inputField.SetValue(session.Motor, frames);
+            }
+
+            void Capture(bool captured = true, bool suspended = false)
+            {
+                // Keep actual keyboard/session subscriptions while supplying the
+                // capture state and frames without depending on desktop input.
+                typeof(KeyboardMotionInputSource).GetField("_previousCursorLock", instance).SetValue(keyboard, cursorLock);
+                typeof(KeyboardMotionInputSource).GetField("_previousCursorVisible", instance).SetValue(keyboard, cursorVisible);
+                capturedField.SetValue(keyboard, captured);
+                suspendedField.SetValue(keyboard, suspended);
+            }
+
+            void GameKeys(bool tab, bool forwardPressed = false, bool modified = false, bool shift = false) =>
+                freeLookInput.Invoke(keyboard, new object[] { tab, forwardPressed, modified, shift });
+            void CameraKeys(bool f5 = false, float wheel = 0f) =>
+                cameraInput.Invoke(keyboard, new object[] { f5, wheel, false, false });
+            void Step(Vector2 move, Vector2 look = default, float turn = 0f)
+            {
+                frames.Move = move;
+                frames.Look = look;
+                frames.Turn = turn;
+                session.Motor.Step(0.1f);
+                if (session.Running) session.ViewCamera.ApplyView();
+            }
+
+            void EnterFreeLook()
+            {
+                session.SetViewMode(SimulationViewMode.ThirdPerson);
+                Capture();
+                GameKeys(true);
+                Check(session.Motor.FreeLook && keyboard.FreeLook && session.ViewCamera.YawOverride.HasValue,
+                    "Captured Tab enables third-person free look through the production keyboard event and session");
+            }
+
+            void CheckViewReset(string label)
+            {
+                Check(!session.Motor.FreeLook && !keyboard.FreeLook && !session.ViewCamera.YawOverride.HasValue,
+                    label + " clears motor, keyboard, and camera free-look state together");
+            }
+
+            void CheckStopped(KeyboardMotionInputSource stoppedKeyboard, string label)
+            {
+                Check(!session.Running && AvatarTools.UpdateSceneCamera.SimulationView == null && !manager.IsPlayerControlled &&
+                    module.SimulationCamera == null && !stoppedKeyboard.FreeLook && !stoppedKeyboard.Captured &&
+                    typeof(KeyboardMotionInputSource).GetField("FreeLookRequested", instance).GetValue(stoppedKeyboard) == null &&
+                    typeof(KeyboardMotionInputSource).GetField("ForwardMovementRequested", instance).GetValue(stoppedKeyboard) == null &&
+                    typeof(KeyboardMotionInputSource).GetField("ViewToggleRequested", instance).GetValue(stoppedKeyboard) == null &&
+                    typeof(KeyboardMotionInputSource).GetField("CameraZoomRequested", instance).GetValue(stoppedKeyboard) == null &&
+                    !Resources.FindObjectsOfTypeAll<MotionPreviewCamera>().Any(camera => camera.Target == avatar.transform),
+                    label + " disposes all free-look/camera subscriptions and releases the view bridge and temporary camera");
+                Check(Vector3.Distance(avatar.transform.position, originalPosition) < 0.0001f &&
+                    Quaternion.Angle(avatar.transform.rotation, originalRotation) < 0.001f,
+                    label + " restores the original avatar position and body rotation");
+            }
+
+            Start();
+            GameKeys(true);
+            Capture(captured: false);
+            GameKeys(true);
+            Check(!keyboard.FreeLook && !session.Motor.FreeLook, "Tab cannot enable free look before Game input is captured");
+            Capture(suspended: true);
+            GameKeys(true);
+            Check(!keyboard.FreeLook && !session.Motor.FreeLook, "Suspended captured input cannot enable free look");
+            Capture();
+            GameKeys(true, modified: true);
+            GameKeys(true, shift: true);
+            Check(!keyboard.FreeLook && !session.Motor.FreeLook, "Modified Tab and Shift+Tab cannot enter free look");
+            var locomotionFlag = typeof(ModuleVrc3).GetField("LocomotionDisabled", instance);
+            locomotionFlag.SetValue(module, true);
+            GameKeys(true);
+            Check(!session.Motor.FreeLook, "Avatar locomotion restrictions also block the session's free-look enable event");
+            locomotionFlag.SetValue(module, false);
+            session.SetViewMode(SimulationViewMode.FirstPerson);
+            Capture();
+            GameKeys(true);
+            Check(!keyboard.FreeLook && !session.Motor.FreeLook, "Captured Tab in first person cannot enable third-person free look");
+
+            EnterFreeLook();
+            var bodyRotation = avatar.transform.rotation;
+            var bodyPosition = avatar.transform.position;
+            var initialYaw = avatar.transform.eulerAngles.y;
+            Step(Vector2.zero, new Vector2(47f, 13f));
+            var orbitYaw = session.Motor.ViewYaw;
+            Check(Quaternion.Angle(avatar.transform.rotation, bodyRotation) < 0.001f &&
+                Vector3.Distance(avatar.transform.position, bodyPosition) < StandingHeightTolerance &&
+                Mathf.Abs(Mathf.DeltaAngle(initialYaw + 47f, orbitYaw)) < 0.001f && session.Motor.ViewPitch == 13f &&
+                Mathf.Abs(Mathf.DeltaAngle(session.ViewCamera.transform.eulerAngles.y, orbitYaw)) < 0.001f &&
+                session.ViewCamera.YawOverride.HasValue && Mathf.Abs(module.GetParam("AngularY").FloatValue()) < 0.001f,
+                "Free mouse look orbits the real preview camera and changes pitch without rotating or moving the avatar");
+            var orbitPosition = session.ViewCamera.transform.position;
+            GameKeys(true);
+            session.ViewCamera.ApplyView();
+            Check(session.Motor.FreeLook && keyboard.FreeLook && session.Motor.ViewPitch == 13f &&
+                Mathf.Abs(Mathf.DeltaAngle(session.Motor.ViewYaw, orbitYaw)) < 0.001f &&
+                Vector3.Distance(session.ViewCamera.transform.position, orbitPosition) < 0.0001f,
+                "Repeated Tab is idempotent and cannot recenter the free camera or reset its pitch");
+            var distance = session.CameraDistance;
+            CameraKeys(wheel: 1f);
+            Step(Vector2.zero, new Vector2(0f, -4f));
+            var eye = avatar.transform.TransformPoint(descriptor.ViewPosition);
+            Check(session.Motor.FreeLook && keyboard.FreeLook && session.CameraDistance == distance - 0.25f &&
+                session.Motor.ViewPitch == 9f && Quaternion.Angle(avatar.transform.rotation, bodyRotation) < 0.001f &&
+                Mathf.Abs(Vector3.Distance(session.ViewCamera.transform.position, eye) -
+                    session.ViewCamera.Height * session.CameraDistance) < 0.001f,
+                "Wheel zoom and vertical mouse look remain active while the horizontal free-camera yaw stays independent");
+
+            for (var direction = -1; direction <= 1; direction += 2)
+            {
+                var beforeYaw = avatar.transform.eulerAngles.y;
+                var beforePosition = avatar.transform.position;
+                Step(Vector2.right * direction);
+                Check(frames.LastFrame.Move == Vector2.zero && frames.LastFrame.Turn == direction &&
+                    Mathf.Abs(Mathf.DeltaAngle(beforeYaw, avatar.transform.eulerAngles.y) - direction * 12f) < 0.001f &&
+                    Vector3.Distance(avatar.transform.position, beforePosition) < StandingHeightTolerance &&
+                    Mathf.Abs(Mathf.DeltaAngle(session.Motor.ViewYaw, orbitYaw)) < 0.001f &&
+                    Mathf.Abs(Mathf.DeltaAngle(session.ViewCamera.transform.eulerAngles.y, orbitYaw)) < 0.001f &&
+                    Mathf.Abs(module.GetParam("AngularY").FloatValue() - direction * 120f) < 0.02f,
+                    "Free-look " + (direction < 0 ? "A" : "D") + " turns the body in place through CreateGameFrame while camera yaw remains fixed");
+            }
+
+            for (var direction = 1; direction >= -1; direction -= 2)
+            {
+                if (!session.Motor.FreeLook) EnterFreeLook();
+                Step(Vector2.zero, new Vector2(direction * 31f, 0f));
+                session.Motor.Halt();
+                var targetYaw = session.Motor.ViewYaw;
+                var beforeYaw = avatar.transform.eulerAngles.y;
+                var beforePosition = avatar.transform.position;
+                GameKeys(false, forwardPressed: true);
+                Check(!keyboard.FreeLook && !session.Motor.FreeLook &&
+                    Mathf.Abs(Mathf.DeltaAngle(beforeYaw, avatar.transform.eulerAngles.y)) < 0.001f,
+                    "A new " + (direction > 0 ? "W" : "S") + " exits free look and queues body alignment for the real motor step");
+                Step(Vector2.up * direction);
+                var delta = avatar.transform.position - beforePosition;
+                delta.y = 0f;
+                var expectedDirection = Quaternion.Euler(0f, targetYaw, 0f) * Vector3.forward * direction;
+                Check(Mathf.Abs(Mathf.DeltaAngle(avatar.transform.eulerAngles.y, targetYaw)) < 0.001f &&
+                    Vector3.Dot(delta, expectedDirection) > 0.05f && Vector3.Cross(delta.normalized, expectedDirection).magnitude < 0.001f &&
+                    !session.ViewCamera.YawOverride.HasValue &&
+                    Mathf.Abs(Mathf.DeltaAngle(session.ViewCamera.transform.eulerAngles.y, targetYaw)) < 0.001f &&
+                    Mathf.Abs(module.GetParam("AngularY").FloatValue() - Mathf.DeltaAngle(beforeYaw, targetYaw) / 0.1f) < 0.02f,
+                    "The new " + (direction > 0 ? "W" : "S") + " aligns the avatar to camera yaw, publishes the real turn, and moves " +
+                    (direction > 0 ? "forward" : "backward") + " along the aligned body direction");
+            }
+
+            session.Motor.Halt();
+            bodyRotation = avatar.transform.rotation;
+            Step(Vector2.right);
+            Check(frames.LastFrame.Move == Vector2.right && frames.LastFrame.Turn == 0f &&
+                Quaternion.Angle(avatar.transform.rotation, bodyRotation) < 0.001f && session.Motor.LastResult.LocalVelocity.x > 0.5f,
+                "After free look ends, the same production Game frame restores ordinary A/D strafing");
+            Step(Vector2.up);
+            Step(Vector2.up);
+            var heldStart = avatar.transform.position;
+            var heldYaw = avatar.transform.eulerAngles.y;
+            GameKeys(true, forwardPressed: false);
+            Step(Vector2.up, new Vector2(29f, 0f));
+            GameKeys(false, forwardPressed: false);
+            Step(Vector2.up);
+            Check(keyboard.FreeLook && session.Motor.FreeLook &&
+                Mathf.Abs(Mathf.DeltaAngle(avatar.transform.eulerAngles.y, heldYaw)) < 0.001f &&
+                Mathf.Abs(Mathf.DeltaAngle(session.Motor.ViewYaw, heldYaw + 29f)) < 0.001f &&
+                Vector3.Dot(avatar.transform.position - heldStart, Quaternion.Euler(0f, heldYaw, 0f) * Vector3.forward) > 0.2f,
+                "W already held when Tab is pressed continues moving without acting as a new press or canceling free look");
+
+            session.SetViewMode(SimulationViewMode.SceneCamera);
+            CheckViewReset("Selecting the Scene observer");
+            GameKeys(true);
+            Check(!session.Motor.FreeLook && !keyboard.FreeLook, "The Scene observer cannot enter free look with Tab");
+            EnterFreeLook();
+            Step(Vector2.zero, new Vector2(23f, 0f));
+            CameraKeys(f5: true);
+            CheckViewReset("F5 returning to first person");
+            Check(session.ViewMode == SimulationViewMode.FirstPerson && !session.ThirdPersonEnabled,
+                "F5 retains its normal third-person feature toggle while clearing free look");
+            EnterFreeLook();
+            Step(Vector2.zero, new Vector2(-17f, 0f));
+            CameraKeys(wheel: 100f);
+            CheckViewReset("Zooming to the nearest first-person distance");
+            Check(session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.FirstPerson && session.CameraDistance == 0f,
+                "Nearest-distance free-look cleanup preserves the enabled third-person feature");
+            CameraKeys(wheel: -1f);
+            EnterFreeLook();
+            var stoppedKeyboard = keyboard;
+            ClickGame();
+            CheckStopped(stoppedKeyboard, "Normal exit from free look");
+            freeLookInput.Invoke(stoppedKeyboard, new object[] { true, true, false, false });
+            Check(!stoppedKeyboard.FreeLook && AvatarTools.UpdateSceneCamera.SimulationView == null,
+                "Disposed free-look helpers cannot replay Tab or forward movement into a stopped session");
+
+            Start();
+            EnterFreeLook();
+            stoppedKeyboard = keyboard;
+            EditorApplication.isPaused = true;
+            session.Poll();
+            CheckStopped(stoppedKeyboard, "Pausing during free look");
+            EditorApplication.isPaused = false;
+            Start();
+            EnterFreeLook();
+            stoppedKeyboard = keyboard;
+            frames.Error = new InvalidOperationException("Injected free-look input failure");
+            session.Motor.Step(0.1f);
+            CheckStopped(stoppedKeyboard, "Input failure during free look");
+            Check(session.Error.Contains("Injected free-look input failure"), "Free-look failure cleanup preserves the actual input diagnostic");
+            Check(EditorPrefs.HasKey(preference) == hadPreference && EditorPrefs.GetBool(preference) == previousPreference,
+                "All free-look input and mode transitions preserve the ordinary Scene Camera preference");
+        }
+        finally
+        {
+            tool?.Dispose();
+            AvatarTools.UpdateSceneCamera.SimulationView = previousBridge;
+            if (hadPreference) EditorPrefs.SetBool(preference, previousPreference);
+            else EditorPrefs.DeleteKey(preference);
+            if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
+            if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            Cursor.lockState = cursorLock;
+            Cursor.visible = cursorVisible;
+            if (previousFocus) previousFocus.Focus();
+            EditorApplication.isPaused = paused;
+        }
+    }
+
     private static void CheckObserverCamera()
     {
         SceneView observer = null;
@@ -2065,6 +2340,29 @@ public static class UnityProPlayChecks
     {
         if (!condition) throw new InvalidOperationException(message);
         _assertions++;
+    }
+
+    private sealed class GameFrameMotionInput : IMotionInputSource
+    {
+        private readonly KeyboardMotionInputSource _keyboard;
+        private readonly MethodInfo _createFrame = typeof(KeyboardMotionInputSource).GetMethod("CreateGameFrame",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        public Vector2 Move;
+        public Vector2 Look;
+        public float Turn;
+        public Exception Error;
+        public MotionInputFrame LastFrame;
+
+        public GameFrameMotionInput(KeyboardMotionInputSource keyboard) => _keyboard = keyboard;
+
+        public MotionInputFrame Sample()
+        {
+            if (Error != null) throw Error;
+            LastFrame = (MotionInputFrame)_createFrame.Invoke(_keyboard, new object[] { Move, Turn, Look, false, false, MotionPose.None });
+            return LastFrame;
+        }
+
+        public void Reset() { Move = default; Look = default; Turn = 0f; }
     }
 
     private sealed class SessionMotionInput : IMotionInputSource

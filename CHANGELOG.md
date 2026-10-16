@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add captured Game-view Tab free rotation in third person. Mouse look rotates the camera independently of the avatar; A/D turns the avatar in place, and a new W/S press restores camera-relative movement. Preserve held forward/backward movement and repeated Tab orbits; clear free rotation on first-person/observer transitions and session cleanup. Add five-language controls help.
 - Connect the ordinary Scene Camera switch to the active Game Simulation view. Its state follows the View selector and F5; disabling the observer restores the preceding player-camera state, including third person zoomed into first person, without changing the regular camera preference.
 - Remove the forced right-side shoulder offset from third person and keep the descriptor viewpoint horizontally centered through turning, pitch, zoom and collision avoidance. Restore the player camera's perspective projection and lens settings when leaving a Scene observer.
 - Restore the selected Game camera's original local pose and projection settings when Scene Camera is disabled or its target changes. Release the override when the last emulator unlinks, Play Mode changes or scripts reload, preserving the enabled preference for the next emulator session.

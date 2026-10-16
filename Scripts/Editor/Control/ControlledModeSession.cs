@@ -113,6 +113,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 {
                     keyboardInput.ViewToggleRequested += ToggleThirdPerson;
                     keyboardInput.CameraZoomRequested += AdjustCameraDistance;
+                    keyboardInput.FreeLookRequested += EnableFreeLook;
+                    keyboardInput.ForwardMovementRequested += ResumeCameraFollow;
                 }
                 Owners.Add(manager, this);
                 manager.IsPlayerControlled = true;
@@ -186,7 +188,11 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private void Publish(MotionResult result)
         {
             if (!IsValid()) return;
-            if (ViewCamera) ViewCamera.Pitch = Motor.ViewPitch;
+            if (ViewCamera)
+            {
+                ViewCamera.Pitch = Motor.ViewPitch;
+                ViewCamera.YawOverride = Motor.FreeLook ? Motor.ViewYaw : (float?)null;
+            }
             Set("VelocityX", result.LocalVelocity.x);
             Set("VelocityY", result.LocalVelocity.y);
             Set("VelocityZ", result.LocalVelocity.z);
@@ -224,6 +230,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         private void ApplyViewMode(SimulationViewMode mode)
         {
+            if (mode != SimulationViewMode.ThirdPerson) ResetFreeLook();
             var wasObserver = ViewMode == SimulationViewMode.SceneCamera;
             if (!wasObserver && mode == SimulationViewMode.SceneCamera && _ownedCamera)
                 CapturePlayerProjection();
@@ -331,6 +338,28 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             if (wasObserver && _input is KeyboardMotionInputSource keyboard) keyboard.RequestCapture();
         }
 
+        private void EnableFreeLook()
+        {
+            if (!IsValid() || LocomotionBlocked || ViewMode != SimulationViewMode.ThirdPerson || !ThirdPersonEnabled) return;
+            Motor.EnableFreeLook();
+            if (_input is KeyboardMotionInputSource keyboard) keyboard.FreeLook = Motor.FreeLook;
+            if (ViewCamera) ViewCamera.YawOverride = Motor.ViewYaw;
+        }
+
+        private void ResumeCameraFollow()
+        {
+            if (!IsValid() || LocomotionBlocked || !Motor.FreeLook) return;
+            Motor.DisableFreeLook(alignToView: true);
+            if (_input is KeyboardMotionInputSource keyboard) keyboard.FreeLook = false;
+        }
+
+        private void ResetFreeLook()
+        {
+            if (Motor) Motor.DisableFreeLook();
+            if (_input is KeyboardMotionInputSource keyboard) keyboard.FreeLook = false;
+            if (ViewCamera) ViewCamera.YawOverride = null;
+        }
+
         public void Stop()
         {
             if (_stopping) return;
@@ -347,6 +376,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 {
                     keyboard.ViewToggleRequested -= ToggleThirdPerson;
                     keyboard.CameraZoomRequested -= AdjustCameraDistance;
+                    keyboard.FreeLookRequested -= EnableFreeLook;
+                    keyboard.ForwardMovementRequested -= ResumeCameraFollow;
                 }
                 TryRestore(() => _input?.Reset());
                 if (_input is KeyboardMotionInputSource ownedKeyboard) TryRestore(ownedKeyboard.Dispose);
