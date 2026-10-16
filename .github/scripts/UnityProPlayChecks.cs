@@ -24,6 +24,7 @@ public static class UnityProPlayChecks
     private const string PendingKey = "VRCLearn.GestureManagerPro.Validation.PlayPending";
     private const string DeadlineKey = "VRCLearn.GestureManagerPro.Validation.PlayDeadline";
     private const string FirstUpdateKey = "VRCLearn.GestureManagerPro.Validation.PlayFirstUpdate";
+    private const float StandingHeightTolerance = 0.0005f;
     private static int _assertions;
     private static readonly string[] ParameterNames =
     {
@@ -67,6 +68,7 @@ public static class UnityProPlayChecks
             UnityProStatisticsLifecycleChecks.Run(Check);
             ExecuteChecks();
             CheckTemporaryGround();
+            CheckGameSimulationGravity();
             CheckThirdPersonCamera();
             CheckObserverCamera();
             CheckSimulationMicrophone();
@@ -496,7 +498,26 @@ public static class UnityProPlayChecks
                 var hits = SupportBelow(startPosition, session.Motor.Controller);
                 Check(hits.Length == 1 && hits[0].collider.gameObject.name == "Gesture Manager Pro Ground",
                     "Game simulation creates a real supporting collider at the starting feet");
+                Check(Mathf.Abs(avatar.transform.position.y - startPosition.y) < StandingHeightTolerance &&
+                    Mathf.Abs(session.Motor.transform.position.y - startPosition.y) < StandingHeightTolerance,
+                    "Creating a temporary-floor session preserves the original avatar and motor standing height");
                 return hits[0].collider.gameObject;
+            }
+
+            float StandingDrift(int frames)
+            {
+                input.Frame = default;
+                var maximum = Mathf.Abs(avatar.transform.position.y - startPosition.y);
+                var stayedGrounded = true;
+                for (var frame = 0; frame < frames; frame++)
+                {
+                    session.Motor.Step(0.02f);
+                    maximum = Mathf.Max(maximum, Mathf.Abs(avatar.transform.position.y - startPosition.y),
+                        Mathf.Abs(session.Motor.transform.position.y - startPosition.y));
+                    stayedGrounded &= session.Motor.LastResult.Grounded;
+                }
+                Check(stayedGrounded, "Standing height checks retain real physical support throughout the idle interval");
+                return maximum;
             }
 
             void CheckRemoved(GameObject ground, string reason)
@@ -516,29 +537,34 @@ public static class UnityProPlayChecks
                 "The temporary floor has no rendering components, remains solid, and is independent of the avatar");
             Check(ground.hideFlags == HideFlags.HideAndDontSave && ground.scene == avatar.scene &&
                 Vector3.Distance(groundCollider.bounds.size, new Vector3(100f, 0.1f, 100f)) < 0.01f &&
-                Mathf.Abs(groundCollider.bounds.max.y - startPosition.y) < 0.001f,
+                Mathf.Abs(groundCollider.bounds.max.y - startPosition.y) < StandingHeightTolerance,
                 "The unsaved floor covers 100 meters and places its top at the starting foot height");
             Check(!session.Motor.UseGravity && session.Motor.LastResult.Grounded &&
                 module.GetParam("Grounded").BoolValue(),
-                "Default simulation immediately publishes real grounded state with gravity disabled");
+                "A low-level motion adapter can explicitly disable gravity while publishing real grounded state");
             input.Frame = new MotionInputFrame(Vector2.zero, 0f);
             session.Motor.Step(0.1f);
             Check(module.GetParam("Grounded").BoolValue() && module.GetParam("Upright").FloatValue() == 0f &&
-                module.GetParam("VelocityMagnitude").FloatValue() == 0f,
-                "Standing on the generated floor publishes stationary motion without overwriting posture");
+                module.GetParam("VelocityMagnitude").FloatValue() == 0f &&
+                Mathf.Abs(avatar.transform.position.y - startPosition.y) < StandingHeightTolerance,
+                "The first stationary frame on the generated floor preserves the original root height and posture");
+            Check(StandingDrift(300) < StandingHeightTolerance,
+                "Long idle on a temporary floor cannot accumulate a standing-height offset");
             var floorPosition = ground.transform.position;
             input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            var walkingDrift = 0f;
+            var walkingGrounded = true;
             for (var step = 0; step < 10; step++)
             {
                 session.Motor.Step(0.1f);
-                Check(module.GetParam("Grounded").BoolValue(),
-                    "Walking remains grounded after collision contact adjustment, step " + step);
+                walkingDrift = Mathf.Max(walkingDrift, Mathf.Abs(avatar.transform.position.y - startPosition.y));
+                walkingGrounded &= module.GetParam("Grounded").BoolValue();
             }
-            Check(module.GetParam("Grounded").BoolValue() && module.GetParam("Upright").FloatValue() == 0f &&
+            Check(walkingGrounded && module.GetParam("Upright").FloatValue() == 0f &&
                 Mathf.Abs(module.GetParam("VelocityZ").FloatValue() - 2f) < 0.01f &&
                 Mathf.Abs(module.GetParam("VelocityY").FloatValue()) < 0.01f &&
-                Mathf.Abs(avatar.transform.position.y - startPosition.y) < session.Motor.Controller.skinWidth + 0.001f,
-                "Walking keeps the avatar grounded and publishes horizontal locomotion instead of falling");
+                walkingDrift < StandingHeightTolerance,
+                "Walking on the temporary floor preserves the original standing height with horizontal locomotion (max drift=" + walkingDrift + ")");
             Check(ground.transform.position == floorPosition &&
                 SupportBelow(avatar.transform.position, session.Motor.Controller).Any(hit => hit.collider == groundCollider),
                 "The avatar moves across the generated floor without dragging the floor along");
@@ -569,26 +595,72 @@ public static class UnityProPlayChecks
                 break;
             }
             Check(landed && module.GetParam("Grounded").BoolValue() &&
-                Mathf.Abs(avatar.transform.position.y - startPosition.y) < 0.05f,
-                "Gravity returns the avatar to the generated floor and publishes grounded state on landing");
+                Mathf.Abs(avatar.transform.position.y - startPosition.y) < StandingHeightTolerance,
+                "Gravity lands on the generated floor at the original pre-simulation standing height");
+            Check(StandingDrift(300) < StandingHeightTolerance,
+                "Gravity-enabled idle after landing does not settle above or drift away from the original height");
             session.Stop();
             CheckRemoved(ground, "Stopping after a jump");
+            for (var restart = 0; restart < 3; restart++)
+            {
+                ground = StartGround(true);
+                Check(StandingDrift(60) < StandingHeightTolerance,
+                    "Repeated collision-session entry does not accumulate vertical offsets, restart " + restart);
+                session.Stop();
+                CheckRemoved(ground, "Repeated temporary-floor session " + restart);
+            }
 
             existingGround = GameObject.CreatePrimitive(PrimitiveType.Cube);
             existingGround.name = "Pro existing scene floor";
             existingGround.transform.position = startPosition - Vector3.up * 0.05f;
             existingGround.transform.localScale = new Vector3(6f, 0.1f, 6f);
             var existingCollider = existingGround.GetComponent<Collider>();
+            var existingPosition = existingGround.transform.position;
+            var existingRotation = existingGround.transform.rotation;
+            var existingScale = existingGround.transform.localScale;
+            var existingComponents = existingGround.GetComponents<Component>().Select(component => component.GetInstanceID()).ToArray();
             Physics.SyncTransforms();
-            Check(session.Start(manager, input, previewCamera: true), "Simulation starts on an existing scene floor");
+            Check(session.Start(manager, input, gravity: true, previewCamera: true), "Simulation starts on an existing scene floor");
             var existingHits = SupportBelow(startPosition, session.Motor.Controller);
             Check(existingHits.Length == 1 && existingHits[0].collider == existingCollider &&
                 session.Motor.LastResult.Grounded && module.GetParam("Grounded").BoolValue(),
                 "Existing scene support is reused without creating an overlapping temporary floor");
+            Check(Mathf.Abs(avatar.transform.position.y - startPosition.y) < StandingHeightTolerance,
+                "Entering on an existing scene floor preserves the original root height");
+            session.Motor.Step(0.02f);
+            Check(Mathf.Abs(avatar.transform.position.y - startPosition.y) < StandingHeightTolerance,
+                "The first gravity frame on an existing scene floor cannot lift the avatar");
+            Check(StandingDrift(300) < StandingHeightTolerance,
+                "Long gravity-enabled idle on an existing scene floor preserves its original standing height");
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            walkingDrift = 0f;
+            walkingGrounded = true;
+            for (var frame = 0; frame < 40; frame++)
+            {
+                session.Motor.Step(0.02f);
+                walkingDrift = Mathf.Max(walkingDrift, Mathf.Abs(avatar.transform.position.y - startPosition.y));
+                walkingGrounded &= session.Motor.LastResult.Grounded;
+            }
+            Check(walkingGrounded && walkingDrift < StandingHeightTolerance,
+                "Walking across an existing scene floor does not add a vertical standing offset");
+            session.Motor.Halt();
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, jump: true);
+            session.Motor.Step(0.02f);
+            Check(!session.Motor.LastResult.Grounded && avatar.transform.position.y > startPosition.y + 0.02f,
+                "The height-preserving capsule still jumps from an existing scene floor");
+            input.Frame = default;
+            for (var frame = 0; frame < 150 && !session.Motor.LastResult.Grounded; frame++) session.Motor.Step(0.02f);
+            Check(session.Motor.LastResult.Grounded && Mathf.Abs(avatar.transform.position.y - startPosition.y) < StandingHeightTolerance,
+                "Landing on an existing scene floor returns to the original pre-simulation root height");
             session.Stop();
             Physics.SyncTransforms();
-            Check(existingGround && SupportBelow(startPosition).Single().collider == existingCollider,
-                "Stopping preserves an existing scene floor and its collider");
+            Check(existingGround && SupportBelow(startPosition).Single().collider == existingCollider && existingCollider.enabled &&
+                !existingCollider.isTrigger && existingGround.transform.position == existingPosition &&
+                existingGround.transform.rotation == existingRotation && existingGround.transform.localScale == existingScale &&
+                existingGround.GetComponents<Component>().Select(component => component.GetInstanceID()).SequenceEqual(existingComponents),
+                "Stopping preserves the existing floor's position, scale, rotation, and original components");
+            Check(Vector3.Distance(avatar.transform.position, startPosition) < 0.0001f,
+                "Stopping on an existing floor restores the avatar's complete original position");
             UnityEngine.Object.DestroyImmediate(existingGround);
             Physics.SyncTransforms();
 
@@ -662,6 +734,194 @@ public static class UnityProPlayChecks
             Physics.gravity = originalGravity;
             EditorApplication.isPaused = paused;
             Physics.SyncTransforms();
+        }
+    }
+
+    private static void CheckGameSimulationGravity()
+    {
+        const BindingFlags any = BindingFlags.Instance | BindingFlags.NonPublic;
+        GameObject avatar = null;
+        GestureManager manager = null;
+        GameSimulationTool tool = null;
+        var paused = EditorApplication.isPaused;
+        try
+        {
+            EditorApplication.isPaused = false;
+            Check(Physics.gravity.y < 0f, "The game-tool gravity fixture uses an actual downward scene gravity");
+            avatar = new GameObject("Pro game-tool gravity validation avatar");
+            avatar.transform.position = new Vector3(1700f, 120f, 1550f);
+            avatar.AddComponent<Animator>();
+            var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
+            descriptor.ViewPosition = new Vector3(0f, 1.6f, 0f);
+            var originalPosition = avatar.transform.position;
+            var originalRotation = avatar.transform.rotation;
+            var module = new ModuleVrc3(descriptor) { Active = true, Settings = new ModuleSettings { vrMode = true } };
+            var originalParameters = new Dictionary<string, float>();
+            for (var index = 0; index < ParameterNames.Length; index++)
+            {
+                var name = ParameterNames[index];
+                var value = name == "VRMode" || name == "Grounded" ? 1f :
+                    name == "TrackingType" ? 6f : name == "Upright" ? 0.6f : (index + 1) * 0.17f;
+                var parameter = new Vrc3Param(name, AnimatorControllerParameterType.Float);
+                module.Params.Add(name, parameter);
+                parameter.Set(module, value);
+                originalParameters.Add(name, value);
+            }
+            manager = new GameObject("Pro game-tool gravity validation manager").AddComponent<GestureManager>();
+            manager.Module = module;
+            tool = new GameSimulationTool(manager);
+            ((MicrophoneLipSync)typeof(GameSimulationTool).GetField("_lipSync", any).GetValue(tool)).Enabled = false;
+            var session = (ControlledModeSession)typeof(GameSimulationTool).GetField("_session", any).GetValue(tool);
+            var toggle = typeof(GameSimulationTool).GetMethod("Toggle", any);
+            var inputField = typeof(CharacterMotionMotor).GetField("_input", any);
+            var suspendedField = typeof(KeyboardMotionInputSource).GetField("<Suspended>k__BackingField", any);
+            Action click = () => toggle.Invoke(tool, new object[] { module });
+            var injected = new SessionMotionInput();
+
+            void InjectFrames()
+            {
+                var keyboard = (KeyboardMotionInputSource)typeof(GameSimulationTool).GetField("_keyboard", any).GetValue(tool);
+                Check(keyboard != null && session.Running, "The actual game-tool entry owns its keyboard motion session");
+                // Keep the real session and its keyboard ownership/cleanup. Only
+                // replace sampled frames and resume the fixture's input gate.
+                inputField.SetValue(session.Motor, injected);
+                suspendedField.SetValue(keyboard, false);
+                injected.Frame = default;
+            }
+
+            GameObject Floor()
+            {
+                var hits = SupportBelow(originalPosition, session.Motor.Controller);
+                Check(hits.Length == 1 && hits[0].collider.gameObject.name == "Gesture Manager Pro Ground",
+                    "The actual game-tool entry creates a real temporary supporting floor");
+                return hits[0].collider.gameObject;
+            }
+
+            void CheckRestored(GameObject floor, GameObject motor, GameObject camera, string label)
+            {
+                Physics.SyncTransforms();
+                Check(!session.Running && !manager.IsPlayerControlled && !floor && !motor && !camera &&
+                    session.Motor == null && module.SimulationCamera == null && SupportBelow(originalPosition).Length == 0,
+                    label + " releases movement ownership, the temporary floor, and the temporary cameras");
+                Check(Vector3.Distance(avatar.transform.position, originalPosition) < 0.0001f &&
+                    Quaternion.Angle(avatar.transform.rotation, originalRotation) < 0.001f,
+                    label + " restores the avatar's original transform");
+                foreach (var pair in originalParameters)
+                    Check(Mathf.Abs(module.GetParam(pair.Key).FloatValue() - pair.Value) < 0.0001f,
+                        label + " restores or preserves parameter " + pair.Key);
+            }
+
+            Physics.SyncTransforms();
+            Check(SupportBelow(originalPosition).Length == 0, "The game-tool fixture starts without an existing scene floor");
+            click();
+            Check(session.Running && session.Motor.Collisions && session.Motor.UseGravity && session.Motor.Controller.enabled,
+                "Entering game simulation through the default tool enables physical collisions and gravity automatically: " + session.Error);
+            Check(Mathf.Abs(avatar.transform.position.y - originalPosition.y) < StandingHeightTolerance &&
+                Mathf.Abs(session.Motor.transform.position.y - originalPosition.y) < StandingHeightTolerance,
+                "The actual game-tool entry preserves the avatar's original standing height immediately");
+            var floor = Floor();
+            var motorObject = session.Motor.gameObject;
+            var cameraObject = session.ViewCamera.gameObject;
+            InjectFrames();
+            session.Motor.Step(0.02f);
+            Check(Mathf.Abs(avatar.transform.position.y - originalPosition.y) < StandingHeightTolerance &&
+                Mathf.Abs(session.Motor.transform.position.y - originalPosition.y) < StandingHeightTolerance,
+                "The first actual game-tool gravity frame cannot lift the avatar above its original height (drift=" +
+                (avatar.transform.position.y - originalPosition.y) + ")");
+            var idleDrift = 0f;
+            var remainedGrounded = true;
+            for (var frame = 0; frame < 300; frame++)
+            {
+                session.Motor.Step(0.02f);
+                idleDrift = Mathf.Max(idleDrift, Mathf.Abs(avatar.transform.position.y - originalPosition.y));
+                remainedGrounded &= session.Motor.LastResult.Grounded;
+            }
+            Check(remainedGrounded && idleDrift < StandingHeightTolerance,
+                "Long idle through the actual game tool does not accumulate a gravity contact offset");
+            injected.Frame = new MotionInputFrame(Vector2.up, 0f);
+            var walkingDrift = 0f;
+            remainedGrounded = true;
+            for (var frame = 0; frame < 100; frame++)
+            {
+                session.Motor.Step(0.02f);
+                walkingDrift = Mathf.Max(walkingDrift, Mathf.Abs(avatar.transform.position.y - originalPosition.y));
+                remainedGrounded &= session.Motor.LastResult.Grounded;
+            }
+            Check(remainedGrounded && walkingDrift < StandingHeightTolerance,
+                "Walking through the actual game tool preserves the original standing height on every sampled frame");
+            injected.Frame = new MotionInputFrame(Vector2.zero, 0f, jump: true);
+            session.Motor.Step(0.02f);
+            Check(avatar.transform.position.y > originalPosition.y + 0.02f && !session.Motor.LastResult.Grounded &&
+                !module.GetParam("Grounded").BoolValue() && module.GetParam("VelocityY").FloatValue() > 0f,
+                "A jump frame through the default game-tool session really leaves its physical floor");
+            injected.Frame = default;
+            for (var frame = 0; frame < 150 && !session.Motor.LastResult.Grounded; frame++) session.Motor.Step(0.02f);
+            Check(session.Motor.LastResult.Grounded && module.GetParam("Grounded").BoolValue() &&
+                Mathf.Abs(avatar.transform.position.y - originalPosition.y) < StandingHeightTolerance,
+                "Default game-tool gravity lands at the original standing height rather than a raised settled height");
+            idleDrift = 0f;
+            remainedGrounded = true;
+            for (var frame = 0; frame < 150; frame++)
+            {
+                session.Motor.Step(0.02f);
+                idleDrift = Mathf.Max(idleDrift, Mathf.Abs(avatar.transform.position.y - originalPosition.y));
+                remainedGrounded &= session.Motor.LastResult.Grounded;
+            }
+            Check(remainedGrounded && idleDrift < StandingHeightTolerance,
+                "Idle after an actual game-tool jump cannot settle at a different standing height");
+
+            var bounds = floor.GetComponent<Collider>().bounds;
+            var edgeStart = new Vector3(bounds.max.x - 0.5f, avatar.transform.position.y, originalPosition.z);
+            // Arrange close to the edge; crossing the collider boundary itself
+            // is driven by the same motor and collision path as normal walking.
+            avatar.transform.position = edgeStart;
+            session.Motor.transform.position = edgeStart;
+            Physics.SyncTransforms();
+            session.Motor.Halt();
+            Check(session.Motor.LastResult.Grounded, "The game-tool walking-off fixture begins supported near the floor edge");
+            injected.Frame = new MotionInputFrame(Vector2.right, 0f);
+            for (var frame = 0; frame < 90; frame++) session.Motor.Step(0.02f);
+            Check(avatar.transform.position.x > bounds.max.x + 0.3f && avatar.transform.position.y < bounds.max.y - 0.3f &&
+                !session.Motor.LastResult.Grounded && !module.GetParam("Grounded").BoolValue() &&
+                module.GetParam("VelocityY").FloatValue() < 0f,
+                "Walking beyond the temporary floor really falls under default game-tool gravity");
+            click();
+            CheckRestored(floor, motorObject, cameraObject, "Exiting the default gravity-enabled game tool");
+
+            typeof(GameSimulationTool).GetField("_collisions", any).SetValue(tool, false);
+            click();
+            Check(session.Running && !session.Motor.Collisions && !session.Motor.UseGravity && !session.Motor.Controller.enabled,
+                "Turning off Scene Collisions also disables gravity and jump through the actual game-tool entry");
+            floor = Floor();
+            motorObject = session.Motor.gameObject;
+            cameraObject = session.ViewCamera.gameObject;
+            InjectFrames();
+            injected.Frame = new MotionInputFrame(Vector2.zero, 0f, jump: true);
+            session.Motor.Step(0.02f);
+            Check(Mathf.Abs(avatar.transform.position.y - originalPosition.y) < 0.0001f &&
+                module.GetParam("VelocityY").FloatValue() == 0f,
+                "A jump frame cannot lift the game-tool avatar when Scene Collisions is disabled");
+            var unsupported = originalPosition + Vector3.right * 51f;
+            avatar.transform.position = unsupported;
+            session.Motor.transform.position = unsupported;
+            Physics.SyncTransforms();
+            injected.Frame = new MotionInputFrame(Vector2.right, 0f, jump: true);
+            session.Motor.Step(0.1f);
+            injected.Frame = default;
+            for (var frame = 0; frame < 30; frame++) session.Motor.Step(0.1f);
+            Check(SupportBelow(avatar.transform.position).Length == 0 && !session.Motor.LastResult.Grounded &&
+                Mathf.Abs(avatar.transform.position.y - unsupported.y) < 0.0001f &&
+                module.GetParam("VelocityY").FloatValue() == 0f,
+                "A collision-free game-tool avatar neither jumps nor falls even with no actual floor below it");
+            click();
+            CheckRestored(floor, motorObject, cameraObject, "Exiting the collision-free game tool");
+        }
+        finally
+        {
+            tool?.Dispose();
+            if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
+            if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            EditorApplication.isPaused = paused;
         }
     }
 

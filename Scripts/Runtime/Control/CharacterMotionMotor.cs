@@ -48,8 +48,10 @@ namespace VRCLearn.GestureManagerPro.Control
             _controller.enabled = false;
             _controller.height = Mathf.Clamp(height, 0.2f, 10f);
             _controller.radius = Mathf.Clamp(radius, 0.04f, _controller.height * 0.45f);
-            _controller.center = Vector3.up * (footOffset + _controller.height * 0.5f);
             _controller.skinWidth = Mathf.Clamp(_controller.radius * 0.1f, 0.005f, 0.05f);
+            // Align the collision skin's bottom with the support foot point,
+            // so first contact does not lift the avatar by the skin width.
+            _controller.center = Vector3.up * (footOffset + _controller.height * 0.5f + _controller.skinWidth);
             _controller.stepOffset = Mathf.Min(0.3f, _controller.height * 0.15f);
             _controller.slopeLimit = 45f;
             _controller.minMoveDistance = 0f;

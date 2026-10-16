@@ -18,7 +18,6 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private float _speed = 2f;
         private float _turnSpeed = 120f;
         private bool _collisions = true;
-        private bool _gravity;
         private float _lookSensitivity = 2f;
         private SimulationViewMode _viewMode = SimulationViewMode.SceneCamera;
         private bool _followObserverCamera;
@@ -42,12 +41,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         protected override void Gui(ModuleVrc3 module)
         {
             using (new EditorGUI.DisabledScope(Active))
-            {
                 _collisions = EditorGUILayout.Toggle(EditorLocalization.Tr("Scene Collisions"), _collisions);
-                using (new EditorGUI.DisabledScope(!_collisions))
-                    _gravity = EditorGUILayout.Toggle(new GUIContent(EditorLocalization.Tr("Gravity / Jump"),
-                        EditorLocalization.Tr("Gravity / Jump (requires a ground collider)")), _gravity);
-            }
             if (Active)
             {
                 _viewMode = _session.ViewMode;
@@ -113,8 +107,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             _showControls = EditorGUILayout.Foldout(_showControls, EditorLocalization.Tr("Controls"), true);
             if (_showControls)
             {
-                EditorGUILayout.HelpBox(EditorLocalization.Tr("Game view: WASD moves, < / > turns, F5 toggles third-person mode, Shift runs forward / backward, C toggles crouch, and Z toggles prone. While third-person mode is enabled, the wheel adjusts distance; zooming fully in returns to first person. Mouse look and wheel zoom require captured input. Space jumps when gravity is enabled and the avatar is grounded."), MessageType.Info);
-                EditorGUILayout.HelpBox(EditorLocalization.Tr("Scene view: WASD moves, < / > turns, Shift runs forward / backward, C toggles crouch, Z toggles prone, and Space jumps when gravity is enabled and the avatar is grounded. Observer following is off by default. Alt, mouse navigation and the wheel remain available to the editor."), MessageType.Info);
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Game view: WASD moves, < / > turns, F5 toggles third-person mode, Shift runs forward / backward, C toggles crouch, and Z toggles prone. While third-person mode is enabled, the wheel adjusts distance; zooming fully in returns to first person. Mouse look and wheel zoom require captured input. Space jumps when Scene Collisions is enabled and the avatar is grounded."), MessageType.Info);
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Scene view: WASD moves, < / > turns, Shift runs forward / backward, C toggles crouch, Z toggles prone, and Space jumps when Scene Collisions is enabled and the avatar is grounded. Observer following is off by default. Alt, mouse navigation and the wheel remain available to the editor."), MessageType.Info);
                 EditorGUILayout.HelpBox(EditorLocalization.Tr("Esc releases captured Game-view input. Click the Game view or use Resume Input to continue. Select Scene Camera in View for a free observer cursor. First person hides the local avatar from the simulation camera; observer and third-person views still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor."), MessageType.Info);
                 EditorGUILayout.HelpBox(EditorLocalization.Tr("Keyboard input requires Active Input Handling: Input Manager (Old) or Both. The motion input interface is ready for future VR adapters; headset tracking and IK are not implemented yet."), MessageType.Info);
             }
@@ -129,7 +123,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 return;
             }
             _keyboard = new KeyboardMotionInputSource(gameSimulation: true) { LookSensitivity = _lookSensitivity };
-            if (_session.Start(_manager, _keyboard, _speed, _turnSpeed, _collisions, _gravity, previewCamera: true,
+            if (_session.Start(_manager, _keyboard, _speed, _turnSpeed, _collisions, gravity: true, previewCamera: true,
                 viewMode: _viewMode, cameraDistance: _cameraDistance, followObserverCamera: _followObserverCamera))
             {
                 _lipSync.Start(_manager);

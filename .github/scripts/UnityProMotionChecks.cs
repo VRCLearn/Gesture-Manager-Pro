@@ -259,6 +259,7 @@ public static class UnityProMotionChecks
             }
             CheckGameCameraInput(check);
             CheckSceneInput(check);
+            CheckStandingHeight(check);
             CheckJump(check);
             using (var session = new ControlledModeSession())
             {
@@ -581,9 +582,78 @@ public static class UnityProMotionChecks
         }
     }
 
+    private static void CheckStandingHeight(Action<bool, string> check)
+    {
+        // Height, radius and support-foot offset. Include the reported small
+        // avatar, clamped skin widths, and adapters with a nonzero foot offset.
+        var capsules = new[]
+        {
+            new Vector3(1.1555555f, 0.1386667f, 0f),
+            new Vector3(0.2f, 0.04f, 0f),
+            new Vector3(1.8f, 0.2f, 0.12f),
+            new Vector3(4f, 0.5f, -0.08f)
+        };
+        const float heightTolerance = 0.0005f;
+        foreach (var capsule in capsules)
+        {
+            GameObject floor = null;
+            GameObject avatar = null;
+            GameObject motorObject = null;
+            try
+            {
+                var start = new Vector3(1150f, 0f, 1150f);
+                floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                floor.transform.position = start + Vector3.up * (capsule.z - 0.1f);
+                floor.transform.localScale = new Vector3(10f, 0.2f, 10f);
+                avatar = new GameObject("Pro standing-height avatar");
+                avatar.transform.position = start;
+                var visual = new GameObject("Unchanged model transform").transform;
+                visual.SetParent(avatar.transform, false);
+                visual.localPosition = new Vector3(0.04f, 0.6f, -0.1f);
+                visual.localRotation = Quaternion.Euler(3f, 8f, 11f);
+                visual.localScale = new Vector3(0.7f, 1.2f, 0.9f);
+                var visualPosition = visual.localPosition;
+                var visualRotation = visual.localRotation;
+                var visualScale = visual.localScale;
+                Physics.SyncTransforms();
+                motorObject = new GameObject("Pro standing-height motor");
+                var motor = motorObject.AddComponent<CharacterMotionMotor>();
+                motor.UseGravity = true;
+                var input = new TestMotionInput();
+                motor.Initialize(avatar.transform, input, capsule.x, capsule.y, capsule.z, () => true, _ => { });
+                check(Vector3.Distance(avatar.transform.position, start) < heightTolerance && motor.LastResult.Grounded,
+                    "Initialization preserves standing height on an existing floor for capsule " + capsule);
+                motor.Step(0.02f);
+                check(Mathf.Abs(avatar.transform.position.y - start.y) < heightTolerance && motor.LastResult.Grounded,
+                    "The first gravity/collision frame does not lift the avatar by its skin width for capsule " + capsule);
+                var maximumDrift = 0f;
+                var stayedGrounded = true;
+                for (var frame = 0; frame < 180; frame++)
+                {
+                    motor.Step(0.02f);
+                    maximumDrift = Mathf.Max(maximumDrift, Mathf.Abs(avatar.transform.position.y - start.y));
+                    stayedGrounded &= motor.LastResult.Grounded;
+                }
+                check(maximumDrift < heightTolerance && stayedGrounded && motor.LastResult.LocalVelocity.magnitude < 0.001f,
+                    "Repeated stationary contact preserves height and publishes no motion for capsule " + capsule);
+                check(visual.parent == avatar.transform && visual.localPosition == visualPosition &&
+                    Quaternion.Angle(visual.localRotation, visualRotation) < 0.001f && visual.localScale == visualScale,
+                    "Contact alignment leaves model-local transforms unchanged for capsule " + capsule);
+            }
+            finally
+            {
+                if (motorObject) UnityEngine.Object.DestroyImmediate(motorObject);
+                if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+                if (floor) UnityEngine.Object.DestroyImmediate(floor);
+            }
+        }
+    }
+
     private static void CheckJump(Action<bool, string> check)
     {
         GameObject floor = null;
+        GameObject wall = null;
+        GameObject ceiling = null;
         GameObject avatar = null;
         GameObject motorObject = null;
         try
@@ -631,6 +701,38 @@ public static class UnityProMotionChecks
             input.Frame = default;
             for (var step = 0; step < 120; step++) motor.Step(0.02f);
             motor.JumpHeight = 0f;
+
+            wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.transform.position = new Vector3(1001f, 1.5f, 1000f);
+            wall.transform.localScale = new Vector3(0.1f, 3f, 4f);
+            Physics.SyncTransforms();
+            input.Frame = new MotionInputFrame(Vector2.right, 0f);
+            for (var step = 0; step < 120; step++) motor.Step(0.02f);
+            check(avatar.transform.position.x > 1000.1f &&
+                avatar.transform.position.x + motor.Controller.radius <= wall.GetComponent<Collider>().bounds.min.x + 0.0005f &&
+                Mathf.Abs(motor.LastResult.LocalVelocity.x) < 0.001f &&
+                Mathf.Abs(avatar.transform.position.y) < 0.0005f && motor.LastResult.Grounded,
+                "A real wall blocks walking and publishes zero blocked velocity without lifting the standing avatar");
+            input.Frame = default;
+            for (var step = 0; step < 20; step++) motor.Step(0.02f);
+            ceiling = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ceiling.transform.position = new Vector3(1000f, motor.Controller.height + 2f * motor.Controller.skinWidth + 0.17f, 1000f);
+            ceiling.transform.localScale = new Vector3(4f, 0.1f, 4f);
+            Physics.SyncTransforms();
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, jump: true);
+            motor.Step(0.02f);
+            input.Frame = default;
+            var hitCeiling = false;
+            var highest = avatar.transform.position.y;
+            for (var step = 0; step < 120; step++)
+            {
+                motor.Step(0.02f);
+                highest = Mathf.Max(highest, avatar.transform.position.y);
+                hitCeiling |= (motor.Controller.collisionFlags & CollisionFlags.Above) != 0;
+            }
+            check(hitCeiling && highest > 0.01f && highest <= 0.1205f && motor.LastResult.Grounded &&
+                Mathf.Abs(avatar.transform.position.y) < 0.0005f,
+                "Jumping still collides with a low ceiling and lands back at the original standing height");
             motor.Collisions = false;
             input.Frame = new MotionInputFrame(Vector2.zero, 0f, default, 1f, true);
             var before = avatar.transform.position;
@@ -641,6 +743,8 @@ public static class UnityProMotionChecks
         {
             if (motorObject) UnityEngine.Object.DestroyImmediate(motorObject);
             if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            if (ceiling) UnityEngine.Object.DestroyImmediate(ceiling);
+            if (wall) UnityEngine.Object.DestroyImmediate(wall);
             if (floor) UnityEngine.Object.DestroyImmediate(floor);
         }
     }
