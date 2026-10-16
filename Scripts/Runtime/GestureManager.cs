@@ -9,7 +9,7 @@ namespace VRCLearn.GestureManagerPro
 {
     public class GestureManager : MonoBehaviour
     {
-        public const string Version = "Gesture Manager Pro 0.4";
+        public const string Version = "Gesture Manager Pro 0.5";
         public static readonly Dictionary<GameObject, ModuleBase> ControlledAvatars = new();
         public static List<ModuleBase> LastCheckedActiveModules = new();
         public static bool InWebClientRequest;

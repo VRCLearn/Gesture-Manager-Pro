@@ -1,6 +1,15 @@
 # Development validation
 
-## Third-person free rotation (unreleased)
+## Release validation (0.5.0)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5, Python 3.14 and PowerShell on Windows.
+
+- The complete 0.5.0 candidate passed 787 editor assertions and 823 Play Mode assertions with graphics enabled. The independent camera/motor commit also passed 774 editor and 782 Play Mode assertions before the keyboard/session integration. Coverage includes free rotation, view transitions, collision, jumping, landing and restoration.
+- All 44 distribution, release and VPM-listing tests passed in the real user environment, including the PowerShell build entry point. Package validation passed 1,752 checks and localization passed 15,097 checks across 487 keys in each of five languages.
+- The ten changed production scripts, package manifest and three validation runners matched the disposable Unity fixture by SHA-256. No model, animation or scene asset was changed.
+- Physical Tab/WASD/F5/wheel input, VR hardware and a VRChat client comparison were not performed for this release. The automated tests exercise production input mapping and subscribed session events with injected capture/input state. SDK locomotion proxy replacement and client IK remain unsupported.
+
+## Third-person free rotation (0.5.0)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
 
@@ -9,7 +18,7 @@ Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on 
 - Session checks invoke the real Game Simulation tool with its own keyboard subscriptions. A test adapter delegates frame construction to the production keyboard mapper; capture state is injected. They verify mouse/body separation, A/D turning, W/S forward/backward alignment, held-W Tab, first-/third-person and observer transitions, zoom-to-first-person, pause, input failure and cleanup. These are automated input-path checks; physical desktop input and a VRChat client comparison were not performed.
 - Package validation passed 1,752 checks and localization passed 15,097 checks across 487 keys in each of five languages. All nine changed production scripts matched the isolated fixture and the backed-up/synchronized Test-Avatar installation by SHA-256; the three changed test runners matched the fixture. Test-Avatar compiled without Console errors, and its previous simulation view, distance, movement settings and microphone preference were restored. No model, animation or scene asset was edited.
 
-## Unified simulation camera controls (unreleased)
+## Unified simulation camera controls (0.5.0)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
 
@@ -20,7 +29,7 @@ Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on 
 - Test-Avatar compiled without Console errors. A temporary preview-scene camera rendered the actual Chocolat scene through the production camera component: both descriptor eye and root projected to horizontal viewport coordinate 0.5, and the inspected image was centered. Avatar root position/rotation and the scene's unsaved flag were preserved. No model, animation or scene asset was edited. The render probe ran in Edit Mode and does not validate locomotion animation or client equivalence.
 - F5/zoom and ordinary tool actions were invoked through their actual subscribed events and tool methods. Physical UI/key input, actual Play transitions with domain reload disabled and VRChat client comparison were not performed.
 
-## Scene Camera restoration (unreleased)
+## Scene Camera restoration (0.5.0)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
 

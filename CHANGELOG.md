@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - Add captured Game-view Tab free rotation in third person. Mouse look rotates the camera independently of the avatar; A/D turns the avatar in place, and a new W/S press restores camera-relative movement. Preserve held forward/backward movement and repeated Tab orbits; clear free rotation on first-person/observer transitions and session cleanup. Add five-language controls help.
 - Connect the ordinary Scene Camera switch to the active Game Simulation view. Its state follows the View selector and F5; disabling the observer restores the preceding player-camera state, including third person zoomed into first person, without changing the regular camera preference.
