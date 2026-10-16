@@ -52,6 +52,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             {
                 _viewMode = _session.ViewMode;
                 _followObserverCamera = _session.FollowObserverCamera;
+                _cameraDistance = _session.CameraDistance;
             }
             var modes = new[] { SimulationViewMode.SceneCamera, SimulationViewMode.FirstPerson, SimulationViewMode.ThirdPerson };
             var view = EditorGUILayout.Popup(EditorLocalization.Tr("View"), Array.IndexOf(modes, _viewMode),
@@ -69,8 +70,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _followObserverCamera = followObserver;
                 if (Active) _session.SetObserverCameraFollow(_followObserverCamera);
             }
-            var distance = Mathf.Max(0.5f, Sanitize(EditorGUILayout.FloatField(new GUIContent(EditorLocalization.Tr("Third-Person Distance"),
-                EditorLocalization.Tr("Third-Person Distance (avatar heights)")), _cameraDistance), 2f, 6f));
+            var distance = Sanitize(EditorGUILayout.FloatField(new GUIContent(EditorLocalization.Tr("Third-Person Distance"),
+                EditorLocalization.Tr("Third-Person Distance (avatar heights; zero returns to first person)")), _cameraDistance), 2f, 6f);
             if (distance != _cameraDistance)
             {
                 _cameraDistance = distance;
@@ -112,9 +113,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             _showControls = EditorGUILayout.Foldout(_showControls, EditorLocalization.Tr("Controls"), true);
             if (_showControls)
             {
-                EditorGUILayout.HelpBox(EditorLocalization.Tr("Game view: WASD moves, < / > turns, V switches views, Shift runs forward / backward, C toggles crouch, and Z toggles prone. Mouse look and capture apply only in first / third person. Space jumps when gravity is enabled and the avatar is grounded."), MessageType.Info);
-                EditorGUILayout.HelpBox(EditorLocalization.Tr("Scene view: WASD moves, < / > turns, Shift runs forward / backward, C toggles crouch, Z toggles prone, and Space jumps when gravity is enabled and the avatar is grounded. Observer following is off by default. Alt or right / middle mouse suspends avatar input for camera navigation."), MessageType.Info);
-                EditorGUILayout.HelpBox(EditorLocalization.Tr("Esc releases the Game-view mouse and suspends input. Click the Game view or use Resume Input to continue. First person hides the local avatar from the simulation camera; the Scene view and third person still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor."), MessageType.Info);
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Game view: WASD moves, < / > turns, F5 toggles third-person mode, Shift runs forward / backward, C toggles crouch, and Z toggles prone. While third-person mode is enabled, the wheel adjusts distance; zooming fully in returns to first person. Mouse look and wheel zoom require captured input. Space jumps when gravity is enabled and the avatar is grounded."), MessageType.Info);
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Scene view: WASD moves, < / > turns, Shift runs forward / backward, C toggles crouch, Z toggles prone, and Space jumps when gravity is enabled and the avatar is grounded. Observer following is off by default. Alt, mouse navigation and the wheel remain available to the editor."), MessageType.Info);
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Esc releases captured Game-view input. Click the Game view or use Resume Input to continue. Select Scene Camera in View for a free observer cursor. First person hides the local avatar from the simulation camera; observer and third-person views still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor."), MessageType.Info);
                 EditorGUILayout.HelpBox(EditorLocalization.Tr("Keyboard input requires Active Input Handling: Input Manager (Old) or Both. The motion input interface is ready for future VR adapters; headset tracking and IK are not implemented yet."), MessageType.Info);
             }
         }

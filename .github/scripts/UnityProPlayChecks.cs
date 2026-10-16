@@ -8,6 +8,7 @@ using VRCLearn.GestureManagerPro.Control.Editor;
 using VRCLearn.GestureManagerPro.Extensions.Editor;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
+using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools;
 using VRCLearn.GestureManagerPro.Modules;
 using UnityEditor;
 using UnityEngine;
@@ -66,6 +67,7 @@ public static class UnityProPlayChecks
             UnityProStatisticsLifecycleChecks.Run(Check);
             ExecuteChecks();
             CheckTemporaryGround();
+            CheckThirdPersonCamera();
             CheckObserverCamera();
             CheckSimulationMicrophone();
             UnityProCameraChecks.Run(Check);
@@ -442,6 +444,8 @@ public static class UnityProPlayChecks
                     "Exiting game simulation preserves cursor state and suspends input");
                 Check(typeof(KeyboardMotionInputSource).GetField("ViewToggleRequested", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(keyboard) == null,
                     "Stop removes view input subscriptions");
+                Check(typeof(KeyboardMotionInputSource).GetField("CameraZoomRequested", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(keyboard) == null,
+                    "Stop removes wheel input subscriptions");
             }
         }
         finally
@@ -658,6 +662,154 @@ public static class UnityProPlayChecks
             Physics.gravity = originalGravity;
             EditorApplication.isPaused = paused;
             Physics.SyncTransforms();
+        }
+    }
+
+    private static void CheckThirdPersonCamera()
+    {
+        GameObject avatar = null;
+        GameObject wall = null;
+        GestureManager manager = null;
+        ControlledModeSession session = null;
+        var paused = EditorApplication.isPaused;
+        using (var keyboard = new KeyboardMotionInputSource(true))
+        {
+            try
+            {
+                EditorApplication.isPaused = false;
+                avatar = new GameObject("Pro third-person camera validation avatar");
+                avatar.transform.position = new Vector3(1450f, 90f, 1450f);
+                avatar.AddComponent<Animator>();
+                var visible = avatar.AddComponent<MeshRenderer>();
+                var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
+                descriptor.ViewPosition = new Vector3(0f, 1.6f, 0f);
+                var module = new ModuleVrc3(descriptor) { Active = true, Settings = new ModuleSettings() };
+                foreach (var name in ParameterNames)
+                    module.Params.Add(name, new Vrc3Param(name, AnimatorControllerParameterType.Float));
+                manager = new GameObject("Pro third-person camera validation manager").AddComponent<GestureManager>();
+                manager.Module = module;
+                session = new ControlledModeSession();
+                Check(session.Start(manager, keyboard, viewMode: SimulationViewMode.FirstPerson),
+                    "The third-person fixture starts from an explicit first-person session: " + session.Error);
+                var preview = session.ViewCamera;
+                var camera = preview.PreviewCamera;
+                var cameraObject = preview.gameObject;
+                const BindingFlags any = BindingFlags.Instance | BindingFlags.NonPublic;
+                var toggle = (Action)typeof(KeyboardMotionInputSource).GetField("ViewToggleRequested", any).GetValue(keyboard);
+                var zoom = (Action<float>)typeof(KeyboardMotionInputSource).GetField("CameraZoomRequested", any).GetValue(keyboard);
+                Action<string> render = method => typeof(MotionPreviewCamera).GetMethod(method, any)
+                    .Invoke(preview, new object[] { camera });
+                Check(!session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.FirstPerson,
+                    "Explicit first person starts with the optional third-person feature disabled");
+                var disabledDistance = session.CameraDistance;
+                zoom(-1f);
+                Check(session.CameraDistance == disabledDistance && session.ViewMode == SimulationViewMode.FirstPerson,
+                    "Wheel input cannot enable third person when the feature is disabled");
+
+                toggle();
+                Check(session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson &&
+                    Mathf.Abs(session.CameraDistance - 2f) < 0.0001f,
+                    "F5 enables third person at its default remembered distance");
+                session.SetCameraDistance(3f);
+                zoom(1f);
+                Check(Mathf.Abs(session.CameraDistance - 2.75f) < 0.0001f &&
+                    Mathf.Abs(preview.Distance - preview.Height * 2.75f) < 0.0001f,
+                    "Positive wheel input zooms inward by a quarter avatar height and updates the public UI distance");
+                var distance = session.CameraDistance;
+                zoom(float.NaN);
+                zoom(float.PositiveInfinity);
+                zoom(float.NegativeInfinity);
+                zoom(0f);
+                Check(session.CameraDistance == distance, "Nonfinite and zero wheel input cannot corrupt camera distance");
+                session.SetCameraDistance(float.NaN);
+                Check(session.CameraDistance == 2f, "A nonfinite distance setting uses the two-height default");
+                session.SetCameraDistance(float.PositiveInfinity);
+                Check(session.CameraDistance == 2f, "An infinite distance setting uses the same finite default");
+                session.SetCameraDistance(100f);
+                Check(session.CameraDistance == 6f, "Distance settings retain the six-height outer limit");
+                session.AdjustCameraDistance(-100f);
+                Check(session.CameraDistance == 6f, "Wheel zoom-out cannot exceed the outer distance limit");
+                session.SetCameraDistance(0.051f);
+                Check(session.ViewMode == SimulationViewMode.ThirdPerson && session.ThirdPersonEnabled && preview.Distance < 0.1f,
+                    "A positive distance just outside the snap threshold remains a genuinely close third-person view");
+                session.SetCameraDistance(0.05f);
+                Check(session.CameraDistance == 0f && session.ViewMode == SimulationViewMode.FirstPerson && session.ThirdPersonEnabled,
+                    "Reaching the closest distance enters first person while keeping third person enabled");
+                render("BeginCameraRendering");
+                Check(visible.forceRenderingOff, "The closest first-person camera applies first-person avatar visibility");
+                zoom(-1f);
+                Check(session.CameraDistance == 0.25f && session.ViewMode == SimulationViewMode.ThirdPerson &&
+                    session.ThirdPersonEnabled && !visible.forceRenderingOff,
+                    "Zooming outward from the closest view returns to third person and immediately restores renderer visibility");
+                render("EndCameraRendering");
+
+                session.SetCameraDistance(3f);
+                session.SetCameraDistance(0f);
+                toggle();
+                Check(!session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.FirstPerson,
+                    "F5 disables the feature even when an enabled third-person camera is zoomed into first person");
+                disabledDistance = session.CameraDistance;
+                zoom(-2f);
+                Check(session.CameraDistance == disabledDistance && session.ViewMode == SimulationViewMode.FirstPerson,
+                    "Wheel input stays inactive after F5 disables a zoomed-in third-person camera");
+                toggle();
+                Check(session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson && session.CameraDistance == 3f,
+                    "Re-enabling third person restores the last positive distance rather than remaining at zero");
+                for (var repeat = 0; repeat < 3; repeat++)
+                {
+                    toggle();
+                    Check(!session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.FirstPerson,
+                        "Repeated F5 toggles consistently disable third person, cycle " + repeat);
+                    toggle();
+                    Check(session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson && session.CameraDistance == 3f,
+                        "Repeated F5 toggles consistently restore third person, cycle " + repeat);
+                }
+
+                preview.ApplyView();
+                var eye = avatar.transform.TransformPoint(descriptor.ViewPosition);
+                var direction = (preview.transform.position - eye).normalized;
+                wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                wall.name = "Pro third-person near-eye obstruction";
+                wall.transform.position = eye + direction * 0.2f;
+                wall.transform.localScale = Vector3.one * 0.15f;
+                Physics.SyncTransforms();
+                preview.ApplyView();
+                Check(Vector3.Distance(preview.transform.position, eye) < 0.2f &&
+                    session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson && session.CameraDistance == 3f,
+                    "A wall can shorten the physical camera boom without disabling third person or changing its configured distance");
+                render("BeginCameraRendering");
+                Check(!visible.forceRenderingOff, "Obstruction-shortened third person keeps third-person visibility rules");
+                render("EndCameraRendering");
+                UnityEngine.Object.DestroyImmediate(wall);
+                Physics.SyncTransforms();
+                preview.ApplyView();
+                Check(Vector3.Distance(preview.transform.position, eye) > 4f && session.ThirdPersonEnabled,
+                    "Removing an obstruction restores the configured third-person distance without another toggle");
+
+                session.SetViewMode(SimulationViewMode.SceneCamera);
+                distance = session.CameraDistance;
+                zoom(1f);
+                Check(!session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.SceneCamera && session.CameraDistance == distance,
+                    "Wheel input cannot zoom or leave an explicitly selected Scene observer");
+                toggle();
+                Check(session.ThirdPersonEnabled && session.ViewMode == SimulationViewMode.ThirdPerson && !keyboard.ObserverView &&
+                    keyboard.Suspended && !keyboard.Captured &&
+                    (bool)typeof(KeyboardMotionInputSource).GetField("_captureRequested", any).GetValue(keyboard),
+                    "F5 from an observer enables third person and requests fresh Game input capture");
+                session.Stop();
+                Check(!cameraObject && !visible.forceRenderingOff && !keyboard.Captured &&
+                    typeof(KeyboardMotionInputSource).GetField("ViewToggleRequested", any).GetValue(keyboard) == null &&
+                    typeof(KeyboardMotionInputSource).GetField("CameraZoomRequested", any).GetValue(keyboard) == null,
+                    "Stopping third-person simulation restores visibility and releases camera input and subscriptions");
+            }
+            finally
+            {
+                session?.Dispose();
+                if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
+                if (wall) UnityEngine.Object.DestroyImmediate(wall);
+                if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+                EditorApplication.isPaused = paused;
+            }
         }
     }
 
@@ -931,14 +1083,17 @@ public static class UnityProPlayChecks
                 var toggle = (Action)typeof(KeyboardMotionInputSource)
                     .GetField("ViewToggleRequested", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(keyboard);
                 toggle();
-                Check(session.ViewMode == SimulationViewMode.SceneCamera && keyboard.ObserverView,
-                    "The V view event cycles from third person into the Scene observer");
+                Check(session.ViewMode == SimulationViewMode.FirstPerson && !session.ThirdPersonEnabled && !keyboard.ObserverView,
+                    "F5 disables third-person mode and returns to the first-person player view");
                 toggle();
-                Check(session.ViewMode == SimulationViewMode.FirstPerson && !keyboard.ObserverView,
-                    "The next V view event cycles from Scene observer into first person");
+                Check(session.ViewMode == SimulationViewMode.ThirdPerson && session.ThirdPersonEnabled && !keyboard.ObserverView,
+                    "F5 enables third person again without cycling through the Scene observer");
+                session.SetViewMode(SimulationViewMode.SceneCamera);
+                Check(!session.ThirdPersonEnabled && keyboard.ObserverView,
+                    "The Scene observer remains a separate explicit view selection");
                 toggle();
-                Check(session.ViewMode == SimulationViewMode.ThirdPerson && !keyboard.ObserverView,
-                    "The V view cycle continues from first person back to third person");
+                Check(session.ViewMode == SimulationViewMode.ThirdPerson && session.ThirdPersonEnabled && !keyboard.ObserverView,
+                    "F5 from the Scene observer enables the third-person player camera");
                 session.Stop();
                 Check(module.SimulationCamera == null,
                     "Observer cleanup restores an originally empty module camera reference to null");

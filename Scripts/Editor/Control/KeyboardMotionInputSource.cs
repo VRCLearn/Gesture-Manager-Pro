@@ -38,6 +38,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public bool Suspended { get; private set; } = true;
         public bool HasInputFocus => HasGameViewFocus || (GameSimulation && HasSceneViewFocus);
         public event Action ViewToggleRequested;
+        public event Action<float> CameraZoomRequested;
         public static bool HasGameViewFocus => Application.isFocused && !EditorGUIUtility.editingTextField && EditorWindow.focusedWindow &&
             EditorWindow.focusedWindow.GetType().FullName == "UnityEditor.GameView";
         public static bool HasSceneViewFocus => UnityEditorInternal.InternalEditorUtility.isApplicationActive && !EditorGUIUtility.editingTextField &&
@@ -86,12 +87,24 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             if (!GameSimulation) return new MotionInputFrame(move, turn);
             var sensitivity = float.IsNaN(LookSensitivity) || float.IsInfinity(LookSensitivity) ? 2f : Mathf.Clamp(LookSensitivity, 0f, 20f);
             var look = ObserverView ? Vector2.zero : new Vector2(Input.GetAxisRaw("Mouse X"), -Input.GetAxisRaw("Mouse Y")) * sensitivity;
-            if (Input.GetKeyDown(KeyCode.V)) ViewToggleRequested?.Invoke();
-            if (Suspended) return default;
+            var modified = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt) ||
+                Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) ||
+                Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
             var sprint = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            ProcessGameCameraInput(Input.GetKeyDown(KeyCode.F5), Input.mouseScrollDelta.y, modified, sprint);
+            if (Suspended) return default;
             var pose = Input.GetKeyDown(KeyCode.C) ? MotionPose.Crouch :
                 Input.GetKeyDown(KeyCode.Z) ? MotionPose.Prone : MotionPose.None;
             return new MotionInputFrame(move, turn, look, sprint ? 2f : 1f, Input.GetKeyDown(KeyCode.Space), pose);
+        }
+
+        private void ProcessGameCameraInput(bool toggle, float scroll, bool modified, bool shift)
+        {
+            if (_disposed || Suspended) return;
+            if (toggle && !modified && !shift) ViewToggleRequested?.Invoke();
+            if (_disposed || Suspended || ObserverView || !_captured || modified ||
+                float.IsNaN(scroll) || float.IsInfinity(scroll) || scroll == 0f) return;
+            CameraZoomRequested?.Invoke(scroll);
         }
 
         public void RequestCapture()
@@ -127,6 +140,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             if (GameSimulation) SceneView.duringSceneGui -= OnSceneGUI;
             _disposed = true;
             ViewToggleRequested = null;
+            CameraZoomRequested = null;
         }
 
         private void ObserveFocus(EditorWindow window)
@@ -226,7 +240,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         private static float Axis(KeyCode negative, KeyCode positive) => (Input.GetKey(positive) ? 1f : 0f) - (Input.GetKey(negative) ? 1f : 0f);
         private static bool AnyControlKeyHeld() => Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) ||
-            Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.Comma) || Input.GetKey(KeyCode.Period) || Input.GetKey(KeyCode.V) ||
+            Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.Comma) || Input.GetKey(KeyCode.Period) || Input.GetKey(KeyCode.F5) ||
             Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ||
             Input.GetKey(KeyCode.C) || Input.GetKey(KeyCode.Z) ||
             Input.GetKey(KeyCode.Escape) || AnyMouseButtonHeld();

@@ -257,6 +257,7 @@ public static class UnityProMotionChecks
                 keyboard.RequestCapture();
                 check(keyboard.Sample().Move == Vector2.zero && !keyboard.Captured, "Disposed keyboard input cannot capture or resume movement");
             }
+            CheckGameCameraInput(check);
             CheckSceneInput(check);
             CheckJump(check);
             using (var session = new ControlledModeSession())
@@ -272,6 +273,76 @@ public static class UnityProMotionChecks
             if (motorObject) UnityEngine.Object.DestroyImmediate(motorObject);
             if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
         }
+    }
+
+    private static void CheckGameCameraInput(Action<bool, string> check)
+    {
+        const BindingFlags any = BindingFlags.Instance | BindingFlags.NonPublic;
+        var cursorLock = Cursor.lockState;
+        var cursorVisible = Cursor.visible;
+        using (var keyboard = new KeyboardMotionInputSource(true))
+        {
+            var toggleCount = 0;
+            var zoomCount = 0;
+            var zoom = 0f;
+            keyboard.ViewToggleRequested += () => toggleCount++;
+            keyboard.CameraZoomRequested += delta => { zoom += delta; zoomCount++; };
+            var process = typeof(KeyboardMotionInputSource).GetMethod("ProcessGameCameraInput", any);
+            Action<bool, float, bool, bool> send = (toggle, scroll, modified, shift) =>
+                process.Invoke(keyboard, new object[] { toggle, scroll, modified, shift });
+            var captured = typeof(KeyboardMotionInputSource).GetField("_captured", any);
+            var suspended = typeof(KeyboardMotionInputSource).GetField("<Suspended>k__BackingField", any);
+            typeof(KeyboardMotionInputSource).GetField("_previousCursorLock", any).SetValue(keyboard, cursorLock);
+            typeof(KeyboardMotionInputSource).GetField("_previousCursorVisible", any).SetValue(keyboard, cursorVisible);
+
+            keyboard.ObserverView = true;
+            suspended.SetValue(keyboard, false);
+            send(true, 1f, false, false);
+            check(toggleCount == 1 && zoomCount == 0 && !keyboard.Captured,
+                "The post-gate Game camera dispatcher allows F5 from observer mode while ignoring observer wheel input");
+            send(true, 1f, true, false);
+            send(true, 0f, false, true);
+            send(false, 0f, false, false);
+            check(toggleCount == 1 && zoomCount == 0,
+                "Modified or Shift F5 does not toggle the player camera and a later frame cannot replay an old toggle");
+            keyboard.ObserverView = false;
+            suspended.SetValue(keyboard, false);
+            send(false, 1f, false, false);
+            check(zoomCount == 0, "An uncaptured player view cannot consume Game camera wheel input");
+            captured.SetValue(keyboard, true);
+            suspended.SetValue(keyboard, true);
+            send(false, 1f, false, false);
+            check(zoomCount == 0, "A suspended player camera cannot consume wheel input even while capture is retained");
+            suspended.SetValue(keyboard, false);
+            send(false, 1f, false, false);
+            send(true, -0.5f, false, true);
+            check(toggleCount == 1 && zoomCount == 2 && Mathf.Abs(zoom - 0.5f) < 0.0001f,
+                "A captured Game camera receives signed wheel deltas while Shift filters only F5");
+            send(true, 2f, true, false);
+            send(false, float.NaN, false, false);
+            send(false, float.PositiveInfinity, false, false);
+            send(false, float.NegativeInfinity, false, false);
+            send(false, 0f, false, false);
+            check(toggleCount == 1 && zoomCount == 2,
+                "Editor modifiers and nonfinite or zero scroll values produce no Game camera events");
+            send(true, 0f, false, false);
+            check(toggleCount == 2, "A new unmodified F5 request produces exactly one new toggle event");
+            keyboard.Reset();
+            send(false, 0f, false, false);
+            if (!keyboard.HasInputFocus) keyboard.Sample();
+            check(toggleCount == 2 && zoomCount == 2 && !keyboard.Captured && keyboard.Suspended &&
+                Cursor.lockState == cursorLock && Cursor.visible == cursorVisible,
+                "Reset and unfocused sampling release camera input without replaying toggle or wheel events");
+            keyboard.Dispose();
+            check(typeof(KeyboardMotionInputSource).GetField("ViewToggleRequested", any).GetValue(keyboard) == null &&
+                typeof(KeyboardMotionInputSource).GetField("CameraZoomRequested", any).GetValue(keyboard) == null,
+                "Disposing Game input clears both player camera event subscriptions");
+            send(true, 1f, false, false);
+            check(toggleCount == 2 && zoomCount == 2,
+                "Disposed Game input cannot deliver deferred player camera actions");
+        }
+        check(Cursor.lockState == cursorLock && Cursor.visible == cursorVisible,
+            "Deterministic Game camera dispatch checks leave the real cursor state unchanged");
     }
 
     private static void CheckSceneInput(Action<bool, string> check)
@@ -479,14 +550,23 @@ public static class UnityProMotionChecks
                 CheckSceneAction(KeyCode.C, MotionPose.Crouch);
                 CheckSceneAction(KeyCode.Z, MotionPose.Prone);
                 var toggle = new Event { type = EventType.KeyDown, keyCode = KeyCode.V };
+                var playerCamera = new Event { type = EventType.KeyDown, keyCode = KeyCode.F5 };
+                var wheel = new Event { type = EventType.ScrollWheel, delta = new Vector2(0f, -3f) };
+                var viewChanges = 0;
+                var zoomChanges = 0;
+                keyboard.ViewToggleRequested += () => viewChanges++;
+                keyboard.CameraZoomRequested += _ => zoomChanges++;
                 var look = new Event { type = EventType.MouseDrag, button = 0, delta = new Vector2(30f, 20f) };
                 var lookType = look.type;
                 send(toggle);
+                send(playerCamera);
+                send(wheel);
                 send(look);
                 frame = read();
-                check(toggle.type == EventType.KeyDown && look.type == lookType && look.rawType == EventType.MouseDrag &&
+                check(toggle.type == EventType.KeyDown && playerCamera.type == EventType.KeyDown && wheel.type == EventType.ScrollWheel &&
+                    look.type == lookType && look.rawType == EventType.MouseDrag && viewChanges == 0 && zoomChanges == 0 &&
                     frame.LookDelta == Vector2.zero && !frame.Jump && frame.Pose == MotionPose.None && !keyboard.Captured,
-                    "Scene control leaves view toggling and mouse look to the editor without capturing the cursor");
+                    "Scene control leaves F5, V, wheel navigation, and mouse look to the editor without player camera events or cursor capture");
                 keyboard.Dispose();
                 check(keyboard.Sample().Move == Vector2.zero && keyboard.Suspended && !keyboard.Captured,
                     "Disposing Scene input clears latched movement and prevents further sampling");

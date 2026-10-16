@@ -47,6 +47,17 @@ public static class UnityProCameraChecks
                 "Third-person camera orbits behind the avatar with a height-scaled shoulder offset");
             check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(0f, 90f, 0f)) < 0.001f,
                 "Changing view mode preserves the avatar heading");
+            preview.Distance = 0.02f;
+            preview.ApplyView();
+            check(Close(preview.transform.position, eye + Quaternion.Euler(0f, 90f, 0f) * new Vector3(0.004f, 0f, -0.02f)) &&
+                Vector3.Distance(preview.transform.position, eye) < 0.03f,
+                "Close third-person placement shrinks the shoulder offset with distance instead of retaining a fixed side offset");
+            preview.Distance = 0.001f;
+            preview.ApplyView();
+            check(Vector3.Distance(preview.transform.position, eye) < 0.003f,
+                "Positive near-eye third-person distances are not clamped back to a tenth of a meter");
+            preview.Distance = 3f;
+            preview.ApplyView();
 
             check((int)SimulationViewMode.FirstPerson == 0 && (int)SimulationViewMode.ThirdPerson == 1 &&
                 (int)SimulationViewMode.SceneCamera == 2, "Adding observer mode preserves existing view identifiers");
@@ -157,6 +168,19 @@ public static class UnityProCameraChecks
             RenderScope(preview, "BeginCameraRendering", camera);
             check(!visible.forceRenderingOff, "Third-person rendering keeps the avatar visible");
             RenderScope(preview, "EndCameraRendering", camera);
+            preview.Distance = 0.001f;
+            preview.ApplyView();
+            RenderScope(preview, "BeginCameraRendering", camera);
+            check(!visible.forceRenderingOff && hidden.forceRenderingOff,
+                "A positive near-eye distance retains third-person visibility until the session selects first person");
+            RenderScope(preview, "EndCameraRendering", camera);
+            preview.Mode = SimulationViewMode.FirstPerson;
+            RenderScope(preview, "BeginCameraRendering", camera);
+            check(visible.forceRenderingOff, "The nearest first-person mode hides the avatar during its camera render");
+            preview.Mode = SimulationViewMode.ThirdPerson;
+            check(!visible.forceRenderingOff && hidden.forceRenderingOff,
+                "Returning outward from nearest first person immediately restores each renderer's original visibility");
+            preview.Distance = 3f;
             preview.Mode = SimulationViewMode.SceneCamera;
             RenderScope(preview, "BeginCameraRendering", camera);
             check(!visible.forceRenderingOff && hidden.forceRenderingOff,

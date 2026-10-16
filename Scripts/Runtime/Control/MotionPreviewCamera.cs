@@ -85,8 +85,8 @@ namespace VRCLearn.GestureManagerPro.Control
             PreviewCamera.nearClipPlane = Mathf.Clamp(height * 0.01f, 0.005f, 0.1f);
             if (Mode != SimulationViewMode.FirstPerson)
             {
-                var distance = SafePositive(Distance, 3f, 0.1f, 100f);
-                var offset = rotation * new Vector3(height * 0.2f, 0f, -distance);
+                var distance = SafePositive(Distance, 3f, 0.001f, 100f);
+                var offset = rotation * new Vector3(Mathf.Min(height * 0.2f, distance * 0.2f), 0f, -distance);
                 var length = offset.magnitude;
                 var direction = offset / length;
                 var radius = Mathf.Clamp(height * 0.05f, 0.01f, 0.3f);

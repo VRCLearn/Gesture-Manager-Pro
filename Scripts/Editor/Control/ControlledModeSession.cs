@@ -31,6 +31,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private bool _stopping;
         private float _height;
         private float _cameraDistance = 2f;
+        private float _lastThirdPersonDistance = 2f;
         private Vector3 _observerPosition;
         private Vector3 _fallbackObserverOffset;
 
@@ -38,6 +39,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public MotionPreviewCamera ViewCamera { get; private set; }
         public SimulationViewMode ViewMode { get; private set; } = SimulationViewMode.SceneCamera;
         public bool FollowObserverCamera { get; private set; }
+        public bool ThirdPersonEnabled { get; private set; }
+        public float CameraDistance => _cameraDistance;
         public bool Running { get; private set; }
         public string Error { get; private set; }
         public event Action Stopped;
@@ -85,7 +88,11 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _originalControlled = manager.IsPlayerControlled;
                 _input = input;
                 if (gameSimulation) _gameSimulationOwner = this;
-                if (input is KeyboardMotionInputSource keyboardInput) keyboardInput.ViewToggleRequested += ToggleView;
+                if (input is KeyboardMotionInputSource keyboardInput)
+                {
+                    keyboardInput.ViewToggleRequested += ToggleThirdPerson;
+                    keyboardInput.CameraZoomRequested += AdjustCameraDistance;
+                }
                 Owners.Add(manager, this);
                 manager.IsPlayerControlled = true;
                 var height = CapsuleHeight(module);
@@ -178,11 +185,20 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         public void SetViewMode(SimulationViewMode mode)
         {
-            ViewMode = mode == SimulationViewMode.FirstPerson || mode == SimulationViewMode.ThirdPerson
+            var selected = mode == SimulationViewMode.FirstPerson || mode == SimulationViewMode.ThirdPerson
                 ? mode : SimulationViewMode.SceneCamera;
+            ThirdPersonEnabled = selected == SimulationViewMode.ThirdPerson;
+            if (ThirdPersonEnabled && _cameraDistance == 0f) _cameraDistance = _lastThirdPersonDistance;
+            ApplyViewMode(selected);
+        }
+
+        private void ApplyViewMode(SimulationViewMode mode)
+        {
+            ViewMode = mode;
             if (_input is KeyboardMotionInputSource keyboard) keyboard.ObserverView = ViewMode == SimulationViewMode.SceneCamera;
             if (!ViewCamera) return;
             ViewCamera.Mode = ViewMode;
+            ViewCamera.Distance = _height * _cameraDistance;
             ViewCamera.ApplyView();
             SyncObserverCamera();
         }
@@ -244,13 +260,36 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public void SetCameraDistance(float avatarHeights)
         {
             _cameraDistance = float.IsNaN(avatarHeights) || float.IsInfinity(avatarHeights)
-                ? 2f : Mathf.Clamp(avatarHeights, 0.5f, 6f);
+                ? 2f : Mathf.Clamp(avatarHeights, 0f, 6f);
+            if (_cameraDistance <= 0.05f) _cameraDistance = 0f;
+            if (_cameraDistance > 0f) _lastThirdPersonDistance = _cameraDistance;
             if (ViewCamera) ViewCamera.Distance = _height * _cameraDistance;
+            if (ThirdPersonEnabled && ViewMode != SimulationViewMode.SceneCamera)
+                ApplyViewMode(_cameraDistance == 0f ? SimulationViewMode.FirstPerson : SimulationViewMode.ThirdPerson);
         }
 
-        private void ToggleView() => SetViewMode(ViewMode == SimulationViewMode.SceneCamera
-            ? SimulationViewMode.FirstPerson : ViewMode == SimulationViewMode.FirstPerson
-                ? SimulationViewMode.ThirdPerson : SimulationViewMode.SceneCamera);
+        public void AdjustCameraDistance(float scrollDelta)
+        {
+            if (!Running || !ThirdPersonEnabled || ViewMode == SimulationViewMode.SceneCamera ||
+                float.IsNaN(scrollDelta) || float.IsInfinity(scrollDelta) || scrollDelta == 0f) return;
+            // Editor tuning in avatar heights per wheel unit; not a measured client zoom curve.
+            const float wheelStep = 0.25f;
+            SetCameraDistance(_cameraDistance - scrollDelta * wheelStep);
+        }
+
+        private void ToggleThirdPerson()
+        {
+            if (!IsValid()) return;
+            if (ThirdPersonEnabled)
+            {
+                ThirdPersonEnabled = false;
+                ApplyViewMode(SimulationViewMode.FirstPerson);
+                return;
+            }
+            var wasObserver = ViewMode == SimulationViewMode.SceneCamera;
+            SetViewMode(SimulationViewMode.ThirdPerson);
+            if (wasObserver && _input is KeyboardMotionInputSource keyboard) keyboard.RequestCapture();
+        }
 
         public void Stop()
         {
@@ -264,7 +303,11 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 EditorApplication.playModeStateChanged -= OnPlayModeChanged;
                 EditorApplication.pauseStateChanged -= OnPauseChanged;
                 AssemblyReloadEvents.beforeAssemblyReload -= Stop;
-                if (_input is KeyboardMotionInputSource keyboard) keyboard.ViewToggleRequested -= ToggleView;
+                if (_input is KeyboardMotionInputSource keyboard)
+                {
+                    keyboard.ViewToggleRequested -= ToggleThirdPerson;
+                    keyboard.CameraZoomRequested -= AdjustCameraDistance;
+                }
                 TryRestore(() => _input?.Reset());
                 if (_input is KeyboardMotionInputSource ownedKeyboard) TryRestore(ownedKeyboard.Dispose);
                 if (Motor)
@@ -306,6 +349,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _originalModuleCamera = null;
                 _ownedCamera = null;
                 _hasPreviewCamera = false;
+                ThirdPersonEnabled = false;
                 if (ReferenceEquals(_gameSimulationOwner, this)) _gameSimulationOwner = null;
                 Motor = null;
                 if (wasRunning) TryRestore(() => Stopped?.Invoke());
