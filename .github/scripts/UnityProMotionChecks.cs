@@ -259,6 +259,7 @@ public static class UnityProMotionChecks
             }
             CheckGameCameraInput(check);
             CheckSceneInput(check);
+            CheckFreeLook(check);
             CheckStandingHeight(check);
             CheckJump(check);
             using (var session = new ControlledModeSession())
@@ -344,6 +345,164 @@ public static class UnityProMotionChecks
         }
         check(Cursor.lockState == cursorLock && Cursor.visible == cursorVisible,
             "Deterministic Game camera dispatch checks leave the real cursor state unchanged");
+    }
+
+    private static void CheckFreeLook(Action<bool, string> check)
+    {
+        GameObject avatar = null;
+        GameObject motorObject = null;
+        GameObject floor = null;
+        GameObject wall = null;
+        try
+        {
+            var start = new Vector3(1200f, 0f, 1200f);
+            floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            floor.transform.position = start - Vector3.up * 0.1f;
+            floor.transform.localScale = new Vector3(10f, 0.2f, 10f);
+            avatar = new GameObject("Pro validation free-look avatar");
+            avatar.transform.SetPositionAndRotation(start, Quaternion.Euler(8f, 90f, 4f));
+            var tilt = Quaternion.Inverse(Quaternion.Euler(0f, avatar.transform.eulerAngles.y, 0f)) * avatar.transform.rotation;
+            motorObject = new GameObject("Pro validation free-look motor");
+            var motor = motorObject.AddComponent<CharacterMotionMotor>();
+            motor.UseGravity = true;
+            var input = new TestMotionInput();
+            var canMove = true;
+            motor.Initialize(avatar.transform, input, 1.8f, 0.2f, 0f, () => canMove, _ => { });
+            Physics.SyncTransforms();
+            motor.Step(0.02f);
+            var body = motor.transform.rotation;
+            var position = avatar.transform.position;
+            motor.EnableFreeLook();
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, new Vector2(75f, -15f));
+            motor.Step(0.02f);
+            check(motor.FreeLook && Mathf.Abs(Mathf.DeltaAngle(165f, motor.ViewYaw)) < 0.001f && motor.ViewPitch == -15f &&
+                Quaternion.Angle(body, motor.transform.rotation) < 0.001f && Vector3.Distance(position, avatar.transform.position) < 0.0005f &&
+                motor.LastResult.AngularDegreesPerSecond == 0f,
+                "Free mouse look changes only camera yaw and pitch while the standing avatar remains still");
+            motor.EnableFreeLook();
+            check(Mathf.Abs(Mathf.DeltaAngle(165f, motor.ViewYaw)) < 0.001f,
+                "Repeated free-look enable calls do not recenter the existing camera orbit");
+            input.Frame = new MotionInputFrame(Vector2.zero, 1f, new Vector2(0f, 5f));
+            motor.Step(0.1f);
+            check(Mathf.Abs(Mathf.DeltaAngle(102f, motor.transform.eulerAngles.y)) < 0.001f &&
+                Mathf.Abs(Mathf.DeltaAngle(165f, motor.ViewYaw)) < 0.001f && motor.ViewPitch == -10f &&
+                Mathf.Abs(motor.LastResult.AngularDegreesPerSecond - 120f) < 0.01f &&
+                Vector3.Distance(position, avatar.transform.position) < 0.0005f,
+                "Free-look body turning rotates in place and publishes AngularY without rotating the camera yaw");
+            input.Frame = new MotionInputFrame(Vector2.zero, -1f);
+            motor.Step(0.1f);
+            body = motor.transform.rotation;
+            motor.DisableFreeLook();
+            check(!motor.FreeLook && Quaternion.Angle(body, motor.transform.rotation) < 0.001f &&
+                Mathf.Abs(Mathf.DeltaAngle(motor.ViewYaw, motor.transform.eulerAngles.y)) < 0.001f,
+                "Leaving free look without alignment restores body-relative camera yaw without rotating the avatar");
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            motor.Step(0.1f);
+            motor.EnableFreeLook();
+            position = avatar.transform.position;
+            input.Frame = new MotionInputFrame(Vector2.up, 0f, new Vector2(-60f, 0f));
+            motor.Step(0.1f);
+            check(motor.FreeLook && Mathf.Abs(Mathf.DeltaAngle(30f, motor.ViewYaw)) < 0.001f &&
+                Quaternion.Angle(body, motor.transform.rotation) < 0.001f && avatar.transform.position.x > position.x + 0.19f,
+                "Enabling free look during held forward movement keeps walking along the existing body heading");
+            motor.Halt();
+            motor.DisableFreeLook(true);
+            motor.DisableFreeLook(true);
+            position = avatar.transform.position;
+            check(Quaternion.Angle(body, motor.transform.rotation) < 0.001f,
+                "Requesting forward resumption queues alignment instead of rotating outside the physics step");
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            motor.Step(0.1f);
+            check(Vector3.Distance(avatar.transform.position, position + Quaternion.Euler(0f, 30f, 0f) * Vector3.forward * 0.105f) < 0.0005f &&
+                Mathf.Abs(Mathf.DeltaAngle(30f, motor.transform.eulerAngles.y)) < 0.001f &&
+                Mathf.Abs(motor.LastResult.AngularDegreesPerSecond + 600f) < 0.01f,
+                "A new forward press aligns to the former camera yaw, moves in that direction and publishes the alignment in AngularY");
+            motor.Halt();
+            motor.EnableFreeLook();
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, new Vector2(120f, 0f));
+            motor.Step(0.02f);
+            motor.DisableFreeLook(true);
+            position = avatar.transform.position;
+            input.Frame = new MotionInputFrame(Vector2.down, 0f);
+            motor.Step(0.1f);
+            check(Vector3.Distance(avatar.transform.position, position - Quaternion.Euler(0f, 150f, 0f) * Vector3.forward * 0.105f) < 0.0005f &&
+                Mathf.Abs(Mathf.DeltaAngle(150f, motor.transform.eulerAngles.y)) < 0.001f &&
+                Mathf.Abs(motor.LastResult.AngularDegreesPerSecond - 1200f) < 0.01f,
+                "A new backward press aligns the body to the camera yaw and then moves backward rather than facing the travel direction");
+            motor.Halt();
+            motor.EnableFreeLook();
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, new Vector2(35f, 0f));
+            motor.Step(0.02f);
+            motor.DisableFreeLook(true);
+            body = motor.transform.rotation;
+            canMove = false;
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            motor.Step(0.1f);
+            check(Quaternion.Angle(body, motor.transform.rotation) < 0.001f && motor.LastResult.AngularDegreesPerSecond == 0f,
+                "Blocked locomotion cannot apply a queued free-look alignment");
+            canMove = true;
+            motor.Step(0.1f);
+            check(Mathf.Abs(Mathf.DeltaAngle(185f, motor.transform.eulerAngles.y)) < 0.001f &&
+                Mathf.Abs(motor.LastResult.AngularDegreesPerSecond - 350f) < 0.01f,
+                "Queued alignment is consumed only after the movement gate accepts a physics step");
+            motor.Halt();
+            motor.EnableFreeLook();
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, new Vector2(55f, 0f));
+            motor.Step(0.02f);
+            motor.DisableFreeLook(true);
+            motor.DisableFreeLook();
+            body = motor.transform.rotation;
+            input.Frame = default;
+            motor.Step(0.02f);
+            check(Quaternion.Angle(body, motor.transform.rotation) < 0.001f && motor.LastResult.AngularDegreesPerSecond == 0f,
+                "A view change can cancel pending free-look alignment without rotating the model later");
+            motor.EnableFreeLook();
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, new Vector2(180f, 180f));
+            for (var step = 0; step < 5; step++) motor.Step(0.02f);
+            var viewYaw = motor.ViewYaw;
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, new Vector2(float.NaN, float.PositiveInfinity));
+            motor.Step(0.02f);
+            check(motor.ViewYaw >= 0f && motor.ViewYaw < 360f && motor.ViewYaw == viewYaw && motor.ViewPitch == 85f &&
+                Quaternion.Angle(body, motor.transform.rotation) < 0.001f,
+                "Free-look angles wrap and clamp while nonfinite external look input cannot corrupt camera or body state");
+            motor.DisableFreeLook();
+            motor.transform.SetPositionAndRotation(start, Quaternion.identity);
+            avatar.transform.SetPositionAndRotation(start, tilt);
+            Physics.SyncTransforms();
+            motor.Halt();
+            motor.EnableFreeLook();
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, new Vector2(90f, 0f));
+            motor.Step(0.02f);
+            wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.transform.position = start + new Vector3(0f, 1.5f, 1.2f);
+            wall.transform.localScale = new Vector3(4f, 3f, 0.1f);
+            Physics.SyncTransforms();
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            for (var step = 0; step < 120; step++) motor.Step(0.02f);
+            check(motor.FreeLook && Mathf.Abs(Mathf.DeltaAngle(90f, motor.ViewYaw)) < 0.001f &&
+                motor.LastResult.Grounded && Mathf.Abs(motor.LastResult.LocalVelocity.z) < 0.001f &&
+                avatar.transform.position.z + motor.Controller.radius <= wall.GetComponent<Collider>().bounds.min.z + 0.0005f &&
+                Mathf.Abs(avatar.transform.position.y) < 0.0005f,
+                "Free-look movement retains real wall blocking and grounded standing height while the camera faces independently");
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, jump: true);
+            motor.Step(0.02f);
+            check(avatar.transform.position.y > 0.01f && !motor.LastResult.Grounded && motor.FreeLook,
+                "Free-look orbit does not disable grounded jumping or its airborne transition");
+            input.Frame = default;
+            for (var step = 0; step < 120; step++) motor.Step(0.02f);
+            check(motor.LastResult.Grounded && Mathf.Abs(avatar.transform.position.y) < 0.0005f &&
+                Mathf.Abs(Mathf.DeltaAngle(90f, motor.ViewYaw)) < 0.001f &&
+                Quaternion.Angle(avatar.transform.rotation, motor.transform.rotation * tilt) < 0.001f,
+                "Free-look jumping lands normally and preserves the original model tilt and independent camera yaw");
+        }
+        finally
+        {
+            if (motorObject) UnityEngine.Object.DestroyImmediate(motorObject);
+            if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            if (wall) UnityEngine.Object.DestroyImmediate(wall);
+            if (floor) UnityEngine.Object.DestroyImmediate(floor);
+            Physics.SyncTransforms();
+        }
     }
 
     private static void CheckSceneInput(Action<bool, string> check)

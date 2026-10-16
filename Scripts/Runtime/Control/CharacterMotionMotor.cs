@@ -16,6 +16,7 @@ namespace VRCLearn.GestureManagerPro.Control
         private Quaternion _tilt;
         private float _verticalVelocity;
         private Vector2 _horizontalVelocity;
+        private float? _pendingViewYawAlignment;
         private bool _initialized;
 
         public float MoveSpeed { get; set; } = 2f;
@@ -26,6 +27,8 @@ namespace VRCLearn.GestureManagerPro.Control
         public bool Collisions { get; set; } = true;
         public bool UseGravity { get; set; }
         public float ViewPitch { get; private set; }
+        public float ViewYaw { get; private set; }
+        public bool FreeLook { get; private set; }
         public MotionResult LastResult { get; private set; }
         public CharacterController Controller => _controller;
         public event Action<Exception> Failed;
@@ -41,7 +44,8 @@ namespace VRCLearn.GestureManagerPro.Control
             _input = input;
             _canMove = canMove;
             _publish = publish;
-            var yaw = Quaternion.Euler(0f, avatar.eulerAngles.y, 0f);
+            ViewYaw = WrapYaw(avatar.eulerAngles.y);
+            var yaw = Quaternion.Euler(0f, ViewYaw, 0f);
             _tilt = Quaternion.Inverse(yaw) * avatar.rotation;
             transform.SetPositionAndRotation(avatar.position, yaw);
             _controller = GetComponent<CharacterController>();
@@ -70,6 +74,23 @@ namespace VRCLearn.GestureManagerPro.Control
             if (_initialized && _avatar) ApplyAvatarTransform();
         }
 
+        public void EnableFreeLook()
+        {
+            if (!_initialized || FreeLook) return;
+            _pendingViewYawAlignment = null;
+            ViewYaw = WrapYaw(transform.eulerAngles.y);
+            FreeLook = true;
+        }
+
+        public void DisableFreeLook(bool alignToView = false)
+        {
+            if (!_initialized) return;
+            if (FreeLook && alignToView) _pendingViewYawAlignment = ViewYaw;
+            else if (!alignToView) _pendingViewYawAlignment = null;
+            FreeLook = false;
+            if (!_pendingViewYawAlignment.HasValue) ViewYaw = WrapYaw(transform.eulerAngles.y);
+        }
+
         public void Step(float deltaTime)
         {
             if (!_initialized || !_avatar) return;
@@ -95,9 +116,17 @@ namespace VRCLearn.GestureManagerPro.Control
             // A parameter callback may synchronously stop the session and destroy this motor.
             if (!this || !_avatar) return;
             var before = transform.position;
-            var beforeYaw = transform.eulerAngles.y;
-            var yawDelta = input.Turn * SafeSpeed(TurnSpeed, 720f) * deltaTime + input.LookDelta.x;
-            var yaw = beforeYaw + yawDelta;
+            var beforeYaw = WrapYaw(transform.eulerAngles.y);
+            var yawDelta = input.Turn * SafeSpeed(TurnSpeed, 720f) * deltaTime;
+            if (_pendingViewYawAlignment.HasValue)
+            {
+                yawDelta += Mathf.DeltaAngle(beforeYaw, _pendingViewYawAlignment.Value);
+                _pendingViewYawAlignment = null;
+            }
+            if (FreeLook) ViewYaw = WrapYaw(ViewYaw + input.LookDelta.x);
+            else yawDelta += input.LookDelta.x;
+            var yaw = WrapYaw(beforeYaw + yawDelta);
+            if (!FreeLook) ViewYaw = yaw;
             ViewPitch = Mathf.Clamp(ViewPitch + input.LookDelta.y, -85f, 85f);
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
             var speed = SafeSpeed(MoveSpeed, 20f);
@@ -159,6 +188,7 @@ namespace VRCLearn.GestureManagerPro.Control
         }
 
         private void ApplyAvatarTransform() => _avatar.SetPositionAndRotation(transform.position, transform.rotation * _tilt);
+        private static float WrapYaw(float value) => float.IsNaN(value) || float.IsInfinity(value) ? 0f : Mathf.Repeat(value % 360f, 360f);
         private static float SafeSpeed(float value, float maximum) => float.IsNaN(value) || float.IsInfinity(value) ? 0f : Mathf.Clamp(value, 0f, maximum);
     }
 }

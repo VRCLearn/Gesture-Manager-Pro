@@ -75,6 +75,57 @@ public static class UnityProCameraChecks
             preview.Distance = 3f;
             preview.ApplyView();
 
+            var bodyRotation = avatar.transform.rotation;
+            foreach (var yaw in new[] { -135f, 0f, 150f })
+            foreach (var pitch in new[] { -25f, 35f })
+            foreach (var distance in new[] { 0.2f, 3f })
+            {
+                preview.YawOverride = yaw;
+                preview.Pitch = pitch;
+                preview.Distance = distance;
+                preview.ApplyView();
+                check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(pitch, yaw, 0f)) < 0.001f &&
+                    Quaternion.Angle(avatar.transform.rotation, bodyRotation) < 0.001f,
+                    $"Free-look camera yaw {yaw} and pitch {pitch} do not rotate the model at distance {distance}");
+                CheckCentered(camera, avatar.transform.TransformPoint(preview.ViewPosition), check,
+                    $"Free-look viewport at yaw {yaw}, pitch {pitch} and distance {distance}");
+            }
+            preview.YawOverride = 725f;
+            preview.Pitch = 20f;
+            preview.Distance = 3f;
+            preview.ApplyView();
+            var orbitRotation = preview.transform.rotation;
+            avatar.transform.rotation = Quaternion.Euler(0f, 170f, 0f);
+            preview.ApplyView();
+            check(Quaternion.Angle(orbitRotation, Quaternion.Euler(20f, 5f, 0f)) < 0.001f &&
+                Quaternion.Angle(preview.transform.rotation, orbitRotation) < 0.001f,
+                "Free-look yaw wraps and stays independent when the avatar turns beneath the camera");
+            CheckCentered(camera, avatar.transform.TransformPoint(preview.ViewPosition), check,
+                "Free-look framing after independent body turning");
+            foreach (var yaw in new float?[] { null, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+            {
+                preview.YawOverride = yaw;
+                preview.ApplyView();
+                check(Finite(preview.transform.position) &&
+                    Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(20f, 170f, 0f)) < 0.001f,
+                    "A missing or nonfinite free-look yaw falls back to the avatar heading");
+            }
+            preview.YawOverride = float.MaxValue;
+            preview.ApplyView();
+            check(Finite(preview.transform.position) && Finite(preview.transform.eulerAngles),
+                "An extreme finite free-look yaw remains bounded without corrupting the camera transform");
+            preview.YawOverride = -45f;
+            preview.Mode = SimulationViewMode.FirstPerson;
+            preview.ApplyView();
+            check(Close(preview.transform.position, avatar.transform.TransformPoint(preview.ViewPosition)) &&
+                Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(20f, 170f, 0f)) < 0.001f,
+                "First-person placement ignores a retained free-look yaw override");
+            preview.YawOverride = null;
+            avatar.transform.rotation = bodyRotation;
+            preview.Pitch = 0f;
+            preview.Mode = SimulationViewMode.ThirdPerson;
+            preview.ApplyView();
+
             check((int)SimulationViewMode.FirstPerson == 0 && (int)SimulationViewMode.ThirdPerson == 1 &&
                 (int)SimulationViewMode.SceneCamera == 2, "Adding observer mode preserves existing view identifiers");
             preview.Mode = SimulationViewMode.SceneCamera;
@@ -83,12 +134,14 @@ public static class UnityProCameraChecks
             camera.nearClipPlane = 0.123f;
             avatar.transform.position += new Vector3(2f, 1f, 3f);
             preview.Pitch = 40f;
+            preview.YawOverride = -70f;
             preview.ApplyView();
             check(Close(preview.transform.position, observerPosition) &&
                 Quaternion.Angle(preview.transform.rotation, observerRotation) < 0.001f && camera.nearClipPlane == 0.123f,
                 "Observer mode leaves externally supplied camera pose and projection independent of avatar movement and pitch");
             avatar.transform.position -= new Vector3(2f, 1f, 3f);
             preview.Pitch = 0f;
+            preview.YawOverride = null;
 
             avatar.transform.localScale = Vector3.one * 2f;
             avatar.transform.rotation = Quaternion.Euler(10f, 90f, 5f);
@@ -145,6 +198,21 @@ public static class UnityProCameraChecks
             check(Vector3.Distance(preview.transform.position, eye) < 2f && Vector3.Distance(preview.transform.position, eye) > 1f,
                 "Third-person obstruction moves the camera in front of scene geometry");
             CheckCentered(camera, eye, check, "Obstruction-shortened third-person framing");
+            preview.YawOverride = 90f;
+            preview.Pitch = 15f;
+            wall.transform.position = eye + Quaternion.Euler(15f, 90f, 0f) * Vector3.back * 2.2f;
+            Physics.SyncTransforms();
+            preview.ApplyView();
+            check(Vector3.Distance(preview.transform.position, eye) < 2f && Vector3.Distance(preview.transform.position, eye) > 1f &&
+                Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(15f, 90f, 0f)) < 0.001f &&
+                Quaternion.Angle(avatar.transform.rotation, Quaternion.identity) < 0.001f,
+                "Free-look obstruction avoidance follows the independent camera direction without turning the model");
+            CheckCentered(camera, eye, check, "Obstruction-shortened free-look framing");
+            preview.YawOverride = null;
+            preview.Pitch = 0f;
+            wall.transform.position = eye + direction * 2.2f;
+            Physics.SyncTransforms();
+            preview.ApplyView();
 
             var visible = avatar.AddComponent<MeshRenderer>();
             var hidden = self.GetComponent<Renderer>();

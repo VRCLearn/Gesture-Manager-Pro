@@ -32,6 +32,7 @@ namespace VRCLearn.GestureManagerPro.Control
         public float Height { get; set; } = 1.6f;
         public Vector3 ViewPosition { get; set; } = new Vector3(0f, 1.6f, 0f);
         public float Pitch { get; set; }
+        public float? YawOverride { get; set; }
         public float Distance { get; set; } = 3f;
         public Collider IgnoredCollider { get; set; }
         public SimulationViewMode Mode
@@ -78,6 +79,8 @@ namespace VRCLearn.GestureManagerPro.Control
             var localView = Finite(ViewPosition) ? ViewPosition : new Vector3(0f, 1.6f, 0f);
             var eyePosition = Target.TransformPoint(localView);
             var yaw = Target.eulerAngles.y;
+            if (Mode == SimulationViewMode.ThirdPerson && YawOverride.HasValue && Finite(YawOverride.Value))
+                yaw = Mathf.Repeat(YawOverride.Value % 360f, 360f);
             if (!Finite(eyePosition) || !Finite(yaw)) return;
             var pitch = Finite(Pitch) ? Mathf.Clamp(Pitch, -85f, 85f) : 0f;
             var rotation = Quaternion.Euler(pitch, yaw, 0f);
