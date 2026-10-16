@@ -1,5 +1,51 @@
 # Development validation
 
+## Release validation (0.4.6)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5, Python 3.14 and PowerShell on Windows.
+
+- The complete 0.4.6 candidate passed 681 editor assertions and 576 Play Mode assertions with graphics enabled. The separate third-person commit was also tested independently before adding the movement fixes, passing 663 editor and 466 Play Mode assertions. Production sources and runners matched the disposable fixture; no avatar model or animation assets were changed.
+- All 44 distribution, release and VPM-listing tests passed in the real user environment, including the PowerShell build entry point. Package validation passed 1,752 checks and localization passed 15,065 checks across 486 keys in each of five languages.
+- The 0.4.6 VPM ZIP, UnityPackage, manifest and checksums passed local archive validation, including cross-format source/metadata identity. The numeric version, download URL and changelog section agree. The VPM source description now reflects multilingual UI.
+- Physical F5/wheel/Space input, VR hardware and a VRChat client comparison were not performed for this release. SDK locomotion proxy replacement and client IK remain unsupported; the working-avatar contact and camera projection checks are recorded below.
+
+## Game observer framing continuity (0.4.6)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- The working avatar's root and hips did not move when entering the observer, but its original Game camera was 0.001 m above the Scene camera due to an inherited Scene Camera tool offset. The simulation observer copied the Scene camera exactly, lowering the camera on entry and shifting the avatar's Game viewport position. The regular tool now copies the Scene camera position exactly as well.
+- A same-frame regression failed against the old camera code with a measured 0.0009994507 m camera mismatch. After the fix, the complete Play Mode runner passed 576 assertions. Four perspective/orthographic rounds, including manual Scene navigation, verify camera pose/projection settings, independent Game aspect ratio, unchanged viewport positions for the avatar root and a second world point on entry/exit, fixed Scene framing and cleanup. Existing height, collision, jump/landing, falling, camera and GPU checks also passed.
+- The single changed production script was backed up and synchronized to Test-Avatar, then compiled without console errors. After rendering the existing Scene view to initialize its camera after reload, a same-frame Chocolat check measured zero root, hips, camera and viewport displacement across entry and exit. The root viewport stayed at (0.4633600, 0.3766923, 1.1777730); the hips viewport stayed at (0.4622940, 1.0283600, 1.1156350). The temporary test returned to the user's prior Edit Mode and retained Scene framing, selection and unsaved scene state.
+- Package validation passed 1,752 checks, and production sources and Unity runners matched the isolated fixture by SHA-256. No model or animation asset was edited. These transform/projection comparisons and automated rendering checks are not physical input or VRChat client equivalence tests.
+
+## Preserve simulation standing height (0.4.6)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- The temporary movement capsule aligns the bottom of its collision skin with the avatar's support foot point. Its skin width, native overlap recovery, floor placement and vertical physics remain enabled; model assets and local model transforms are not adjusted to conceal the displacement.
+- The new regression failed against the old production motor on its first gravity/collision frame, reproducing the reported skin-width lift. With the fix, the editor runner passed 681 assertions and the Play Mode runner passed 536 assertions. Standing-height checks use a fixed 0.5 mm tolerance against the pre-simulation root height, covering first contact, sustained idle, walking, repeated entry and jump landing on temporary and existing floors. They also cover small/large capsules and nonzero foot offsets, model-local transform preservation, real wall blocking, low-ceiling jump collision, actual falling beyond the floor, and cleanup/restoration.
+- Before the fix, the active Chocolat session's root rose from 0 to 0.01386654 m, matching its 0.01386667 m skin width. The validated motor source was backed up and synchronized to Test-Avatar, compiled, and tested by re-entering through the real Game Simulation tool. After 60 native downward controller moves, maximum root drift was 0.00000011921 m; physical floor contact and Grounded remained true, gravity stayed enabled, and the floor top stayed at 0. The console had no errors. The original selected manager, unsaved scene state and Scene view framing were preserved, and the simulation was left running.
+- Package validation passed 1,752 checks and five-language localization validation passed 15,065 checks. Production sources and Unity check scripts matched the isolated test fixture by SHA-256. Movement/jump tests use injected input, and the working-avatar check directly exercises native controller contact; physical key presses and VRChat client equivalence were not validated.
+
+## Automatic simulation gravity (0.4.6)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- Removed the Game Simulation Gravity / Jump field, toggle and unused translation keys. The real tool entry now requests gravity automatically; Scene Collisions remains enabled by default and disabling it also disables gravity and jumping. Low-level motion adapter gravity options remain independent.
+- The editor runner passed 663 assertions and the Play Mode runner passed 502 assertions. A new check enters through the actual game tool, verifies a real jump and landing, walks across a physical floor boundary and falls, then re-enters without collisions and verifies no jump or falling. Both exits restore the avatar transform and parameters and release the motor, camera and floor. Input frames and the input-suspension gate are injected; physical Space input and OS focus are not tested.
+- Five-language localization validation passed 15,065 checks across 486 keys; package validation passed 1,752 checks. All changed production sources and Unity check scripts matched the isolated fixture by SHA-256.
+- Eight production source/translation files were backed up and synchronized to Test-Avatar as a complete set, including the related 0.4.6 camera controls. After compilation, reflection confirmed the removed gravity setting and loaded wheel event, and the console had no errors. Edit Mode, selection, unsaved scene state and Scene view framing were preserved; no temporary simulation objects remained. No model, rig, controller or animation asset was edited.
+
+## F5 and wheel third-person controls (0.4.6)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- Game-view F5 toggles the third-person feature instead of cycling through the observer. Captured wheel input changes distance while enabled. Zooming fully in selects first person without clearing the feature flag, allowing wheel zoom back out; F5 disabling prevents wheel re-entry. Explicit Scene Camera selection keeps the observer separate, and the Inspector follows the current wheel distance.
+- The editor runner passed 663 assertions and the Play Mode runner passed 466 assertions. Tests cover captured/suspended/disposed input, modified F5/wheel ownership, Scene navigation, signed and nonfinite wheel input, distance bounds, remembered positive distance, the independent zoomed-in state, repeated toggles, renderer visibility restoration, near-eye shoulder-offset reduction, obstruction recovery and cleanup. The existing observer, physics, graph and GPU-rendering checks also passed.
+- Eight production source/translation files were backed up and synchronized to Test-Avatar. After compilation, the new wheel event and F5 dispatcher were loaded, the default remained SceneCamera with third person disabled, and the console had no errors. The original Scene view framing, Edit Mode, selection and unsaved scene state were preserved, with no temporary simulation objects left behind.
+- Distance uses editor tuning rather than a measured client curve: 0.25 avatar heights per wheel unit, a maximum of six heights, and snapping distances at or below 0.05 heights to first person. TAB free rotation and full client camera settings remain unsupported. No model, rig, controller or animation asset was edited.
+- Five-language localization validation passed 15,127 checks across 488 keys; package validation passed 1,752 checks. Physical F5/wheel interaction, VR hardware and a client-side camera comparison were not performed; injected tests do not establish complete client equivalence.
+
 ## Release distribution (0.4.5)
 
 Validated on 2026-10-16 with Python 3.14 and PowerShell on Windows.

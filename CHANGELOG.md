@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.6
+
+- Remove the inherited Scene Camera tool's one-millimeter vertical offset so its Game camera and the simulation observer share the same framing when toggling Game Simulation.
+- Align the temporary movement capsule's collision skin with the avatar's support foot point. Entering Game Simulation, standing, walking and landing on level ground preserve the original root height without changing model assets or moving the floor.
+- Remove the separate Gravity / Jump setting. Game Simulation automatically enables gravity and grounded Space jumping with Scene Collisions, including natural falling after leaving a platform.
+- Replace the Game-view V camera cycle with F5 to enable or disable third-person mode. Enabling restores the last positive distance; disabling returns to first person. Scene Camera remains available through the View selector.
+- Add captured Game-view wheel zoom while third-person mode is enabled. Zero distance returns to first person without disabling the feature, allowing wheel zoom back out; disabling through F5 prevents wheel entry into third person. Allow 0–6 avatar heights in the distance field.
+- Preserve Scene-view F5, V and wheel navigation, modified Alt/Ctrl/Cmd wheel controls and Shift+F5 gesture input. Default observer mode and optional observer following remain unchanged.
+
 ## 0.4.5
 
 - Start Game Simulation with a Scene Camera observer view that stays in place by default. Add an optional **Follow Avatar in Observer View** toggle for Scene and Game observer cameras, preserving manual rotation, zoom and navigation; stopping removes only the session's follow translation. V cycles observer, first-person and third-person views.
