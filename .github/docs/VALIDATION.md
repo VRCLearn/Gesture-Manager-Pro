@@ -1,5 +1,52 @@
 # Development validation
 
+## Release distribution (0.4.5)
+
+Validated on 2026-10-16 with Python 3.14 and PowerShell on Windows.
+
+- All 44 distribution, release and VPM-listing tests passed in the real user environment, including the PowerShell build entry point. The sandbox's temporary-directory access restrictions prevented its fixture setup/cleanup; that run was not counted as a successful validation.
+- Package validation passed 1,752 checks against both SDK dependencies; five-language localization validation passed 15,127 checks. Production scripts and validation runners matched the isolated Unity fixture that passed 647 editor and 430 Play Mode assertions. The version/manifest and release-note updates do not change those scripts.
+- The release retains the documented SDK proxy-animation limitation and manual input/client/hardware validation gaps. No generated locomotion animation or reference-tool binary is included.
+
+## Optional observer camera following (0.4.5)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- The default Game Simulation view is now Scene Camera, with observer following disabled. The temporary Game-view camera mirrors the active Scene camera's position, rotation and projection settings while retaining the Game view's own aspect ratio. It falls back to the previously selected camera or an available scene camera when no Scene view exists. Observer Game input leaves the mouse free; mouse look/capture remains confined to first/third person. V cycles all three views without changing their existing enum identifiers.
+- The live follow switch moves only the current Scene view by actual avatar displacement, including vertical jumping, while retaining manual pan, rotation, zoom and projection mode. With every Scene view closed, it offsets only the temporary Game-view camera and leaves the original scene camera unchanged. Disabling or re-enabling does not catch up on earlier movement. Stop removes this session's accumulated translations independently from each affected Scene view, preserving manual navigation and original camera objects/references.
+- The disposable-project editor runner passed 647 assertions. The final Play Mode runner passed 430 assertions, including two real SceneView windows, a real existing camera with every Scene view closed, fixed/default observer behavior, repeated polling, live toggles, jump/landing, posture input, turn-only motion, independent view ownership, manual-navigation preservation, V cycling, cursor state and cleanup. Existing first/third-person GPU rendering checks also passed.
+- The production source and translation files were backed up and synchronized to Test-Avatar. Its default session and tool reported SceneCamera with following disabled after compilation. The editor retained its original Scene view pivot/rotation/zoom, Edit Mode, no selection and pre-existing unsaved scene state, with no temporary simulation objects. The final reload logged a VRChat SDK remote-configuration connection timeout and cached-configuration fallback; there were no camera-code compilation errors.
+- Five-language localization validation passed 15,127 checks across 488 keys per catalog; package validation passed 1,752 checks. Physical keyboard/mouse interaction, VR hardware, other graphics backends and in-client comparisons were not performed for this camera change. No model or animation assets were modified.
+
+## Game Simulation reference alignment (0.4.5)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11. See [compatibility findings](GAME-SIMULATION-PARITY.md) for the supplied reference archive, official sources and deliberate differences.
+
+- Statically inspected the supplied GestureManager+ package and its editor DLL without installing or executing it. Aligned focused-view Shift/Space/C/Z controls, reference-derived horizontal acceleration, and preservation of existing GM tracking and posture controls. Kept actual collision displacement and ground probes. Default jump impulse follows VRCWorld rather than avatar height.
+- The disposable-project editor runner passed 642 assertions. Injected input covers accelerated starts/stops/reversals, forward running with unchanged strafe speed, Scene action taps/repeats, navigation ownership and reset, pose commands, default jump impulse and explicit height overrides.
+- The final Play Mode runner passed 308 assertions, including preservation of external VR/tracking/posture changes, explicit crouch/prone toggles and restoration, posture-callback failure and synchronous-stop cleanup, invisible-floor physics, cameras, rendering and the initialized simulator graph. A test-only, explicitly authored time-varying clip advanced through the inherited proxy wrapper; the original zero-duration SDK walking proxy remained unchanged. Neither check claims client locomotion replacement.
+- Backed up and synchronized nine production source/translation files to Test-Avatar. The editor recompiled successfully and exposed the new pose/impulse APIs, with no console errors or substitute-gait type. It remained outside Play Mode with no temporary simulation objects, no selection and its pre-existing unsaved scene state. No model, rig, avatar controller or SDK animation asset was edited.
+- Package validation passed 1,752 checks and five-language localization validation passed 15,064 checks. The optional original-package GUID comparison and fixture-only APW reference comparison were skipped. Physical keyboard/mouse input, VR hardware and an in-client Build & Test comparison were not performed for this alignment.
+
+## SDK locomotion proxy limitation (0.4.5)
+
+Checked on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows.
+
+- On Chocolat, `Grounded=true` and `VelocityZ=2` selected walk/run clips with zero duration; graph evaluation did not change the thigh pose. [VRChat documents SDK proxy clips as placeholders](https://creators.vrchat.com/avatars/#proxy-animations) that the client replaces with built-in animations. That client-side locomotion replacement remains unsupported by this simulator; the walking-pose issue is not resolved.
+- Locomotion proxies retain their original controller references. Generated substitute gaits and their tests were removed instead of presenting invented motion as client behavior. The existing inherited gesture/emote handling is unchanged. No model, rig, avatar controller or SDK animation asset was edited.
+- The working Test-Avatar installation compiled without console errors after restoring the original proxy resolver. The generated locomotion type and cached generated clips were absent. Unity remained in Edit Mode with no owned temporary scene objects, and the user's scene retained its existing unsaved state. The restored Play Mode suite passed 292 assertions, including invisible-ground physics and cleanup. Package validation passed 1,752 checks against both SDK dependencies; the optional original-package comparison was not performed.
+
+## Temporary Game Simulation ground (0.4.5)
+
+Validated on 2026-10-16 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with Direct3D 11.
+
+- Game Simulation creates an unsaved, invisible 100-by-100-meter solid ground collider at the avatar's starting foot height when no supporting scene collider exists. The temporary object has no mesh or rendering components. It reuses existing support and destroys only its owned collider on cleanup. The collider is added after temporary flags and scene placement so it participates in runtime physics.
+- The real CharacterController raised the avatar by its skin width during horizontal movement. A measured rounding excess of approximately 6 micrometers put the floor beyond the old probe distance. Ground probes now allow an additional 1 millimeter of contact tolerance; grounding still comes from physical support, including during input suspension.
+- Editor integration passed 597 assertions for the initial ground implementation. After changing the ground to a collider-only object, Play Mode integration passed all 292 assertions again, including the absence of rendering components. New real-physics checks cover initial and stationary grounding, every walking step, leaving the floor boundary, gravity-enabled jumping and landing, existing-floor preservation, and cleanup after stop, pause, unlink, input/startup failure, floor deletion and disposal. The existing camera, graph, rendering, ownership and microphone checks also passed. The optional APW comparison was skipped because its fixture-only DLL was absent.
+- Backed up and synchronized the production scripts to the working Test-Avatar installation. Recompiled outside Play Mode to replace the previously loaded implementation, then verified the corrected Game Simulation on Chocolat: the owned floor had a solid BoxCollider and zero rendering components, `Grounded=true`, and the Base controller reported `Standing`, with `SmallHop` inactive. A captured frontal render confirmed the normal standing pose without a visible floor or floor shadow. Stopping removed every owned temporary object and restored the avatar position. The project retained its initial Play Mode state, selected manager and unsaved scene, without console errors.
+
+Physical keyboard/mouse interaction, other operating systems and graphics backends were not revalidated for this change. Jumping and walking checks used injected motion input; the Chocolat smoke check exercised the production Game Simulation entry and its actual animation graph.
+
 ## Package metadata and build entry points (0.4.4)
 
 Validated on 2026-10-16 with Python 3.14, PowerShell, Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows.

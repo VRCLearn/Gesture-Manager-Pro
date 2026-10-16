@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.5
+
+- Start Game Simulation with a Scene Camera observer view that stays in place by default. Add an optional **Follow Avatar in Observer View** toggle for Scene and Game observer cameras, preserving manual rotation, zoom and navigation; stopping removes only the session's follow translation. V cycles observer, first-person and third-person views.
+- Add an invisible temporary ground collider under Game Simulation when no supporting scene collider exists. Preserve real grounding and jump/landing behavior, reuse existing ground and remove the temporary collider when the session stops, pauses, loses its avatar or fails.
+- Allow a small contact tolerance in ground probes so CharacterController contact adjustment does not incorrectly publish airborne locomotion while walking on a floor.
+- Preserve the GM Inspector's `VRMode`, `TrackingType` and manually selected `Upright` during movement. Add C/Z posture toggles in Game and Scene views, restoring the prior `Upright` on exit only when the session changed it.
+- Support Shift running and grounded Space jumping in the Scene view alongside movement and turning, while retaining Scene camera navigation. Clear movement immediately when input is suspended or avatar locomotion is blocked.
+- Add horizontal acceleration/deceleration of 10.5 m/s². Use default walking/strafing at 2 m/s and forward/backward running at 4 m/s without accelerating strafing under Shift. Use a default jump impulse of 3 m/s independently of avatar height; gravity remains opt-in.
+- Document the static GestureManager+ reference comparison and VRChat desktop behavior. Keep the SDK's locomotion proxy placeholders unchanged: client-side replacement animations remain unsupported, and no substitute gaits are generated.
+
 ## 0.4.4
 
 - Stop generating `Documentation~/SOURCE.json` and its metadata during packaging, fixing repeated missing-folder warnings in Unity. Source repository and revision information remains in the published `package.json`.
