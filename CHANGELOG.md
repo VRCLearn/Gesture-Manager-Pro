@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Restore the selected Game camera's original local pose and projection settings when Scene Camera is disabled or its target changes. Release the override when the last emulator unlinks, Play Mode changes or scripts reload, preserving the enabled preference for the next emulator session.
+
 ## 0.4.6
 
 - Remove the inherited Scene Camera tool's one-millimeter vertical offset so its Game camera and the simulation observer share the same framing when toggling Game Simulation.

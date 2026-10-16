@@ -105,21 +105,80 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
         public void Unlink(ModuleVrc3 module)
         {
             PerformanceAnimator.Disable(module);
-            if (_registeredTools == null) return;
-            foreach (var tool in _registeredTools) tool.Dispose();
+            if (_registeredTools != null)
+                foreach (var tool in _registeredTools) tool.Dispose();
             _registeredTools = null;
+            _sceneCamera?.Dispose();
+            _sceneCamera = null;
         }
 
         public class UpdateSceneCamera : GmgDynamicFunction
         {
             private static Camera _camera;
+            private static CameraState _originalState;
+            private static int _instances;
             private static readonly BoolProperty IsActive = new("GM3 SceneCamera");
+            private bool _disposed;
+
+            private sealed class CameraState
+            {
+                private readonly Vector3 _localPosition;
+                private readonly Quaternion _localRotation;
+                private readonly bool _orthographic;
+                private readonly float _size;
+                private readonly float _fieldOfView;
+                private readonly float _near;
+                private readonly float _far;
+
+                internal CameraState(Camera camera)
+                {
+                    _localPosition = camera.transform.localPosition;
+                    _localRotation = camera.transform.localRotation;
+                    _orthographic = camera.orthographic;
+                    _size = camera.orthographicSize;
+                    _fieldOfView = camera.fieldOfView;
+                    _near = camera.nearClipPlane;
+                    _far = camera.farClipPlane;
+                }
+
+                internal void Restore(Camera camera)
+                {
+                    camera.transform.localPosition = _localPosition;
+                    camera.transform.localRotation = _localRotation;
+                    camera.orthographic = _orthographic;
+                    camera.orthographicSize = _size;
+                    camera.fieldOfView = _fieldOfView;
+                    camera.nearClipPlane = _near;
+                    camera.farClipPlane = _far;
+                }
+            }
 
             protected internal override string Name => EditorLocalization.Tr("Scene Camera");
             protected override string Description => EditorLocalization.Tr("This will match your game view with your scene view!\n\nClick the button to setup the main camera automatically~");
             protected internal override bool Active => IsActive.Property;
 
-            public UpdateSceneCamera() => Set(IsActive.Property ? ModuleVrc3.MainCamera : null);
+            static UpdateSceneCamera()
+            {
+                AssemblyReloadEvents.beforeAssemblyReload += RestoreCamera;
+                EditorApplication.playModeStateChanged += state =>
+                {
+                    if (state == PlayModeStateChange.ExitingEditMode || state == PlayModeStateChange.ExitingPlayMode)
+                        RestoreCamera();
+                };
+            }
+
+            public UpdateSceneCamera()
+            {
+                _instances++;
+                if (IsActive.Property && !_camera && ModuleVrc3.MainCamera) Set(ModuleVrc3.MainCamera);
+            }
+
+            public override void Dispose()
+            {
+                if (_disposed) return;
+                _disposed = true;
+                if (--_instances == 0) RestoreCamera();
+            }
 
             protected internal override void Toggle(ModuleVrc3 module) => AutoToggle();
 
@@ -130,6 +189,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
             protected override void Update(ModuleVrc3 module)
             {
+                if (!_camera && IsActive.Property && ModuleVrc3.MainCamera) Set(ModuleVrc3.MainCamera);
                 if (_camera && (_camera.gameObject.hideFlags & HideFlags.DontSave) != 0) return;
                 var sceneView = SceneView.lastActiveSceneView;
                 if (!sceneView) return;
@@ -150,8 +210,21 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
             private static void Set(Camera camera)
             {
-                _camera = camera;
+                if (camera && (camera.gameObject.hideFlags & HideFlags.DontSave) != 0) camera = null;
+                if (_camera != camera)
+                {
+                    RestoreCamera();
+                    _camera = camera;
+                    if (_camera) _originalState = new CameraState(_camera);
+                }
                 IsActive.Property = Exist(_camera);
+            }
+
+            private static void RestoreCamera()
+            {
+                if (_camera && _originalState != null) _originalState.Restore(_camera);
+                _camera = null;
+                _originalState = null;
             }
         }
 

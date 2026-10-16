@@ -1,5 +1,14 @@
 # Development validation
 
+## Scene Camera restoration (unreleased)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
+
+- Outside Game Simulation, disabling the regular Scene Camera tool now restores the selected camera's original local position, rotation and synchronized projection settings. Target changes restore each camera independently; the last emulator releases the shared override. Play transitions and assembly reloads also release it while preserving the enabled preference.
+- The editor runner passed 681 assertions and the Play Mode runner passed 609 assertions. New checks cover repeated toggles, navigation after disabling, target changes, parent movement, two tool instances, idempotent cleanup, temporary-camera rejection and delayed Main Camera availability. The parented-camera fixture stays near the origin to keep its strict transform tolerance independent of distant-world float conversion error. Production source and validation runner hashes matched the disposable fixture. Package validation passed 1,752 checks.
+- The production script was backed up and synchronized to Test-Avatar. After compilation, its Console had no errors. An isolated preview-scene probe used the real target setter, update and toggle to verify synchronization, original pose/projection restoration and subsequent updates remaining disabled. The active scene's unsaved flag and saved preference were preserved; no model, animation or scene asset was edited.
+- Physical UI clicks and actual Play transitions with domain reload disabled were not tested. The automated lifecycle assertions invoke the same restoration routine directly.
+
 ## Release validation (0.4.6)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5, Python 3.14 and PowerShell on Windows.

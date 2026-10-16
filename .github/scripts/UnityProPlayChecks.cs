@@ -1180,6 +1180,7 @@ public static class UnityProPlayChecks
             Check(SceneView.lastActiveSceneView == observer && observer.camera,
                 "The observer fixture owns a real active SceneView with a scene camera");
             CheckSceneCameraObserverSwitch(observer, avatar, manager, module, originalCamera);
+            CheckSceneCameraLifecycle(observer, module);
             var originalPivot = observer.pivot;
             var originalRotation = observer.rotation;
             var originalSize = observer.size;
@@ -1381,8 +1382,12 @@ public static class UnityProPlayChecks
         var targetField = toolType.GetField("_camera", BindingFlags.Static | BindingFlags.NonPublic);
         var update = toolType.GetMethod("Update", instance);
         var previousTarget = targetField.GetValue(null);
-        // The public constructor calls Set, which persists the Scene Camera preference.
-        // Invoke its real Update without changing that user preference in this fixture.
+        var stateField = toolType.GetField("_originalState", BindingFlags.Static | BindingFlags.NonPublic);
+        var instancesField = toolType.GetField("_instances", BindingFlags.Static | BindingFlags.NonPublic);
+        var previousState = stateField.GetValue(null);
+        var previousInstances = instancesField.GetValue(null);
+        // Avoid rebinding the shared target or persisting the Scene Camera preference.
+        // The lifecycle fixture below separately exercises the public constructor.
         var sceneCameraTool = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(toolType);
         var originalPosition = originalCamera.transform.position;
         var originalRotation = originalCamera.transform.rotation;
@@ -1400,6 +1405,8 @@ public static class UnityProPlayChecks
         var worldPoints = new[] { avatarPosition, avatarPosition + new Vector3(0.37f, 1.27f, 0.18f) };
         try
         {
+            stateField.SetValue(null, null);
+            instancesField.SetValue(null, 0);
             targetField.SetValue(null, originalCamera);
             // Both Game cameras use their own full Game viewport, rather than
             // adopting the differently shaped Scene window's aspect ratio.
@@ -1471,6 +1478,8 @@ public static class UnityProPlayChecks
         finally
         {
             targetField.SetValue(null, previousTarget);
+            stateField.SetValue(null, previousState);
+            instancesField.SetValue(null, previousInstances);
             originalCamera.transform.SetPositionAndRotation(originalPosition, originalRotation);
             originalCamera.orthographic = originalOrthographic;
             originalCamera.orthographicSize = originalSize;
@@ -1482,6 +1491,256 @@ public static class UnityProPlayChecks
             observer.Repaint();
             observer.SendEvent(new Event { type = EventType.Repaint });
         }
+    }
+
+    private static void CheckSceneCameraLifecycle(SceneView observer, ModuleVrc3 module)
+    {
+        const string preference = "GM3 SceneCamera";
+        const BindingFlags instance = BindingFlags.Instance | BindingFlags.NonPublic;
+        const BindingFlags shared = BindingFlags.Static | BindingFlags.NonPublic;
+        var type = typeof(AvatarTools.UpdateSceneCamera);
+        var targetField = type.GetField("_camera", shared);
+        var stateField = type.GetField("_originalState", shared);
+        var instancesField = type.GetField("_instances", shared);
+        var set = type.GetMethod("Set", shared);
+        var restore = type.GetMethod("RestoreCamera", shared);
+        var toggle = type.GetMethod("Toggle", instance);
+        var update = type.GetMethod("Update", instance);
+        var previousTarget = targetField.GetValue(null);
+        var previousState = stateField.GetValue(null);
+        var previousInstances = instancesField.GetValue(null);
+        var hadPreference = EditorPrefs.HasKey(preference);
+        var previousPreference = EditorPrefs.GetBool(preference);
+        var previousPivot = observer.pivot;
+        var previousRotation = observer.rotation;
+        var previousSize = observer.size;
+        var previousOrthographic = observer.orthographic;
+        var existingCameras = Camera.allCameras.Where(camera => camera.targetDisplay == 0 &&
+            (camera.gameObject.hideFlags & HideFlags.DontSave) == 0).Select(camera => (camera, camera.enabled)).ToArray();
+        var tools = new List<AvatarTools.UpdateSceneCamera>();
+        GameObject parent = null;
+        GameObject secondObject = null;
+        GameObject temporaryObject = null;
+        try
+        {
+            targetField.SetValue(null, null);
+            stateField.SetValue(null, null);
+            instancesField.SetValue(null, 0);
+            EditorPrefs.DeleteKey(preference);
+            foreach (var entry in existingCameras) entry.camera.enabled = false;
+            parent = new GameObject("Pro Scene Camera lifecycle parent");
+            parent.transform.SetPositionAndRotation(new Vector3(13f, 9f, -7f), Quaternion.Euler(12f, 31f, 5f));
+            var firstObject = new GameObject("Pro Scene Camera lifecycle first");
+            firstObject.transform.SetParent(parent.transform, false);
+            firstObject.transform.localPosition = new Vector3(2f, 3f, -5f);
+            firstObject.transform.localRotation = Quaternion.Euler(7f, 13f, 4f);
+            var first = firstObject.AddComponent<Camera>();
+            first.orthographic = false;
+            first.orthographicSize = 3.7f;
+            first.fieldOfView = 47f;
+            first.nearClipPlane = 0.17f;
+            first.farClipPlane = 437f;
+            first.aspect = 1.23f;
+            secondObject = new GameObject("Pro Scene Camera lifecycle second");
+            secondObject.transform.SetPositionAndRotation(new Vector3(-8f, 12f, 19f), Quaternion.Euler(17f, 213f, 3f));
+            var second = secondObject.AddComponent<Camera>();
+            second.enabled = false;
+            second.orthographic = true;
+            second.orthographicSize = 7.4f;
+            second.fieldOfView = 61f;
+            second.nearClipPlane = 0.3f;
+            second.farClipPlane = 923f;
+            second.aspect = 1.67f;
+            var firstState = new SceneCameraState(first);
+            var secondState = new SceneCameraState(second);
+
+            AvatarTools.UpdateSceneCamera CreateTool()
+            {
+                var tool = new AvatarTools.UpdateSceneCamera();
+                tools.Add(tool);
+                return tool;
+            }
+
+            void Set(Camera camera) => set.Invoke(null, new object[] { camera });
+            void Update(AvatarTools.UpdateSceneCamera tool) => update.Invoke(tool, new object[] { module });
+            Camera Target() => (Camera)targetField.GetValue(null);
+            bool Released() => !Target() && stateField.GetValue(null) == null;
+            void Navigate(int step)
+            {
+                // Keep this parented-camera fixture near the origin: the session
+                // fixture's distant avatar would add float error to world/local conversion.
+                observer.LookAt(new Vector3(step * 0.2f, step * 0.1f, -step * 0.15f),
+                    Quaternion.Euler(19f + step * 4f, 133f + step * 9f, 0f), 4.2f + step * 0.4f, step % 2 == 0, true);
+                observer.Repaint();
+                observer.SendEvent(new Event { type = EventType.Repaint });
+            }
+
+            var owner = CreateTool();
+            Check(Released() && !EditorPrefs.HasKey(preference) && (int)instancesField.GetValue(null) == 1,
+                "Constructing an inactive Scene Camera tool leaves an absent preference and target untouched");
+            Set(first);
+            var originalSnapshot = stateField.GetValue(null);
+            Navigate(1);
+            Update(owner);
+            Check(Target() == first && EditorPrefs.GetBool(preference) && !firstState.Matches(first) &&
+                Vector3.Distance(first.transform.position, observer.camera.transform.position) < 0.0001f,
+                "The real Scene Camera Set and Update capture the original camera and synchronize the selected target; target=" +
+                (Target() ? Target().name : "null") + ", preference=" + EditorPrefs.GetBool(preference) +
+                ", unchanged=" + firstState.Matches(first) + ", targetPosition=" + first.transform.position +
+                ", observerPosition=" + observer.camera.transform.position + ", activeView=" + SceneView.lastActiveSceneView);
+            Set(first);
+            Check(ReferenceEquals(stateField.GetValue(null), originalSnapshot),
+                "Selecting the same Scene Camera target preserves its original snapshot");
+            var secondOwner = CreateTool();
+            Check(Target() == first && ReferenceEquals(stateField.GetValue(null), originalSnapshot) &&
+                (int)instancesField.GetValue(null) == 2,
+                "A second real Scene Camera constructor shares ownership without capturing the synchronized pose again");
+            Navigate(2);
+            Update(secondOwner);
+            owner.Dispose();
+            Check(Target() == first && !firstState.Matches(first) && (int)instancesField.GetValue(null) == 1,
+                "Disposing one Scene Camera owner leaves the remaining owner's target active");
+            secondOwner.Dispose();
+            Check(Released() && firstState.Matches(first) && EditorPrefs.GetBool(preference) &&
+                (int)instancesField.GetValue(null) == 0,
+                "Disposing the last Scene Camera owner restores local pose and projection while retaining the enabled preference");
+            owner.Dispose();
+            secondOwner.Dispose();
+            Check((int)instancesField.GetValue(null) == 0 && firstState.Matches(first),
+                "Repeated Scene Camera disposal cannot decrement ownership or restore twice");
+
+            var remainingOwner = CreateTool();
+            Check(Target() == first && stateField.GetValue(null) != null && firstState.Matches(first),
+                "A later Scene Camera constructor recaptures the restored Main Camera when the saved preference is enabled");
+            Set(null);
+            for (var round = 0; round < 3; round++)
+            {
+                toggle.Invoke(remainingOwner, new object[] { null });
+                Check(Target() == first && EditorPrefs.GetBool(preference),
+                    "Scene Camera Toggle without a module selects the real eligible Main Camera");
+                Navigate(round + 3);
+                Update(remainingOwner);
+                Check(!firstState.Matches(first), "An enabled Scene Camera follows subsequent manual Scene navigation");
+                toggle.Invoke(remainingOwner, new object[] { module });
+                Check(Released() && firstState.Matches(first) && !EditorPrefs.GetBool(preference),
+                    "Scene Camera Toggle off restores the original local pose and every synchronized projection setting");
+                Navigate(round + 6);
+                Update(remainingOwner);
+                Check(firstState.Matches(first) && Released(),
+                    "Scene navigation and updates after Toggle off leave the restored Game camera unchanged");
+            }
+
+            Set(first);
+            Update(remainingOwner);
+            Set(second);
+            Check(firstState.Matches(first) && Target() == second && secondState.Matches(second),
+                "Switching Scene Camera targets restores the old camera before capturing the second camera's own state");
+            Update(remainingOwner);
+            Check(!secondState.Matches(second), "The selected second camera receives the actual Scene transform and projection");
+            Set(first);
+            Check(secondState.Matches(second) && Target() == first,
+                "Switching back restores the second camera independently of the first camera's snapshot");
+            Update(remainingOwner);
+            parent.transform.position += new Vector3(3f, -2f, 1f);
+            parent.transform.rotation = Quaternion.Euler(23f, 77f, 9f);
+            var movedParentPosition = parent.transform.position;
+            var movedParentRotation = parent.transform.rotation;
+            Set(null);
+            Check(firstState.Matches(first) && parent.transform.position == movedParentPosition &&
+                parent.transform.rotation == movedParentRotation && secondState.Matches(second),
+                "Disabling Scene Camera restores its parent-relative pose without undoing independent parent movement");
+
+            temporaryObject = new GameObject("Pro rejected temporary Scene Camera") { hideFlags = HideFlags.HideAndDontSave };
+            var temporary = temporaryObject.AddComponent<Camera>();
+            var temporaryState = new SceneCameraState(temporary);
+            Set(first);
+            Update(remainingOwner);
+            Set(temporary);
+            Update(remainingOwner);
+            Check(Released() && !EditorPrefs.GetBool(preference) && firstState.Matches(first) && temporaryState.Matches(temporary),
+                "Selecting a DontSave camera behaves as disabling Scene Camera and never mutates the temporary target");
+
+            Set(first);
+            Update(remainingOwner);
+            restore.Invoke(null, null);
+            Check(Released() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
+                "The shared assembly/play lifecycle cleanup restores the camera and releases its snapshot while preserving preference");
+            restore.Invoke(null, null);
+            Check(Released() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
+                "Repeated lifecycle cleanup is harmless and retains the saved enabled preference");
+            first.enabled = false;
+            Update(remainingOwner);
+            Check(Released() && EditorPrefs.GetBool(preference),
+                "An update with no eligible Main Camera preserves the preference for later recovery");
+            var waitingOwner = CreateTool();
+            Check(Released() && EditorPrefs.GetBool(preference),
+                "Constructing another owner while no Main Camera exists also preserves the enabled preference");
+            first.enabled = true;
+            Update(waitingOwner);
+            Check(Target() == first && !firstState.Matches(first),
+                "A later update automatically captures and synchronizes the Main Camera after it becomes available");
+            remainingOwner.Dispose();
+            Check(Target() == first, "The recovered Scene Camera remains owned until the last live tool is disposed");
+            waitingOwner.Dispose();
+            Check(Released() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
+                "Final disposal after automatic recovery restores the original state and preserves the enabled preference");
+            EditorPrefs.SetBool(preference, false);
+            restore.Invoke(null, null);
+            Check(Released() && !EditorPrefs.GetBool(preference), "Lifecycle cleanup also preserves a disabled Scene Camera preference");
+        }
+        finally
+        {
+            foreach (var tool in tools) tool.Dispose();
+            restore.Invoke(null, null);
+            targetField.SetValue(null, previousTarget);
+            stateField.SetValue(null, previousState);
+            instancesField.SetValue(null, previousInstances);
+            if (hadPreference) EditorPrefs.SetBool(preference, previousPreference);
+            else EditorPrefs.DeleteKey(preference);
+            if (temporaryObject) UnityEngine.Object.DestroyImmediate(temporaryObject);
+            if (secondObject) UnityEngine.Object.DestroyImmediate(secondObject);
+            if (parent) UnityEngine.Object.DestroyImmediate(parent);
+            foreach (var entry in existingCameras)
+                if (entry.camera) entry.camera.enabled = entry.enabled;
+            observer.LookAt(previousPivot, previousRotation, previousSize, previousOrthographic, true);
+            observer.Repaint();
+            observer.SendEvent(new Event { type = EventType.Repaint });
+        }
+    }
+
+    private sealed class SceneCameraState
+    {
+        private readonly Transform _parent;
+        private readonly Vector3 _position;
+        private readonly Quaternion _rotation;
+        private readonly Vector3 _scale;
+        private readonly bool _orthographic;
+        private readonly float _size;
+        private readonly float _fieldOfView;
+        private readonly float _near;
+        private readonly float _far;
+        private readonly float _aspect;
+
+        public SceneCameraState(Camera camera)
+        {
+            _parent = camera.transform.parent;
+            _position = camera.transform.localPosition;
+            _rotation = camera.transform.localRotation;
+            _scale = camera.transform.localScale;
+            _orthographic = camera.orthographic;
+            _size = camera.orthographicSize;
+            _fieldOfView = camera.fieldOfView;
+            _near = camera.nearClipPlane;
+            _far = camera.farClipPlane;
+            _aspect = camera.aspect;
+        }
+
+        public bool Matches(Camera camera) => camera.transform.parent == _parent &&
+            Vector3.Distance(camera.transform.localPosition, _position) < 0.0001f &&
+            Quaternion.Angle(camera.transform.localRotation, _rotation) < 0.001f && camera.transform.localScale == _scale &&
+            camera.orthographic == _orthographic && Mathf.Abs(camera.orthographicSize - _size) < 0.0001f &&
+            Mathf.Abs(camera.fieldOfView - _fieldOfView) < 0.0001f && Mathf.Abs(camera.nearClipPlane - _near) < 0.0001f &&
+            Mathf.Abs(camera.farClipPlane - _far) < 0.001f && Mathf.Abs(camera.aspect - _aspect) < 0.0001f;
     }
 
     private static bool MatricesClose(Matrix4x4 first, Matrix4x4 second)
