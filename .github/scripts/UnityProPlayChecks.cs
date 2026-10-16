@@ -65,6 +65,7 @@ public static class UnityProPlayChecks
             _assertions = 0;
             UnityProStatisticsLifecycleChecks.Run(Check);
             ExecuteChecks();
+            CheckTemporaryGround();
             CheckSimulationMicrophone();
             UnityProCameraChecks.Run(Check);
             UnityProGraphChecks.RunChecks(Check);
@@ -263,12 +264,26 @@ public static class UnityProPlayChecks
             Check(!secondManager.IsPlayerControlled, "Rejected avatar competitor retains no ownership flag");
 
             input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            session.Motor.Halt();
             session.Motor.Step(0.1f);
-            Check(Mathf.Abs(module.GetParam("VelocityZ").FloatValue() - 2f) < 0.001f, "Session publishes forward velocity to VelocityZ");
+            Check(Mathf.Abs(module.GetParam("VelocityZ").FloatValue() - 1.05f) < 0.001f,
+                "Session publishes actual accelerating forward velocity instead of requested walk speed");
+            session.Motor.Step(0.1f);
+            Check(Mathf.Abs(module.GetParam("VelocityZ").FloatValue() - 2f) < 0.001f, "Session publishes steady forward velocity to VelocityZ");
             Check(Mathf.Abs(module.GetParam("VelocityMagnitude").FloatValue() - 2f) < 0.001f, "Session publishes velocity magnitude in meters per second");
             Check(Mathf.Abs(module.GetParam("VelocityX").FloatValue()) < 0.001f && Mathf.Abs(module.GetParam("VelocityY").FloatValue()) < 0.001f, "Forward motion leaves other velocity axes zero");
-            Check(module.GetParam("VRMode").FloatValue() == 0f && module.GetParam("TrackingType").FloatValue() == 1f, "Keyboard generic-avatar tracking parameters use desktop values");
-            Check(module.GetParam("Upright").FloatValue() == 1f, "Standing keyboard control publishes upright state");
+            Check(module.GetParam("VRMode").FloatValue() == values["VRMode"] &&
+                module.GetParam("TrackingType").FloatValue() == values["TrackingType"] && module.Settings.vrMode,
+                "Movement preserves the simulator's existing VR and tracking selections");
+            Check(module.GetParam("Upright").FloatValue() == values["Upright"], "Movement preserves the existing upright parameter");
+            module.GetParam("Upright").Set(module, 0.6f);
+            input.Frame = default;
+            session.Motor.Step(0.1f);
+            session.Poll();
+            Check(module.GetParam("Upright").FloatValue() == 0.6f,
+                "Idle updates and polling preserve a posture selected through the original GM controls");
+            // No pose input has owned this parameter yet. Keep the external edit on exit.
+            values["Upright"] = 0.6f;
             Check(Vector3.Distance(avatar.transform.position, originalPosition) > 0.1f, "Injected input moves the actual avatar transform");
             var positionBeforeBlock = avatar.transform.position;
             var rotationBeforeBlock = avatar.transform.rotation;
@@ -283,12 +298,13 @@ public static class UnityProPlayChecks
             input.Frame = new MotionInputFrame(Vector2.zero, -1f);
             session.Motor.Step(0.1f);
             Check(Mathf.Abs(module.GetParam("AngularY").FloatValue() + 120f) < 0.01f, "Session publishes negative turn rate to AngularY");
-            // The minimal fixture does not install InitParams' VRMode callback.
-            // Change the saved setting explicitly to test snapshot restoration.
+            // VR and tracking state belongs to the existing simulator controls.
             module.Settings.vrMode = false;
+            module.GetParam("TrackingType").Set(module, 6f);
+            values["TrackingType"] = 6f;
             session.Stop();
             Check(!session.Running && !manager.IsPlayerControlled && session.Motor == null, "Stop releases session and manager ownership");
-            Check(module.Settings.vrMode, "Stop restores the simulator's original VR mode setting");
+            Check(!module.Settings.vrMode, "Stop preserves an external VR mode setting change");
             Check(!motionObject && !cameraObject, "Stop destroys temporary motor and camera");
             Check(module.SimulationCamera == originalCamera, "Stop restores the module's original camera selection");
             Check(originalCamera.transform.position == originalCameraPosition && originalCamera.transform.rotation == originalCameraRotation &&
@@ -298,6 +314,51 @@ public static class UnityProPlayChecks
                 Check(Mathf.Abs(module.GetParam(pair.Key).FloatValue() - pair.Value) < 0.0001f, "Stop restores parameter " + pair.Key);
             session.Stop();
             Check(!manager.IsPlayerControlled, "Repeated stop remains safe");
+
+            Check(session.Start(manager, input, collisions: false), "Session restarts for explicit posture control");
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, pose: MotionPose.Crouch);
+            session.Motor.Step(0.02f);
+            Check(module.GetParam("Upright").FloatValue() == 1f, "Crouch input toggles an already crouched avatar back to standing");
+            session.Motor.Step(0.02f);
+            Check(module.GetParam("Upright").FloatValue() == 0.6f, "A new crouch command selects the reference upright value");
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, pose: MotionPose.Prone);
+            session.Motor.Step(0.02f);
+            Check(module.GetParam("Upright").FloatValue() == 0.35f, "Prone input switches directly from crouching to prone");
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            session.Motor.Step(0.02f);
+            Check(module.GetParam("Upright").FloatValue() == 0.35f, "Subsequent movement does not reset the selected posture");
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, pose: MotionPose.Prone);
+            session.Motor.Step(0.02f);
+            Check(module.GetParam("Upright").FloatValue() == 1f, "A second prone command returns to standing");
+            session.Stop();
+            Check(module.GetParam("Upright").FloatValue() == 0.6f, "Stop restores posture only after explicit session posture commands");
+
+            var uprightParameter = module.GetParam("Upright");
+            Check(session.Start(manager, input, collisions: false, previewCamera: true), "Session starts for posture-callback failure cleanup");
+            var poseMotor = session.Motor;
+            var poseCamera = session.ViewCamera;
+            uprightParameter.SetOnChange((parameter, value) =>
+            {
+                if (session.Running) throw new InvalidOperationException("Injected posture callback failure");
+            });
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, pose: MotionPose.Crouch);
+            poseMotor.Step(0.02f);
+            Check(!session.Running && !manager.IsPlayerControlled && !poseMotor && !poseCamera &&
+                session.Error.Contains("Injected posture callback failure") && uprightParameter.FloatValue() == 0.6f &&
+                !Resources.FindObjectsOfTypeAll<BoxCollider>().Any(collider => collider.gameObject.name == "Gesture Manager Pro Ground"),
+                "A posture callback exception reports failure and restores posture, motor, camera and floor ownership");
+            uprightParameter.SetOnChange(null);
+
+            Check(session.Start(manager, input, collisions: false, previewCamera: true), "Session starts for reentrant posture-stop cleanup");
+            poseMotor = session.Motor;
+            poseCamera = session.ViewCamera;
+            uprightParameter.SetOnChange((parameter, value) => { if (session.Running) session.Stop(); });
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, pose: MotionPose.Prone);
+            poseMotor.Step(0.02f);
+            Check(!session.Running && !manager.IsPlayerControlled && !poseMotor && !poseCamera &&
+                string.IsNullOrEmpty(session.Error) && uprightParameter.FloatValue() == 0.6f,
+                "A synchronous stop during posture publication cannot continue using a destroyed motor");
+            uprightParameter.SetOnChange(null);
 
             Check(session.Start(manager, input, collisions: false), "Session can restart after restoration");
             input.Frame = new MotionInputFrame(Vector2.right, 0f);
@@ -394,6 +455,215 @@ public static class UnityProPlayChecks
             EditorApplication.isPaused = paused;
         }
     }
+
+    private static void CheckTemporaryGround()
+    {
+        GameObject avatar = null;
+        GameObject existingGround = null;
+        GestureManager manager = null;
+        ControlledModeSession session = null;
+        var paused = EditorApplication.isPaused;
+        var originalGravity = Physics.gravity;
+        var startPosition = new Vector3(520f, 100f, 580f);
+        try
+        {
+            EditorApplication.isPaused = false;
+            Physics.gravity = new Vector3(0f, -9.81f, 0f);
+            avatar = new GameObject("Pro temporary ground validation avatar");
+            avatar.transform.position = startPosition;
+            avatar.AddComponent<Animator>();
+            var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
+            descriptor.ViewPosition = new Vector3(0f, 1.6f, 0f);
+            var module = new ModuleVrc3(descriptor) { Active = true, Settings = new ModuleSettings() };
+            foreach (var name in ParameterNames)
+                module.Params.Add(name, new Vrc3Param(name, AnimatorControllerParameterType.Float));
+            manager = new GameObject("Pro temporary ground validation manager").AddComponent<GestureManager>();
+            manager.Module = module;
+            session = new ControlledModeSession();
+            var input = new SessionMotionInput();
+            Physics.SyncTransforms();
+            Check(SupportBelow(startPosition).Length == 0, "Temporary-ground checks start without a scene floor");
+
+            GameObject StartGround(bool gravity = false)
+            {
+                Check(session.Start(manager, input, gravity: gravity, previewCamera: true),
+                    "Game simulation starts without an existing floor: " + session.Error);
+                var hits = SupportBelow(startPosition, session.Motor.Controller);
+                Check(hits.Length == 1 && hits[0].collider.gameObject.name == "Gesture Manager Pro Ground",
+                    "Game simulation creates a real supporting collider at the starting feet");
+                return hits[0].collider.gameObject;
+            }
+
+            void CheckRemoved(GameObject ground, string reason)
+            {
+                Physics.SyncTransforms();
+                Check(!session.Running && !manager.IsPlayerControlled && !ground &&
+                    SupportBelow(startPosition).Length == 0,
+                    reason + " releases ownership and removes the temporary floor from physics");
+                Check(Vector3.Distance(avatar.transform.position, startPosition) < 0.0001f,
+                    reason + " restores the avatar's original position");
+            }
+
+            var ground = StartGround();
+            var groundCollider = ground.GetComponent<BoxCollider>();
+            Check(ground.GetComponentsInChildren<Renderer>(true).Length == 0 && !ground.GetComponent<MeshFilter>() &&
+                !groundCollider.isTrigger && ground.transform.parent == null,
+                "The temporary floor has no rendering components, remains solid, and is independent of the avatar");
+            Check(ground.hideFlags == HideFlags.HideAndDontSave && ground.scene == avatar.scene &&
+                Vector3.Distance(groundCollider.bounds.size, new Vector3(100f, 0.1f, 100f)) < 0.01f &&
+                Mathf.Abs(groundCollider.bounds.max.y - startPosition.y) < 0.001f,
+                "The unsaved floor covers 100 meters and places its top at the starting foot height");
+            Check(!session.Motor.UseGravity && session.Motor.LastResult.Grounded &&
+                module.GetParam("Grounded").BoolValue(),
+                "Default simulation immediately publishes real grounded state with gravity disabled");
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f);
+            session.Motor.Step(0.1f);
+            Check(module.GetParam("Grounded").BoolValue() && module.GetParam("Upright").FloatValue() == 0f &&
+                module.GetParam("VelocityMagnitude").FloatValue() == 0f,
+                "Standing on the generated floor publishes stationary motion without overwriting posture");
+            var floorPosition = ground.transform.position;
+            input.Frame = new MotionInputFrame(Vector2.up, 0f);
+            for (var step = 0; step < 10; step++)
+            {
+                session.Motor.Step(0.1f);
+                Check(module.GetParam("Grounded").BoolValue(),
+                    "Walking remains grounded after collision contact adjustment, step " + step);
+            }
+            Check(module.GetParam("Grounded").BoolValue() && module.GetParam("Upright").FloatValue() == 0f &&
+                Mathf.Abs(module.GetParam("VelocityZ").FloatValue() - 2f) < 0.01f &&
+                Mathf.Abs(module.GetParam("VelocityY").FloatValue()) < 0.01f &&
+                Mathf.Abs(avatar.transform.position.y - startPosition.y) < session.Motor.Controller.skinWidth + 0.001f,
+                "Walking keeps the avatar grounded and publishes horizontal locomotion instead of falling");
+            Check(ground.transform.position == floorPosition &&
+                SupportBelow(avatar.transform.position, session.Motor.Controller).Any(hit => hit.collider == groundCollider),
+                "The avatar moves across the generated floor without dragging the floor along");
+            session.Motor.transform.position = startPosition + Vector3.right * 60f;
+            Physics.SyncTransforms();
+            input.Frame = default;
+            session.Motor.Step(0.02f);
+            Check(!session.Motor.LastResult.Grounded && !module.GetParam("Grounded").BoolValue() &&
+                SupportBelow(avatar.transform.position, session.Motor.Controller).Length == 0,
+                "Moving beyond the temporary floor still reports genuinely unsupported airborne state");
+            session.Stop();
+            CheckRemoved(ground, "Normal stop");
+            session.Stop();
+
+            ground = StartGround(true);
+            input.Frame = new MotionInputFrame(Vector2.zero, 0f, jump: true);
+            session.Motor.Step(0.02f);
+            Check(!session.Motor.LastResult.Grounded && !module.GetParam("Grounded").BoolValue() &&
+                module.GetParam("VelocityY").FloatValue() > 0f && avatar.transform.position.y > startPosition.y,
+                "Jumping with gravity leaves the physical floor and publishes airborne upward motion");
+            input.Frame = default;
+            var landed = false;
+            for (var step = 0; step < 150; step++)
+            {
+                session.Motor.Step(0.02f);
+                if (!session.Motor.LastResult.Grounded) continue;
+                landed = true;
+                break;
+            }
+            Check(landed && module.GetParam("Grounded").BoolValue() &&
+                Mathf.Abs(avatar.transform.position.y - startPosition.y) < 0.05f,
+                "Gravity returns the avatar to the generated floor and publishes grounded state on landing");
+            session.Stop();
+            CheckRemoved(ground, "Stopping after a jump");
+
+            existingGround = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            existingGround.name = "Pro existing scene floor";
+            existingGround.transform.position = startPosition - Vector3.up * 0.05f;
+            existingGround.transform.localScale = new Vector3(6f, 0.1f, 6f);
+            var existingCollider = existingGround.GetComponent<Collider>();
+            Physics.SyncTransforms();
+            Check(session.Start(manager, input, previewCamera: true), "Simulation starts on an existing scene floor");
+            var existingHits = SupportBelow(startPosition, session.Motor.Controller);
+            Check(existingHits.Length == 1 && existingHits[0].collider == existingCollider &&
+                session.Motor.LastResult.Grounded && module.GetParam("Grounded").BoolValue(),
+                "Existing scene support is reused without creating an overlapping temporary floor");
+            session.Stop();
+            Physics.SyncTransforms();
+            Check(existingGround && SupportBelow(startPosition).Single().collider == existingCollider,
+                "Stopping preserves an existing scene floor and its collider");
+            UnityEngine.Object.DestroyImmediate(existingGround);
+            Physics.SyncTransforms();
+
+            ground = StartGround();
+            EditorApplication.isPaused = true;
+            session.Poll();
+            CheckRemoved(ground, "Pausing");
+            EditorApplication.isPaused = false;
+
+            ground = StartGround();
+            manager.Module = null;
+            session.Poll();
+            CheckRemoved(ground, "Unlinking the avatar");
+            manager.Module = module;
+
+            ground = StartGround();
+            input.Error = new InvalidOperationException("Injected temporary floor input failure");
+            session.Motor.Step(0.02f);
+            CheckRemoved(ground, "Input adapter failure");
+            Check(session.Error.Contains("Injected temporary floor input failure"),
+                "Floor cleanup preserves the input adapter diagnostic");
+            input.Error = null;
+
+            ground = StartGround();
+            UnityEngine.Object.DestroyImmediate(ground);
+            session.Poll();
+            CheckRemoved(ground, "Losing the temporary floor");
+            Check(session.Motor == null && !Resources.FindObjectsOfTypeAll<MotionPreviewCamera>()
+                .Any(component => component.Target == avatar.transform),
+                "Losing the temporary floor also releases the motor and preview camera");
+
+            var startupSawFloor = false;
+            var grounded = module.GetParam("Grounded");
+            grounded.SetOnChange((parameter, value) =>
+            {
+                if (value < 0.5f) return;
+                startupSawFloor = SupportBelow(startPosition, session.Motor.Controller)
+                    .Any(hit => hit.collider.gameObject.name == "Gesture Manager Pro Ground");
+                throw new InvalidOperationException("Injected temporary floor startup failure");
+            });
+            Check(!session.Start(manager, input, previewCamera: true) && startupSawFloor &&
+                session.Error.Contains("Injected temporary floor startup failure"),
+                "A grounded-parameter callback can fail after the temporary floor has entered physics");
+            grounded.SetOnChange(null);
+            CheckRemoved(null, "Startup failure after creating the floor");
+            Check(session.Motor == null, "Startup failure leaves no movement motor");
+
+            Check(session.Start(manager, input), "Plain motion sessions still start without a simulation floor");
+            Check(!session.Motor.LastResult.Grounded &&
+                SupportBelow(startPosition, session.Motor.Controller).Length == 0,
+                "A plain input adapter without game simulation does not create scene geometry");
+            session.Stop();
+            using (var keyboard = new KeyboardMotionInputSource(true))
+            {
+                Check(session.Start(manager, keyboard), "Keyboard game simulation starts without the legacy preview flag");
+                var hits = SupportBelow(startPosition, session.Motor.Controller);
+                Check(hits.Length == 1 && hits[0].collider.gameObject.name == "Gesture Manager Pro Ground" &&
+                    session.Motor.LastResult.Grounded && module.GetParam("Grounded").BoolValue(),
+                    "The keyboard game-simulation entry creates its supporting floor automatically");
+                ground = hits[0].collider.gameObject;
+                session.Dispose();
+                CheckRemoved(ground, "Disposing keyboard game simulation");
+            }
+        }
+        finally
+        {
+            session?.Dispose();
+            if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
+            if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            if (existingGround) UnityEngine.Object.DestroyImmediate(existingGround);
+            Physics.gravity = originalGravity;
+            EditorApplication.isPaused = paused;
+            Physics.SyncTransforms();
+        }
+    }
+
+    private static RaycastHit[] SupportBelow(Vector3 feet, CharacterController ignoredController = null) =>
+        Physics.RaycastAll(feet + Vector3.up * 0.25f, Vector3.down, 0.5f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+            .Where(hit => hit.collider != ignoredController).ToArray();
 
     private static void Check(bool condition, string message)
     {

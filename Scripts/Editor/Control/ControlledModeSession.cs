@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
-using VRCLearn.GestureManagerPro.Modules;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -13,7 +12,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
     {
         private static readonly Dictionary<GestureManager, ControlledModeSession> Owners = new Dictionary<GestureManager, ControlledModeSession>();
         private static ControlledModeSession _gameSimulationOwner;
-        private static readonly string[] ParameterNames = { "VelocityX", "VelocityY", "VelocityZ", "VelocityMagnitude", "AngularY", "Grounded", "VRMode", "TrackingType", "Upright" };
+        private static readonly string[] ParameterNames = { "VelocityX", "VelocityY", "VelocityZ", "VelocityMagnitude", "AngularY", "Grounded" };
         private readonly Dictionary<string, (Vrc3Param parameter, float value)> _originalParameters = new Dictionary<string, (Vrc3Param, float)>();
         private GestureManager _manager;
         private ModuleVrc3 _module;
@@ -21,11 +20,10 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private IMotionInputSource _input;
         private GameObject _motorObject;
         private GameObject _cameraObject;
+        private GameObject _groundObject;
         private Vector3 _position;
         private Quaternion _rotation;
         private bool _originalControlled;
-        private ModuleSettings _settings;
-        private bool _originalVrMode;
         private Camera _originalModuleCamera;
         private Camera _ownedCamera;
         private bool _hasPreviewCamera;
@@ -79,8 +77,6 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _position = _avatar.position;
                 _rotation = _avatar.rotation;
                 _originalControlled = manager.IsPlayerControlled;
-                _settings = module.Settings;
-                _originalVrMode = _settings != null && _settings.vrMode;
                 _input = input;
                 if (gameSimulation) _gameSimulationOwner = this;
                 if (input is KeyboardMotionInputSource keyboardInput) keyboardInput.ViewToggleRequested += ToggleView;
@@ -97,11 +93,15 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 Motor.TurnSpeed = turnSpeed;
                 Motor.Collisions = collisions;
                 Motor.UseGravity = gravity && collisions;
-                Motor.JumpHeight = height * 0.55f;
                 Motor.Failed += OnInputFailed;
+                Motor.PoseRequested += TogglePose;
                 Running = true;
                 Motor.Initialize(_avatar, input, height, radius, 0f, CanMove, Publish);
-                if (previewCamera || gameSimulation) CreatePreviewCamera(height);
+                if (previewCamera || gameSimulation)
+                {
+                    CreateGroundIfNeeded();
+                    CreatePreviewCamera(height);
+                }
                 EditorApplication.update += Poll;
                 EditorApplication.playModeStateChanged += OnPlayModeChanged;
                 EditorApplication.pauseStateChanged += OnPauseChanged;
@@ -134,6 +134,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private bool IsValid() => Running && EditorApplication.isPlaying && !EditorApplication.isPaused &&
             _manager && _manager.isActiveAndEnabled && ReferenceEquals(_manager.Module, _module) &&
             _module.Active && !_module.IsInvalid() && _avatar && Motor &&
+            (ReferenceEquals(_groundObject, null) || _groundObject) &&
             (!_hasPreviewCamera || (_ownedCamera && ViewCamera));
 
         private bool CanMove() => IsValid() && !LocomotionBlocked &&
@@ -149,9 +150,19 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             Set("VelocityMagnitude", result.LocalVelocity.magnitude);
             Set("AngularY", result.AngularDegreesPerSecond);
             Set("Grounded", result.Grounded ? 1f : 0f);
-            Set("VRMode", 0f);
-            Set("TrackingType", _module.AvatarAnimator.isHuman ? 3f : 1f);
-            Set("Upright", 1f);
+        }
+
+        private void TogglePose(MotionPose pose)
+        {
+            if (!IsValid()) return;
+            var parameter = _module.GetParam("Upright");
+            if (parameter == null) return;
+            if (!_originalParameters.ContainsKey("Upright"))
+                _originalParameters["Upright"] = (parameter, parameter.FloatValue());
+            var upright = pose == MotionPose.Crouch ? 0.6f : 0.35f;
+            var current = parameter.FloatValue();
+            var selected = pose == MotionPose.Crouch ? current > 0.475f && current <= 0.8f : current <= 0.475f;
+            parameter.Set(_module, selected ? 1f : upright, this);
         }
 
         private void Set(string name, float value) => _module.GetParam(name)?.Set(_module, value, this);
@@ -189,17 +200,21 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 if (_input is KeyboardMotionInputSource keyboard) keyboard.ViewToggleRequested -= ToggleView;
                 TryRestore(() => _input?.Reset());
                 if (_input is KeyboardMotionInputSource ownedKeyboard) TryRestore(ownedKeyboard.Dispose);
-                if (Motor) Motor.Failed -= OnInputFailed;
+                if (Motor)
+                {
+                    Motor.Failed -= OnInputFailed;
+                    Motor.PoseRequested -= TogglePose;
+                }
                 if (_module != null && !ReferenceEquals(_ownedCamera, null) && ReferenceEquals(_module.SimulationCamera, _ownedCamera))
                     _module.SimulationCamera = _originalModuleCamera;
                 if (_motorObject) TryRestore(() => UnityEngine.Object.DestroyImmediate(_motorObject));
                 if (_cameraObject) TryRestore(() => UnityEngine.Object.DestroyImmediate(_cameraObject));
+                if (_groundObject) TryRestore(() => UnityEngine.Object.DestroyImmediate(_groundObject));
                 if (_avatar) TryRestore(() => _avatar.SetPositionAndRotation(_position, _rotation));
                 if (_module != null && _module.Active && !_module.IsInvalid())
                     foreach (var entry in _originalParameters)
                         if (ReferenceEquals(_module.GetParam(entry.Key), entry.Value.parameter))
                             TryRestore(() => entry.Value.parameter.Set(_module, entry.Value.value, this));
-                if (_settings != null) _settings.vrMode = _originalVrMode;
             }
             finally
             {
@@ -213,9 +228,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _module = null;
                 _avatar = null;
                 _input = null;
-                _settings = null;
                 _motorObject = null;
                 _cameraObject = null;
+                _groundObject = null;
                 ViewCamera = null;
                 _originalModuleCamera = null;
                 _ownedCamera = null;
@@ -246,6 +261,19 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             var gameObject = new GameObject(name) { hideFlags = HideFlags.HideAndDontSave };
             if (scene.IsValid() && scene.isLoaded) SceneManager.MoveGameObjectToScene(gameObject, scene);
             return gameObject;
+        }
+
+        private void CreateGroundIfNeeded()
+        {
+            if (Motor.LastResult.Grounded) return;
+            const float size = 100f;
+            const float thickness = 0.1f;
+            _groundObject = TemporaryObject("Gesture Manager Pro Ground", _avatar.gameObject.scene);
+            _groundObject.transform.SetPositionAndRotation(_position - Vector3.up * (thickness * 0.5f), Quaternion.identity);
+            _groundObject.transform.localScale = new Vector3(size, thickness, size);
+            _groundObject.AddComponent<BoxCollider>();
+            Physics.SyncTransforms();
+            Motor.Halt();
         }
 
         private static float CapsuleHeight(ModuleVrc3 module)

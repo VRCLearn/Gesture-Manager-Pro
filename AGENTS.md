@@ -5,6 +5,7 @@ Gesture Manager Pro is a standalone Unity/VPM package derived from Gesture Manag
 - Write repository documentation and public GitHub collaboration in English.
 - Preserve upstream MIT notices and the separate Meta SDK license/notices.
 - Target Unity 2022.3 and VRChat Avatars SDK 3.10.x until compatibility has been validated.
+- Preserve actual VRChat behavior. Do not invent substitute animations or behavior to conceal missing client functionality; document unsupported behavior explicitly.
 - Use 4 spaces for new C# code. Follow existing source style when editing inherited code.
 - Keep parameter identifiers, user expression names, asset identifiers, and persistence keys separate from localized display text.
 - Add Unity `.meta` files for new assets. Use the Pro namespace and resource prefix so the original package can remain installed.

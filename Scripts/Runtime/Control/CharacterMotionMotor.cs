@@ -15,17 +15,21 @@ namespace VRCLearn.GestureManagerPro.Control
         private Action<MotionResult> _publish;
         private Quaternion _tilt;
         private float _verticalVelocity;
+        private Vector2 _horizontalVelocity;
         private bool _initialized;
 
         public float MoveSpeed { get; set; } = 2f;
         public float TurnSpeed { get; set; } = 120f;
-        public float JumpHeight { get; set; } = 1f;
+        public float JumpImpulse { get; set; } = 3f;
+        // An explicit positive height retains compatibility with motion adapters.
+        public float JumpHeight { get; set; }
         public bool Collisions { get; set; } = true;
         public bool UseGravity { get; set; }
         public float ViewPitch { get; private set; }
         public MotionResult LastResult { get; private set; }
         public CharacterController Controller => _controller;
         public event Action<Exception> Failed;
+        public event Action<MotionPose> PoseRequested;
 
         public void Initialize(Transform avatar, IMotionInputSource input, float height, float radius,
             float footOffset, Func<bool> canMove, Action<MotionResult> publish)
@@ -70,23 +74,36 @@ namespace VRCLearn.GestureManagerPro.Control
             if (float.IsNaN(deltaTime) || float.IsInfinity(deltaTime) || deltaTime <= 0f) { Halt(); return; }
             deltaTime = Mathf.Min(deltaTime, 0.1f);
             MotionInputFrame input;
-            try { input = _input.Sample(); }
+            try
+            {
+                input = _input.Sample();
+                if (_canMove != null && !_canMove()) { Halt(); ApplyAvatarTransform(); return; }
+                if (input.Pose != MotionPose.None) PoseRequested?.Invoke(input.Pose);
+            }
             catch (Exception exception)
             {
-                Halt();
-                enabled = false;
+                if (this)
+                {
+                    Halt();
+                    enabled = false;
+                }
                 Failed?.Invoke(exception);
                 return;
             }
-            if (_canMove != null && !_canMove()) { Halt(); ApplyAvatarTransform(); return; }
+            // A parameter callback may synchronously stop the session and destroy this motor.
+            if (!this || !_avatar) return;
             var before = transform.position;
             var beforeYaw = transform.eulerAngles.y;
             var yawDelta = input.Turn * SafeSpeed(TurnSpeed, 720f) * deltaTime + input.LookDelta.x;
             var yaw = beforeYaw + yawDelta;
             ViewPitch = Mathf.Clamp(ViewPitch + input.LookDelta.y, -85f, 85f);
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-            var movement = transform.rotation * new Vector3(input.Move.x, 0f, input.Move.y) *
-                SafeSpeed(MoveSpeed, 20f) * Mathf.Clamp(input.SpeedMultiplier, 1f, 3f);
+            var speed = SafeSpeed(MoveSpeed, 20f);
+            // VRChat's strafe speed is independent of sprint. Input is already normalized.
+            var targetVelocity = new Vector2(input.Move.x * speed,
+                input.Move.y * speed * Mathf.Clamp(input.SpeedMultiplier, 1f, 3f));
+            _horizontalVelocity = Vector2.MoveTowards(_horizontalVelocity, targetVelocity, 10.5f * deltaTime);
+            var movement = transform.rotation * new Vector3(_horizontalVelocity.x, 0f, _horizontalVelocity.y);
             _controller.enabled = Collisions;
             if (UseGravity && Collisions)
             {
@@ -94,7 +111,9 @@ namespace VRCLearn.GestureManagerPro.Control
                 var groundedBeforeMove = _controller.isGrounded || ProbeGround();
                 if (groundedBeforeMove && _verticalVelocity < 0f) _verticalVelocity = -2f;
                 if (input.Jump && groundedBeforeMove && _verticalVelocity <= 0f && gravity < 0f)
-                    _verticalVelocity = Mathf.Sqrt(-2f * gravity * SafeSpeed(JumpHeight, 5f));
+                    _verticalVelocity = JumpHeight > 0f
+                        ? Mathf.Sqrt(-2f * gravity * SafeSpeed(JumpHeight, 5f))
+                        : SafeSpeed(JumpImpulse, 10f);
                 _verticalVelocity = Mathf.Max(_verticalVelocity + gravity * deltaTime, -50f);
                 movement.y = _verticalVelocity;
             }
@@ -112,6 +131,7 @@ namespace VRCLearn.GestureManagerPro.Control
 
         public void Halt()
         {
+            _horizontalVelocity = Vector2.zero;
             _verticalVelocity = 0f;
             LastResult = new MotionResult(Vector3.zero, 0f, _initialized && ProbeGround());
             _publish?.Invoke(LastResult);
@@ -122,8 +142,11 @@ namespace VRCLearn.GestureManagerPro.Control
             var radius = _controller.radius * 0.9f;
             var bottom = transform.position + _controller.center - Vector3.up * (_controller.height * 0.5f);
             var origin = bottom + Vector3.up * (_controller.radius + 0.05f);
+            // Contact resolution can lift the capsule just beyond its skin width through rounding.
+            const float contactTolerance = 0.001f;
             var count = Physics.SphereCastNonAlloc(origin, radius, Vector3.down, _groundHits,
-                0.05f + _controller.skinWidth + _controller.radius - radius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                0.05f + _controller.skinWidth + contactTolerance + _controller.radius - radius,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
             for (var index = 0; index < count; index++)
             {
                 var hit = _groundHits[index];

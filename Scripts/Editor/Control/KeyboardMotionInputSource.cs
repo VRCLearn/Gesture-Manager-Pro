@@ -82,7 +82,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             var look = new Vector2(Input.GetAxisRaw("Mouse X"), -Input.GetAxisRaw("Mouse Y")) * sensitivity;
             if (Input.GetKeyDown(KeyCode.V)) ViewToggleRequested?.Invoke();
             var sprint = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            return new MotionInputFrame(move, turn, look, sprint ? 2f : 1f, Input.GetKeyDown(KeyCode.Space));
+            var pose = Input.GetKeyDown(KeyCode.C) ? MotionPose.Crouch :
+                Input.GetKeyDown(KeyCode.Z) ? MotionPose.Prone : MotionPose.None;
+            return new MotionInputFrame(move, turn, look, sprint ? 2f : 1f, Input.GetKeyDown(KeyCode.Space), pose);
         }
 
         public void RequestCapture()
@@ -187,7 +189,11 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             Suspended = _sceneNavigation || _sceneReleaseKeys.Count != 0;
             var frame = Suspended ? default : new MotionInputFrame(
                 new Vector2(SceneAxis(KeyCode.A, KeyCode.D), SceneAxis(KeyCode.S, KeyCode.W)),
-                SceneAxis(KeyCode.Comma, KeyCode.Period));
+                SceneAxis(KeyCode.Comma, KeyCode.Period), default,
+                SceneHeld(KeyCode.LeftShift) || SceneHeld(KeyCode.RightShift) ? 2f : 1f,
+                _scenePressedKeys.Contains(KeyCode.Space),
+                _scenePressedKeys.Contains(KeyCode.C) ? MotionPose.Crouch :
+                    _scenePressedKeys.Contains(KeyCode.Z) ? MotionPose.Prone : MotionPose.None);
             // Scene GUI can deliver a complete short press between player updates.
             // Keep its first press until one motor sample, then consume it once.
             _scenePressedKeys.Clear();
@@ -195,11 +201,14 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         }
 
         private float SceneAxis(KeyCode negative, KeyCode positive) =>
-            (_sceneKeys.Contains(positive) || _scenePressedKeys.Contains(positive) ? 1f : 0f) -
-            (_sceneKeys.Contains(negative) || _scenePressedKeys.Contains(negative) ? 1f : 0f);
+            (SceneHeld(positive) ? 1f : 0f) - (SceneHeld(negative) ? 1f : 0f);
+
+        private bool SceneHeld(KeyCode key) => _sceneKeys.Contains(key) || _scenePressedKeys.Contains(key);
 
         private static bool IsSceneMovementKey(KeyCode key) => key == KeyCode.W || key == KeyCode.A ||
-            key == KeyCode.S || key == KeyCode.D || key == KeyCode.Comma || key == KeyCode.Period;
+            key == KeyCode.S || key == KeyCode.D || key == KeyCode.Comma || key == KeyCode.Period ||
+            key == KeyCode.Space || key == KeyCode.LeftShift || key == KeyCode.RightShift ||
+            key == KeyCode.C || key == KeyCode.Z;
 
         private void BlockSceneKeysUntilRelease()
         {
@@ -212,6 +221,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private static bool AnyControlKeyHeld() => Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) ||
             Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.Comma) || Input.GetKey(KeyCode.Period) || Input.GetKey(KeyCode.V) ||
             Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ||
+            Input.GetKey(KeyCode.C) || Input.GetKey(KeyCode.Z) ||
             Input.GetKey(KeyCode.Escape) || AnyMouseButtonHeld();
 
         private static bool AnyMouseButtonHeld()

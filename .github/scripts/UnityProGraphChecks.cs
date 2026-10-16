@@ -112,28 +112,54 @@ public static class UnityProGraphChecks
                 // Empty additive/FX controllers are valid default placeholders.
                 // The remaining layers need their actual animation references.
                 if (entry.Key != VRCAvatarDescriptor.AnimLayerType.Additive && entry.Key != VRCAvatarDescriptor.AnimLayerType.FX)
-                    check(clips.Length > 0, "Built-in animation references resolve to real clips: " + entry.Key);
+                    check(clips.Length > 0, "Built-in animation source references resolve, including SDK proxy placeholders: " + entry.Key);
+                if (entry.Key == VRCAvatarDescriptor.AnimLayerType.Base)
+                {
+                    var proxy = clips.First(clip => clip.name == "proxy_walk_forward");
+                    var overrides = (AnimatorOverrideController)Vrc3ProxyOverride.OverrideController(controller);
+                    try
+                    {
+                        check(proxy.length == 0f && overrides[proxy] == proxy,
+                            "SDK walking placeholders remain the original zero-duration source; no substitute gait is invented");
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(overrides); }
+                }
             }
+
+            CheckAnimatedSource(check);
 
             var originalVelocity = module.GetParam("VelocityZ").FloatValue();
             var originalVrMode = module.GetParam("VRMode").FloatValue();
+            var originalTracking = module.GetParam("TrackingType").FloatValue();
+            module.GetParam("Upright").Set(module, 0.6f);
             session = new ControlledModeSession();
             var input = new GraphMotionInput();
             check(session.Start(manager, input, 2f, 120f, false, false, false), "Controlled mode starts on the fully initialized graph: " + session.Error);
             input.Frame = new MotionInputFrame(Vector2.up, 1f);
             session.Motor.Step(0.1f);
+            session.Motor.Step(0.1f);
             check(Vector3.Distance(avatar.transform.position, originalPosition) > 0.1f, "The real simulator graph accepts actual root movement");
             check(Mathf.Abs(module.GetParam("VelocityZ").FloatValue() - 2f) < 0.001f, "Motion publishes forward velocity through real playable subscriptions");
             check(Mathf.Abs(module.GetParam("AngularY").FloatValue() - 120f) < 0.01f, "Motion publishes turning through the fully initialized parameter catalog");
-            check(module.GetParam("VRMode").FloatValue() == 0f && module.GetParam("TrackingType").FloatValue() == 1f, "The fully initialized generic fixture reports desktop tracking during control");
+            check(module.GetParam("VRMode").FloatValue() == originalVrMode &&
+                module.GetParam("TrackingType").FloatValue() == originalTracking && manager.settings.vrMode &&
+                module.GetParam("Upright").FloatValue() == 0.6f,
+                "Movement preserves VR mode, tracking and upright through real simulator callbacks");
+            module.GetParam("TrackingType").Set(module, 6f);
+            module.GetParam("VRMode").Set(module, 0f);
+            session.Motor.Step(0.02f);
+            check(module.GetParam("TrackingType").FloatValue() == 6f &&
+                module.GetParam("VRMode").FloatValue() == 0f && !manager.settings.vrMode,
+                "Existing GM tracking and VR controls remain authoritative during movement");
             graph.Evaluate(1f / 60f);
             check(graph.IsValid(), "The initialized graph remains valid after motion-driven evaluation");
             session.Stop();
             check(!manager.IsPlayerControlled && Vector3.Distance(avatar.transform.position, originalPosition) < 0.0001f &&
                 Quaternion.Angle(avatar.transform.rotation, originalRotation) < 0.001f, "Stop restores the real initialized avatar and releases control");
             check(Mathf.Abs(module.GetParam("VelocityZ").FloatValue() - originalVelocity) < 0.001f &&
-                Mathf.Abs(module.GetParam("VRMode").FloatValue() - originalVrMode) < 0.001f && manager.settings.vrMode,
-                "Stop restores parameters and settings through the real simulator callbacks");
+                module.GetParam("VRMode").FloatValue() == 0f && !manager.settings.vrMode &&
+                module.GetParam("TrackingType").FloatValue() == 6f && module.GetParam("Upright").FloatValue() == 0.6f,
+                "Stop restores owned motion parameters and preserves externally changed simulator settings");
             manager.UnlinkModule();
             check(manager.Module == null && !module.Active && !GestureManager.ControlledAvatars.ContainsKey(avatar), "The actual Disconnect path releases the initialized graph and avatar registration");
             check(!graph.IsValid(), "Disconnect destroys the real avatar animation graph");
@@ -164,6 +190,52 @@ public static class UnityProGraphChecks
             }
             if (genericAvatar) UnityEngine.Object.DestroyImmediate(genericAvatar);
             if (host) UnityEngine.Object.DestroyImmediate(host);
+        }
+    }
+
+    private static void CheckAnimatedSource(Action<bool, string> check)
+    {
+        // This intentionally authored test clip proves the animation clock advances.
+        // It is never installed as an avatar or SDK proxy replacement.
+        var target = new GameObject("Pro animated source validation");
+        var bone = new GameObject("Root");
+        bone.transform.SetParent(target.transform, false);
+        var animator = target.AddComponent<Animator>();
+        var avatar = AvatarBuilder.BuildGenericAvatar(target, "Root");
+        animator.avatar = avatar;
+        var source = new AnimationClip { name = "Pro explicit test motion" };
+        source.SetCurve("Root", typeof(Transform), "m_LocalPosition.x", AnimationCurve.Linear(0f, 0f, 1f, 1f));
+        var controller = new AnimatorController();
+        controller.AddLayer("Base");
+        var stateMachine = controller.layers[0].stateMachine;
+        var state = stateMachine.AddState("Custom motion");
+        state.motion = source;
+        stateMachine.defaultState = state;
+        var wrapped = Vrc3ProxyOverride.OverrideController(controller);
+        var graph = PlayableGraph.Create("Pro animated source validation");
+        try
+        {
+            graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
+            var playable = UnityEngine.Animations.AnimatorControllerPlayable.Create(graph, wrapped);
+            AnimationPlayableOutput.Create(graph, "Custom motion", animator).SetSourcePlayable(playable);
+            graph.Play();
+            graph.Evaluate(0.1f);
+            var before = bone.transform.localPosition.x;
+            graph.Evaluate(0.2f);
+            check(bone.transform.localPosition.x > before + 0.1f &&
+                wrapped.animationClips.Contains(source) && source.length == 1f,
+                "An explicitly provided time-varying animation advances through the original proxy wrapper unchanged");
+        }
+        finally
+        {
+            if (graph.IsValid()) graph.Destroy();
+            UnityEngine.Object.DestroyImmediate(wrapped);
+            UnityEngine.Object.DestroyImmediate(state);
+            UnityEngine.Object.DestroyImmediate(stateMachine);
+            UnityEngine.Object.DestroyImmediate(controller);
+            UnityEngine.Object.DestroyImmediate(source);
+            UnityEngine.Object.DestroyImmediate(avatar);
+            UnityEngine.Object.DestroyImmediate(target);
         }
     }
 

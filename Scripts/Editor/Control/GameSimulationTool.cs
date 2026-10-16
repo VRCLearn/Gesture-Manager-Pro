@@ -99,8 +99,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             _showControls = EditorGUILayout.Foldout(_showControls, EditorLocalization.Tr("Controls"), true);
             if (_showControls)
             {
-                EditorGUILayout.HelpBox(EditorLocalization.Tr("Game view: WASD moves, the mouse looks, < / > turns, V switches first / third person, and Shift sprints. Space jumps when gravity is enabled and the avatar is grounded."), MessageType.Info);
-                EditorGUILayout.HelpBox(EditorLocalization.Tr("Scene view: WASD and < / > move and turn the avatar without moving the Scene camera. Alt or right / middle mouse preserves Scene camera navigation and suspends avatar input."), MessageType.Info);
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Game view: WASD moves, the mouse looks, < / > turns, V switches first / third person, and Shift runs forward / backward. C toggles crouch; Z toggles prone. Space jumps when gravity is enabled and the avatar is grounded."), MessageType.Info);
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Scene view: WASD moves, < / > turns, Shift runs forward / backward, C toggles crouch, Z toggles prone, and Space jumps when gravity is enabled and the avatar is grounded. The Scene camera stays unchanged; Alt or right / middle mouse suspends avatar input for camera navigation."), MessageType.Info);
                 EditorGUILayout.HelpBox(EditorLocalization.Tr("Esc releases the Game-view mouse and suspends input. Click the Game view or use Resume Input to continue. First person hides the local avatar from the simulation camera; the Scene view and third person still show it. Visible first-person body / arms are not implemented yet. Exit restores the avatar pose, motion parameters, cameras and cursor."), MessageType.Info);
                 EditorGUILayout.HelpBox(EditorLocalization.Tr("Keyboard input requires Active Input Handling: Input Manager (Old) or Both. The motion input interface is ready for future VR adapters; headset tracking and IK are not implemented yet."), MessageType.Info);
             }
