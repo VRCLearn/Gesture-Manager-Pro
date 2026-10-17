@@ -43,17 +43,23 @@ class ReleaseTests(PackageFixture):
     def test_dated_categorized_changelog_excludes_other_releases_and_link_definitions(self):
         (self.package / "CHANGELOG.md").write_text(
             "# Changelog\n\n## [Unreleased]\n\n### Added\n\n- Planned feature.\n\n"
-            "## [0.1.0] - 2026-10-14\n\n### Added\n\n- Initial standalone release.\n\n"
+            "## [0.1.0] - 2026-10-14\n\n> Compatibility: use the supported SDK version.\n\n"
+            "### Added\n\n- Initial standalone release.\n\n"
             "### Fixed\n\n- Correct avatar selection.\n\n"
             "## [0.0.1] - 2026-10-13\n\n### Added\n\n- Earlier development.\n\n"
             "[Unreleased]: https://example.invalid/compare/0.1.0...HEAD\n"
             "[0.1.0]: https://example.invalid/compare/0.0.1...0.1.0\n"
             "[0.0.1]: https://example.invalid/releases/0.0.1\n", encoding="utf-8")
-        notes = prepare_release.release_notes("0.1.0")
-        self.assertIn("### Added\n\n- Initial standalone release.", notes)
-        self.assertIn("### Fixed\n\n- Correct avatar selection.", notes)
-        self.assertNotIn("Planned feature.", notes)
-        self.assertNotIn("Earlier development.", notes)
+        prepare_release.prepare(self.root / "release", "0.1.0", builder.REPOSITORY, "ab" * 20)
+        notes = (self.root / "release/release-notes.md").read_text(encoding="utf-8")
+        self.assertEqual(notes,
+            "Gesture Manager Pro 0.1.0\n\n"
+            "> Compatibility: use the supported SDK version.\n\n"
+            "### Added\n\n- Initial standalone release.\n\n"
+            "### Fixed\n\n- Correct avatar selection.\n\n"
+            "Install from the [VRCLearn VPM repository](https://vrclearn.github.io/Gesture-Manager-Pro/). "
+            "The standalone package includes its simulator; the original Gesture Manager is not a dependency.\n\n"
+            "[Installation and validation details](https://github.com/VRCLearn/Gesture-Manager-Pro#install-and-use).\n")
         oldest = prepare_release.release_notes("0.0.1")
         self.assertIn("Earlier development.", oldest)
         for selected in (notes, oldest):
@@ -82,9 +88,13 @@ class ReleaseTests(PackageFixture):
         with self.assertRaisesRegex(ValueError, "author"):
             prepare_release.prepare(self.root / "release", "0.1.0", builder.REPOSITORY, "ab" * 20)
         (self.package / "package.json").write_bytes(builder.encode_json(self.manifest))
-        (self.package / "CHANGELOG.md").write_text("# Changelog\n\n## 0.2.0\n\n- Different release.\n")
-        with self.assertRaisesRegex(ValueError, "Changelog"):
-            prepare_release.prepare(self.root / "release", "0.1.0", builder.REPOSITORY, "ab" * 20)
+        for changelog in ("# Changelog\n\n## 0.2.0\n\n- Different release.\n",
+                          "# Changelog\n\n## [0.1.0] - 2026-10-14\n\n"
+                          "## [0.0.1] - 2026-10-13\n\n- Earlier release.\n"):
+            (self.package / "CHANGELOG.md").write_text(changelog)
+            with self.subTest(changelog=changelog), self.assertRaisesRegex(ValueError, "Changelog"):
+                prepare_release.prepare(self.root / "release", "0.1.0", builder.REPOSITORY, "ab" * 20)
+            self.assertFalse((self.root / "release").exists())
 
 
 if __name__ == "__main__":

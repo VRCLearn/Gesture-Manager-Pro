@@ -15,8 +15,14 @@ headings, and put version comparison links at the end. Omit empty categories.
 Use the original GitHub publication date in Asia/Shanghai; describe any authorized
 distribution refresh separately with its own date and reinstall instructions.
 The file covers Pro releases and links to the separate upstream 3.x history.
-The release generator preserves the selected version's categories and notices,
-excluding other versions and the footer's link definitions.
+GitHub Release notes are generated automatically by
+`.github/scripts/prepare_release.py` from the exact matching version in the tagged
+`CHANGELOG.md`. Maintain that section as the source of release changes. The
+generator preserves its categories, Markdown formatting and notices, excludes
+other versions and the footer's link definitions, and adds the standard version
+title and installation links. The workflow publishes this file through
+`gh release create --notes-file`; a missing or empty matching section fails release
+preparation before any archives are built or a release is published.
 
 1. Complete relevant Unity, hardware and distribution validation. Record any development-release limits accurately.
 2. Update `package.json` and `CHANGELOG.md`. The tag must match the three-part numeric version exactly, without a `v` prefix. The release builder generates the matching download URL; `zipSHA256` belongs only in the repository index, not inside the package manifest.

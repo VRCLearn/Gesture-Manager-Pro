@@ -3,6 +3,7 @@
 Gesture Manager Pro is a standalone Unity/VPM package derived from Gesture Manager 3.9.9. It embeds its simulator and does not depend on the original package.
 
 - Write repository documentation and public GitHub collaboration in English.
+- Generate GitHub Release notes from the matching version in the tagged `CHANGELOG.md` through `.github/scripts/prepare_release.py`. Preserve its categories and notices, exclude other versions and reference definitions, and publish the generated file with `--notes-file`.
 - Preserve upstream MIT notices and the separate Meta SDK license/notices.
 - License Pro under GNU AGPL version 3 only with the limited SDK linking permission in `LICENSING.md`; retain the complete AGPL text and all license notices in distributions.
 - Target Unity 2022.3 and VRChat Avatars SDK 3.10.x until compatibility has been validated.
