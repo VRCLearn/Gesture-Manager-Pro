@@ -70,6 +70,7 @@ public static class UnityProPlayChecks
             CheckTemporaryGround();
             CheckGameSimulationGravity();
             CheckThirdPersonCamera();
+            CheckThirdPersonDescriptorHeights();
             CheckGameSimulationFreeLook();
             CheckObserverCamera();
             CheckSimulationMicrophone();
@@ -260,7 +261,7 @@ public static class UnityProPlayChecks
             session.SetCameraDistance(3f);
             camera.ApplyView();
             var boomLength = Vector3.Distance(camera.transform.position,
-                avatar.transform.position + Vector3.up * (camera.Height * 0.75f));
+                BodyAxisViewpoint(avatar.transform, camera.ViewPosition));
             Check(session.ViewMode == SimulationViewMode.ThirdPerson && camera.Distance > 4f &&
                 boomLength > 4f && boomLength <= camera.Distance + 0.001f,
                 "Third person switches live and respects the configurable distance, allowing scene obstruction: " +
@@ -1030,7 +1031,7 @@ public static class UnityProPlayChecks
                 }
 
                 preview.ApplyView();
-                var bodyPivot = avatar.transform.position + Vector3.up * (preview.Height * 0.75f);
+                var bodyPivot = BodyAxisViewpoint(avatar.transform, preview.ViewPosition);
                 var direction = (preview.transform.position - bodyPivot).normalized;
                 wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 wall.name = "Pro third-person near-body-pivot obstruction";
@@ -1073,6 +1074,63 @@ public static class UnityProPlayChecks
                 if (wall) UnityEngine.Object.DestroyImmediate(wall);
                 if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
                 EditorApplication.isPaused = paused;
+            }
+        }
+    }
+
+    private static Vector3 BodyAxisViewpoint(Transform target, Vector3 viewPosition) =>
+        new Vector3(target.position.x, target.TransformPoint(viewPosition).y, target.position.z);
+
+    private static void CheckThirdPersonDescriptorHeights()
+    {
+        foreach (var eyeHeight in new[] { 0.6f, 1.6f, 2.5f })
+        {
+            GameObject avatar = null;
+            GestureManager manager = null;
+            ControlledModeSession session = null;
+            try
+            {
+                avatar = new GameObject("Pro live descriptor-height avatar");
+                avatar.transform.SetPositionAndRotation(new Vector3(1200f, 40f + eyeHeight, 1300f), Quaternion.Euler(0f, 30f, 0f));
+                avatar.AddComponent<Animator>();
+                var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
+                descriptor.ViewPosition = new Vector3(0.35f, eyeHeight, -0.45f);
+                var module = new ModuleVrc3(descriptor) { Active = true, Settings = new ModuleSettings() };
+                foreach (var name in ParameterNames)
+                    module.Params.Add(name, new Vrc3Param(name, AnimatorControllerParameterType.Float));
+                manager = new GameObject("Pro live descriptor-height manager").AddComponent<GestureManager>();
+                manager.Module = module;
+                session = new ControlledModeSession();
+                Check(session.Start(manager, new SessionMotionInput(), collisions: false, previewCamera: true,
+                    viewMode: SimulationViewMode.ThirdPerson), "A real session starts with descriptor height " + eyeHeight + ": " + session.Error);
+                var preview = session.ViewCamera;
+                var camera = preview.PreviewCamera;
+                var expected = BodyAxisViewpoint(avatar.transform, descriptor.ViewPosition);
+                var viewport = camera.WorldToViewportPoint(expected);
+                Check(viewport.z > 0f && Mathf.Abs(viewport.x - 0.5f) < 0.0001f && Mathf.Abs(viewport.y - 0.5f) < 0.0001f &&
+                    Vector3.Distance(preview.transform.position, expected + preview.transform.rotation * Vector3.back * preview.Distance) < 0.001f,
+                    "The live session centers exact descriptor world height and body X/Z for eye height " + eyeHeight);
+                session.Motor.EnableFreeLook();
+                preview.YawOverride = -80f;
+                var bodyRotation = avatar.transform.rotation;
+                preview.ApplyView();
+                var orbitPosition = preview.transform.position;
+                avatar.transform.rotation = Quaternion.Euler(0f, 150f, 0f);
+                preview.ApplyView();
+                Check(Vector3.Distance(preview.transform.position, orbitPosition) < 0.001f &&
+                    Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(0f, -80f, 0f)) < 0.001f,
+                    "Independent body yaw cannot shift live free-camera framing through descriptor X/Z offsets at height " + eyeHeight);
+                avatar.transform.rotation = bodyRotation;
+                session.SetViewMode(SimulationViewMode.FirstPerson);
+                Check(Vector3.Distance(preview.transform.position, avatar.transform.TransformPoint(descriptor.ViewPosition)) < 0.001f,
+                    "The same live descriptor retains complete X/Y/Z in first person at height " + eyeHeight);
+                session.Stop();
+            }
+            finally
+            {
+                session?.Dispose();
+                if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
+                if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
             }
         }
     }
@@ -1228,7 +1286,7 @@ public static class UnityProPlayChecks
             var distance = session.CameraDistance;
             CameraKeys(wheel: 1f);
             Step(Vector2.zero, new Vector2(0f, -4f));
-            var bodyPivot = avatar.transform.position + Vector3.up * (session.ViewCamera.Height * 0.75f);
+            var bodyPivot = BodyAxisViewpoint(avatar.transform, session.ViewCamera.ViewPosition);
             Check(session.Motor.FreeLook && keyboard.FreeLook && session.CameraDistance == distance - 0.25f &&
                 session.Motor.ViewPitch == 9f && Quaternion.Angle(avatar.transform.rotation, bodyRotation) < 0.001f &&
                 Mathf.Abs(Vector3.Distance(session.ViewCamera.transform.position, bodyPivot) -
@@ -2144,12 +2202,12 @@ public static class UnityProPlayChecks
                 var preview = session.ViewCamera;
                 preview.ApplyView();
                 var camera = preview.PreviewCamera;
-                var bodyPivot = avatar.transform.position + Vector3.up * (preview.Height * 0.75f);
+                var bodyPivot = BodyAxisViewpoint(avatar.transform, preview.ViewPosition);
                 var pivotViewport = camera.WorldToViewportPoint(bodyPivot);
                 var rootViewport = camera.WorldToViewportPoint(avatar.transform.position);
                 Check(pivotViewport.z > 0f && Mathf.Abs(pivotViewport.x - 0.5f) < 0.0001f &&
                     Mathf.Abs(pivotViewport.y - 0.5f) < 0.0001f && Mathf.Abs(rootViewport.x - 0.5f) < 0.0001f,
-                    label + " centers the body-axis pivot between head and torso without a third-person shoulder offset");
+                    label + " centers the descriptor-height body-axis pivot without a third-person shoulder offset");
             }
 
             void CheckReleased(string label)

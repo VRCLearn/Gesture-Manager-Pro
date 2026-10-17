@@ -41,10 +41,10 @@ public static class UnityProCameraChecks
             preview.Pitch = 0f;
             preview.Distance = 3f;
             preview.ApplyView();
-            var pivot = avatar.transform.position + Vector3.up * 1.2f;
+            var pivot = avatar.transform.position + Vector3.up * 1.6f;
             var offset = Quaternion.Euler(0f, 90f, 0f) * Vector3.back * 3f;
             check(Close(preview.transform.position, pivot + offset),
-                "Third-person camera orbits the body axis between head and torso, independently of the descriptor viewpoint");
+                "Third-person camera uses the body axis at the exact descriptor world height");
             CheckCentered(camera, pivot, check, "Default third-person framing");
             check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(0f, 90f, 0f)) < 0.001f,
                 "Changing view mode preserves the avatar heading");
@@ -67,7 +67,7 @@ public static class UnityProCameraChecks
                 preview.Pitch = pitch;
                 preview.Distance = distance;
                 preview.ApplyView();
-                CheckCentered(camera, avatar.transform.position + Vector3.up * 1.2f, check,
+                CheckCentered(camera, avatar.transform.position + Vector3.up * 1.6f, check,
                     $"Third-person framing at heading {heading}, pitch {pitch} and distance {distance}");
             }
             avatar.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
@@ -87,7 +87,7 @@ public static class UnityProCameraChecks
                 check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(pitch, yaw, 0f)) < 0.001f &&
                     Quaternion.Angle(avatar.transform.rotation, bodyRotation) < 0.001f,
                     $"Free-look camera yaw {yaw} and pitch {pitch} do not rotate the model at distance {distance}");
-                CheckCentered(camera, avatar.transform.position + Vector3.up * 1.2f, check,
+                CheckCentered(camera, avatar.transform.position + Vector3.up * 1.6f, check,
                     $"Free-look viewport at yaw {yaw}, pitch {pitch} and distance {distance}");
             }
             preview.ViewPosition = new Vector3(0.4f, 2.5f, 0.8f);
@@ -97,12 +97,12 @@ public static class UnityProCameraChecks
             preview.ApplyView();
             var independentPosition = preview.transform.position;
             var independentRotation = preview.transform.rotation;
-            preview.ViewPosition = new Vector3(-0.7f, 0.5f, -1.1f);
-            avatar.transform.rotation = Quaternion.Euler(20f, 130f, -15f);
+            preview.ViewPosition = new Vector3(-0.7f, 2.5f, -1.1f);
+            avatar.transform.rotation = Quaternion.Euler(0f, 130f, 0f);
             preview.ApplyView();
             check(Close(preview.transform.position, independentPosition) &&
                 Quaternion.Angle(preview.transform.rotation, independentRotation) < 0.001f,
-                "Descriptor offsets and body tilt cannot move a free third-person camera off the upright body-axis orbit");
+                "Descriptor X/Z offsets and level body yaw cannot shift an independent camera away from the body axis");
             var translation = new Vector3(1f, 0.5f, -2f);
             avatar.transform.position += translation;
             preview.ApplyView();
@@ -124,7 +124,7 @@ public static class UnityProCameraChecks
                 "Free-look yaw wraps and stays independent when the avatar turns beneath the camera");
             check(Close(preview.transform.position, orbitPosition),
                 "Turning the body below a free camera cannot shift its orbit through descriptor X/Z offsets");
-            CheckCentered(camera, avatar.transform.position + Vector3.up * 1.2f, check,
+            CheckCentered(camera, avatar.transform.position + Vector3.up * 1.6f, check,
                 "Free-look framing after independent body turning");
             foreach (var yaw in new float?[] { null, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
             {
@@ -182,10 +182,10 @@ public static class UnityProCameraChecks
             preview.Mode = SimulationViewMode.ThirdPerson;
             preview.Pitch = 25f;
             preview.ApplyView();
-            var scaledPivot = avatar.transform.position + Vector3.up * 2.4f;
+            var scaledPivot = BodyAxisViewpoint(avatar.transform, preview.ViewPosition);
             CheckCentered(camera, scaledPivot, check, "Scaled and tilted avatar body-axis framing");
             check(Close(preview.transform.position, scaledPivot + preview.transform.rotation * Vector3.back * preview.Distance),
-                "Third-person world height is applied once and body tilt does not tilt the orbit center");
+                "Third-person height uses the complete scaled and tilted descriptor transform while X/Z stay on the body axis");
 
             preview.Height = float.NaN;
             preview.Pitch = float.PositiveInfinity;
@@ -210,7 +210,7 @@ public static class UnityProCameraChecks
             preview.Mode = SimulationViewMode.ThirdPerson;
             preview.Distance = 3f;
             preview.Pitch = 0f;
-            pivot = avatar.transform.position + Vector3.up * 1.2f;
+            pivot = avatar.transform.position + Vector3.up * 1.6f;
             offset = Vector3.back * 3f;
             var direction = offset.normalized;
             var self = Cube("Pro validation camera self collider", pivot + direction, Vector3.one * 0.4f);
@@ -344,6 +344,7 @@ public static class UnityProCameraChecks
             UnityEngine.Object.DestroyImmediate(preview);
             check(!visible.forceRenderingOff && hidden.forceRenderingOff,
                 "Destroying the preview restores visibility and releases render callbacks");
+            CheckDescriptorHeight(check);
         }
         finally
         {
@@ -356,6 +357,110 @@ public static class UnityProCameraChecks
             Physics.SyncTransforms();
         }
     }
+
+    private static void CheckDescriptorHeight(Action<bool, string> check)
+    {
+        GameObject parent = null;
+        GameObject avatar = null;
+        GameObject replacement = null;
+        GameObject cameraObject = null;
+        try
+        {
+            parent = new GameObject("Pro descriptor-height parent");
+            parent.transform.SetPositionAndRotation(new Vector3(300f, 40f, 400f), Quaternion.Euler(15f, 30f, -10f));
+            parent.transform.localScale = new Vector3(1.2f, 2f, 0.8f);
+            avatar = new GameObject("Pro descriptor-height avatar");
+            avatar.transform.SetParent(parent.transform, false);
+            avatar.transform.localPosition = new Vector3(1f, 3f, -2f);
+            avatar.transform.localRotation = Quaternion.Euler(20f, 45f, -15f);
+            avatar.transform.localScale = new Vector3(0.8f, 1.3f, 1.7f);
+            cameraObject = new GameObject("Pro descriptor-height camera");
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.enabled = false;
+            var preview = cameraObject.AddComponent<MotionPreviewCamera>();
+            preview.Target = avatar.transform;
+            preview.YawOverride = -65f;
+            preview.Pitch = 17f;
+            preview.Distance = 4f;
+            foreach (var localView in new[] { new Vector3(0.4f, 0.6f, 0.8f), new Vector3(-0.3f, 1.6f, -0.9f), new Vector3(0.8f, 2.5f, 0.2f) })
+            {
+                preview.ViewPosition = localView;
+                preview.ApplyView();
+                var pivot = BodyAxisViewpoint(avatar.transform, localView);
+                check(Close(preview.transform.position, pivot + preview.transform.rotation * Vector3.back * preview.Distance),
+                    "Different descriptor heights immediately use complete world Y under parent rotation and nonuniform scale: " + localView);
+                CheckCentered(camera, pivot, check, "Transformed descriptor-height framing");
+                preview.Mode = SimulationViewMode.FirstPerson;
+                preview.ApplyView();
+                check(Close(preview.transform.position, avatar.transform.TransformPoint(localView)),
+                    "First person retains the full descriptor X/Y/Z under the same transformed hierarchy");
+                preview.Mode = SimulationViewMode.ThirdPerson;
+            }
+            preview.ViewPosition = new Vector3(0.2f, 1.1f, -0.4f);
+            preview.ApplyView();
+            var previous = preview.transform.position;
+            avatar.transform.position += new Vector3(2f, 0.7f, -3f);
+            preview.ApplyView();
+            check(Close(preview.transform.position, previous + new Vector3(2f, 0.7f, -3f)),
+                "Descriptor-height framing follows root translation and jumping exactly");
+            var pivotBefore = BodyAxisViewpoint(avatar.transform, preview.ViewPosition);
+            var cameraBefore = preview.transform.position;
+            preview.Height = 20f;
+            preview.ApplyView();
+            check(Close(preview.transform.position, cameraBefore) && camera.nearClipPlane == 0.1f,
+                "Capsule height and near clipping cannot add an offset to the descriptor-height pivot");
+
+            var hat = Cube("Pro oversized camera-irrelevant hat", Vector3.zero, new Vector3(8f, 30f, 8f));
+            hat.transform.SetParent(avatar.transform, false);
+            hat.transform.localPosition = new Vector3(0f, 20f, 0f);
+            hat.GetComponent<Collider>().enabled = false;
+            var arm = Cube("Pro raised camera-irrelevant arm", Vector3.zero, new Vector3(0.3f, 5f, 0.3f));
+            arm.transform.SetParent(avatar.transform, false);
+            arm.transform.localPosition = new Vector3(1f, 5f, 0f);
+            arm.GetComponent<Collider>().enabled = false;
+            var renderer = hat.GetComponent<Renderer>();
+            renderer.localBounds = new Bounds(Vector3.up * 500f, Vector3.one * 1000f);
+            var meshCount = Resources.FindObjectsOfTypeAll<Mesh>().Length;
+            foreach (var state in new[] { 0, 1, 2, 3 })
+            {
+                renderer.enabled = state != 1;
+                hat.SetActive(state != 2);
+                arm.transform.localPosition += Vector3.up * 10f;
+                renderer.localBounds = new Bounds(Vector3.up * (state + 1) * 500f, Vector3.one * 1000f);
+                preview.ApplyView();
+                check(Close(preview.transform.position, cameraBefore),
+                    "Oversized hats, raised arms, renderer bounds, and renderer visibility cannot change framing, state " + state);
+                CheckCentered(camera, pivotBefore, check, "Geometry-independent descriptor framing");
+            }
+            check(Resources.FindObjectsOfTypeAll<Mesh>().Length == meshCount,
+                "Third-person placement creates no temporary meshes while geometry and visibility change");
+            var stable = preview.transform.position;
+            preview.ViewPosition += Vector3.up * 0.5f;
+            preview.ApplyView();
+            var heightChange = avatar.transform.TransformVector(Vector3.up * 0.5f).y;
+            check(Close(preview.transform.position, stable + Vector3.up * heightChange),
+                "A viewpoint height edit takes effect on the next ApplyView without a geometry cache");
+            replacement = new GameObject("Pro replacement descriptor-height target");
+            replacement.transform.SetPositionAndRotation(new Vector3(320f, 75f, 410f), Quaternion.Euler(-10f, 140f, 8f));
+            replacement.transform.localScale = new Vector3(2f, 0.6f, 1.2f);
+            preview.Target = replacement.transform;
+            preview.ViewPosition = new Vector3(0.7f, 2f, -0.3f);
+            preview.ApplyView();
+            CheckCentered(camera, BodyAxisViewpoint(replacement.transform, preview.ViewPosition), check,
+                "Replacing the target immediately uses its own world descriptor height and root axis");
+        }
+        finally
+        {
+            if (cameraObject) UnityEngine.Object.DestroyImmediate(cameraObject);
+            if (replacement) UnityEngine.Object.DestroyImmediate(replacement);
+            if (parent) UnityEngine.Object.DestroyImmediate(parent);
+            if (avatar) UnityEngine.Object.DestroyImmediate(avatar);
+            Physics.SyncTransforms();
+        }
+    }
+
+    private static Vector3 BodyAxisViewpoint(Transform target, Vector3 viewPosition) =>
+        new Vector3(target.position.x, target.TransformPoint(viewPosition).y, target.position.z);
 
     private static GameObject Cube(string name, Vector3 position, Vector3 scale)
     {
@@ -371,8 +476,8 @@ public static class UnityProCameraChecks
     private static void CheckCentered(Camera camera, Vector3 viewpoint, Action<bool, string> check, string label)
     {
         var viewport = camera.WorldToViewportPoint(viewpoint);
-        check(viewport.z > 0f && Mathf.Abs(viewport.x - 0.5f) < 0.001f,
-            label + " keeps the body-axis pivot at viewport center X: " + viewport);
+        check(viewport.z > 0f && Mathf.Abs(viewport.x - 0.5f) < 0.001f && Mathf.Abs(viewport.y - 0.5f) < 0.001f,
+            label + " keeps the descriptor-height body-axis pivot at viewport center: " + viewport);
     }
     private static bool Close(Vector3 left, Vector3 right) => Vector3.Distance(left, right) < 0.001f;
     private static bool Finite(Vector3 value) => !float.IsNaN(value.x) && !float.IsNaN(value.y) && !float.IsNaN(value.z) &&

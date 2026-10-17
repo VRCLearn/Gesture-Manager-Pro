@@ -77,11 +77,13 @@ namespace VRCLearn.GestureManagerPro.Control
             if (!Target) return;
             var height = SafePositive(Height, 1.6f, 0.05f, 100f);
             var localView = Finite(ViewPosition) ? ViewPosition : new Vector3(0f, 1.6f, 0f);
-            // Keep the third-person orbit on the upright body axis. The descriptor
-            // viewpoint belongs to first person and may be offset from that axis.
-            var focusPosition = Mode == SimulationViewMode.FirstPerson
-                ? Target.TransformPoint(localView)
-                : Target.position + Vector3.up * (height * 0.75f);
+            var focusPosition = Target.TransformPoint(localView);
+            if (Mode != SimulationViewMode.FirstPerson)
+            {
+                // Use only the descriptor's world height for the third-person orbit.
+                focusPosition.x = Target.position.x;
+                focusPosition.z = Target.position.z;
+            }
             var yaw = Target.eulerAngles.y;
             if (Mode == SimulationViewMode.ThirdPerson && YawOverride.HasValue && Finite(YawOverride.Value))
                 yaw = Mathf.Repeat(YawOverride.Value % 360f, 360f);

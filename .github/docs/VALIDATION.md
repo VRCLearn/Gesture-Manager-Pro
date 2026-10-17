@@ -1,5 +1,15 @@
 # Development validation
 
+## Descriptor-height third-person framing (unreleased)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
+
+- Third person now uses avatar-root world X/Z and the descriptor viewpoint's transformed world Y. It adds no height ratio, near-plane clearance or other vertical offset. Removed the experimental mesh-top scan, skinned-mesh baking, cached height and associated focus-height property. First person still uses the complete descriptor viewpoint; collision avoidance follows the same third-person center.
+- The new descriptor-height regression failed against the previous mesh-top implementation. The fixed editor runner passed 825 assertions and the Play Mode runner passed 873 assertions. Coverage includes different viewpoint heights, parent rotation and nonuniform scale, body tilt, immediate preview ViewPosition changes, target changes, root translation, accessories, raised geometry, renderer bounds/visibility, no temporary mesh creation, yaw/pitch/zoom/obstruction, first-person placement and existing free-rotation/input/physics behavior. Real session checks cover descriptor heights of 0.6, 1.6 and 2.5 m with nonzero X/Z offsets. A GPU image verifies a descriptor-height marker at screen center.
+- Package validation passed 1,752 checks. The production camera and three changed runners matched the disposable fixture by SHA-256. The camera was backed up and synchronized to Test-Avatar, which compiled without Console errors.
+- An Edit Mode probe on Chocolat measured both the descriptor world Y and third-person focus Y as 1.040000 m, with focus X/Z at the root and viewport (0.5, 0.5). Changing only the preview viewpoint's X/Z kept framing unchanged; first-person position error was zero. The avatar root transform, descriptor, selection, unsaved scene flag and Scene view framing were preserved, and the probe removed its temporary objects. No model, animation or scene asset was edited.
+- Preview ViewPosition updates are read directly on ApplyView; a session retains its existing startup copy of the descriptor's local viewpoint. Runtime editing of the descriptor component, physical controls and a VRChat client comparison were not added or validated. The client's configurable offsets and exact orbit formula remain unsupported.
+
 ## Release validation (1.0.0)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5, Python 3.14 and PowerShell on Windows.

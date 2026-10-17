@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Use the descriptor viewpoint's world height for third person while keeping X/Z on the avatar's body axis, replacing the fixed 75%-height focus. Respect avatar scale and parent transforms, preserve exact first-person placement and add no extra vertical offset.
+- Keep camera height independent of mesh geometry, accessories and renderer bounds. Add descriptor-height, live viewpoint changes, input, collision and rendered framing regressions and update compatibility documentation.
+
 ## 1.0.0
 
 - Orbit third person around an upright body-axis pivot between the head and torso instead of the descriptor viewpoint. Keep first-person placement unchanged and prevent descriptor offsets or independent body turns from dragging the free camera.

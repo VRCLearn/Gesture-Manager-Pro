@@ -18,6 +18,7 @@ public static class UnityProSimulationRenderChecks
         Material bodyMaterial = null;
         Material markerMaterial = null;
         Material floorMaterial = null;
+        Material viewMarkerMaterial = null;
         try
         {
             scene = new GameObject("Pro simulation render fixture");
@@ -28,6 +29,7 @@ public static class UnityProSimulationRenderChecks
             check(shader, "Render fixture resolves a real unlit shader");
             bodyMaterial = new Material(shader) { color = new Color(0.1f, 0.55f, 1f) };
             markerMaterial = new Material(shader) { color = new Color(1f, 0.4f, 0.08f) };
+            viewMarkerMaterial = new Material(shader) { color = new Color(1f, 0f, 1f) };
             floorMaterial = new Material(shader) { color = new Color(0.2f, 0.2f, 0.2f) };
             Primitive(PrimitiveType.Capsule, avatar, new Vector3(0f, 0.85f, 0f), new Vector3(0.5f, 0.8f, 0.5f), bodyMaterial);
             Primitive(PrimitiveType.Sphere, avatar, new Vector3(0f, 1.6f, 0f), Vector3.one * 0.45f, bodyMaterial);
@@ -51,9 +53,36 @@ public static class UnityProSimulationRenderChecks
             check(avatar.GetComponentsInChildren<Renderer>().All(renderer => !renderer.forceRenderingOff),
                 "Real camera rendering restores every local-avatar renderer after the frame");
             rig.Mode = SimulationViewMode.ThirdPerson;
-            rig.Pitch = 10f;
+            rig.Pitch = 0f;
+            rig.ViewPosition = new Vector3(0.35f, 1.6f, 0.45f);
+            Primitive(PrimitiveType.Cube, avatar, new Vector3(0f, 1.6f, -0.24f),
+                new Vector3(0.15f, 0.06f, 0.03f), viewMarkerMaterial);
             rig.ApplyView();
-            var third = Render(preview, Path.Combine(output, "third-person.png"));
+            var pivot = new Vector3(avatar.position.x, avatar.TransformPoint(rig.ViewPosition).y, avatar.position.z);
+            var viewport = preview.WorldToViewportPoint(pivot);
+            check(viewport.z > 0f && Mathf.Abs(viewport.x - 0.5f) < 0.001f && Mathf.Abs(viewport.y - 0.5f) < 0.001f,
+                "Rendered third person centers the descriptor world height on the body axis");
+            var third = Render(preview, Path.Combine(output, "third-person.png"), (pixels, width, height) =>
+            {
+                var count = 0;
+                var centerY = 0f;
+                for (var index = 0; index < pixels.Length; index++)
+                {
+                    var pixel = pixels[index];
+                    if (pixel.r < 0.8f || pixel.b < 0.8f || pixel.g > 0.2f) continue;
+                    count++;
+                    centerY += index / width + 0.5f;
+                }
+                check(count > 4 && Mathf.Abs(centerY / count - height * 0.5f) < 2f,
+                    "The GPU image places the magenta descriptor-height marker at screen center at zero pitch");
+            });
+            var cameraPosition = preview.transform.position;
+            var cameraRotation = preview.transform.rotation;
+            Primitive(PrimitiveType.Cube, avatar, new Vector3(5f, 15f, 0f), new Vector3(3f, 20f, 3f), bodyMaterial);
+            rig.ApplyView();
+            check(Vector3.Distance(preview.transform.position, cameraPosition) < 0.001f &&
+                Quaternion.Angle(preview.transform.rotation, cameraRotation) < 0.001f,
+                "Adding a giant accessory leaves the rendered third-person descriptor-height framing unchanged");
             check(third > 200, "Third-person rendering shows the actual local avatar");
             var observerObject = new GameObject("Scene observer camera");
             observerObject.transform.SetParent(scene.transform, false);
@@ -76,6 +105,7 @@ public static class UnityProSimulationRenderChecks
             if (bodyMaterial) UnityEngine.Object.DestroyImmediate(bodyMaterial);
             if (markerMaterial) UnityEngine.Object.DestroyImmediate(markerMaterial);
             if (floorMaterial) UnityEngine.Object.DestroyImmediate(floorMaterial);
+            if (viewMarkerMaterial) UnityEngine.Object.DestroyImmediate(viewMarkerMaterial);
         }
     }
 
@@ -88,7 +118,7 @@ public static class UnityProSimulationRenderChecks
         item.GetComponent<Renderer>().sharedMaterial = material;
     }
 
-    private static int Render(Camera camera, string path)
+    private static int Render(Camera camera, string path, Action<Color[], int, int> inspect = null)
     {
         var target = new RenderTexture(640, 360, 24);
         var texture = new Texture2D(640, 360, TextureFormat.RGB24, false);
@@ -102,7 +132,9 @@ public static class UnityProSimulationRenderChecks
             texture.ReadPixels(new Rect(0, 0, target.width, target.height), 0, 0);
             texture.Apply();
             File.WriteAllBytes(path, texture.EncodeToPNG());
-            return texture.GetPixels().Count(pixel => pixel.b > pixel.r * 2f && pixel.b > pixel.g * 1.2f);
+            var pixels = texture.GetPixels();
+            inspect?.Invoke(pixels, target.width, target.height);
+            return pixels.Count(pixel => pixel.b > pixel.r * 2f && pixel.b > pixel.g * 1.2f);
         }
         finally
         {
