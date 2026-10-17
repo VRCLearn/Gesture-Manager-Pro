@@ -29,6 +29,7 @@ class PackageFixture(unittest.TestCase):
         self.binary_sha = hashlib.sha256(binary).hexdigest()
         self.manifest = {
             "name": builder.PACKAGE_ID, "version": "0.1.0", "unity": "2022.3",
+            "license": "SEE LICENSE IN LICENSING.md",
             "author": {"name": "Test author", "email": "tests@example.invalid"},
             "vpmDependencies": {"com.vrchat.avatars": ">=3.10.4 <3.11.0"},
             "changelogUrl": "https://github.com/VRCLearn/Gesture-Manager-Pro/blob/main/CHANGELOG.md"
@@ -36,7 +37,9 @@ class PackageFixture(unittest.TestCase):
         self.vendor = "ThirdParty/OVRLipSync/"
         contents = {
             "package.json": builder.encode_json(self.manifest),
-            "LICENSE.md": b"MIT License\nCopyright BlackStartx\nCopyright VRCLearn contributors\n",
+            "LICENSE.md": (ROOT / "LICENSE.md").read_bytes(),
+            "LICENSING.md": (ROOT / "LICENSING.md").read_bytes(),
+            "ThirdParty/GestureManager/LICENSE.txt": (ROOT / "ThirdParty/GestureManager/LICENSE.txt").read_bytes(),
             "README.md": b"# Gesture Manager Pro\n",
             "CHANGELOG.md": b"# Changelog\n\n## 0.1.0\n\n- Initial standalone release.\n\n## 0.0.1\n\n- Earlier development.\n",
             "GestureManagerPro.prefab": b"%YAML 1.1\n",
@@ -103,6 +106,7 @@ class DistributionTests(PackageFixture):
         self.assertIn("package.json", files)
         self.assertNotIn(builder.UNITY_ROOT + "/package.json", files)
         self.assertEqual(manifest["author"], self.manifest["author"])
+        self.assertEqual(manifest["license"], "SEE LICENSE IN LICENSING.md")
         self.assertEqual(manifest["url"], self.url)
         self.assertEqual(manifest["changelogUrl"], self.manifest["changelogUrl"])
         self.assertEqual(manifest["sourceRevision"], "a1" * 20)
@@ -113,7 +117,7 @@ class DistributionTests(PackageFixture):
         self.assertFalse(any(name.startswith("Documentation~/") for name in files))
         self.assertNotIn(builder.UNITY_ROOT + "/Documentation~", assets)
         self.assertFalse(any(path.startswith(builder.UNITY_ROOT + "/Documentation~/") for path in assets))
-        for name in ("LICENSE.md", self.vendor + "LICENSE.txt", self.vendor + "THIRD_PARTY_NOTICES.txt", self.vendor + "Plugins/Win64/VRCLearnOVRLipSync.dll"):
+        for name in ("LICENSE.md", "LICENSING.md", "ThirdParty/GestureManager/LICENSE.txt", self.vendor + "LICENSE.txt", self.vendor + "THIRD_PARTY_NOTICES.txt", self.vendor + "Plugins/Win64/VRCLearnOVRLipSync.dll"):
             self.assertEqual(files[name], (self.package / name).read_bytes())
             self.assertEqual(assets[builder.UNITY_ROOT + "/" + name]["asset"], files[name])
         sums = {}
@@ -229,6 +233,42 @@ class DistributionTests(PackageFixture):
         (self.package / (self.vendor + "THIRD_PARTY_NOTICES.txt")).write_bytes(b"")
         with self.assertRaisesRegex(ValueError, "license|notice"):
             self.build()
+
+    def test_project_license_and_upstream_notice_are_required_before_output(self):
+        for name in ("LICENSE.md", "LICENSING.md", "ThirdParty/GestureManager/LICENSE.txt"):
+            target = self.package / name
+            original = target.read_bytes()
+            for replacement in (None, b""):
+                with self.subTest(name=name, replacement=replacement):
+                    if replacement is None:
+                        target.unlink()
+                    else:
+                        target.write_bytes(replacement)
+                    with self.assertRaisesRegex(ValueError, "(?i)license|licensing|notice"):
+                        self.build()
+                    self.assertFalse((self.root / "output").exists())
+                    target.write_bytes(original)
+
+    def test_truncated_agpl_or_removed_mit_permission_is_rejected(self):
+        for name, replacement, error in (
+                ("LICENSE.md", b"GNU AFFERO GENERAL PUBLIC LICENSE\nVersion 3, 19 November 2007\n", "complete, unmodified"),
+                ("LICENSING.md", b"AGPL-3.0-only\n", "linking permission"),
+                ("ThirdParty/GestureManager/LICENSE.txt", b"Copyright BlackStartx\n", "MIT copyright")):
+            with self.subTest(name=name):
+                (self.package / name).write_bytes(replacement)
+                with self.assertRaisesRegex(ValueError, error):
+                    self.build()
+                self.assertFalse((self.root / "output").exists())
+                (self.package / name).write_bytes((ROOT / name).read_bytes())
+
+    def test_manifest_cannot_omit_or_misstate_the_linking_permission(self):
+        for declaration in (None, "MIT AND LicenseRef-Meta-SDK", "AGPL-3.0-only", "AGPL-3.0-or-later"):
+            with self.subTest(license=declaration):
+                manifest = dict(self.manifest, license=declaration)
+                (self.package / "package.json").write_bytes(builder.encode_json(manifest))
+                with self.assertRaisesRegex(ValueError, "license must refer"):
+                    self.build()
+                self.assertFalse((self.root / "output").exists())
 
     def test_missing_invalid_or_duplicate_metadata_is_rejected(self):
         first = self.package / "GestureManagerPro.prefab.meta"

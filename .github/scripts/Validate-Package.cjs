@@ -92,7 +92,13 @@ const manifest = JSON.parse(read(path.join(root, 'package.json')));
 check(manifest.name === 'com.vrclearn.gesture-manager-pro', 'Manifest has the standalone Pro package name.');
 check(!Object.keys(manifest.vpmDependencies || {}).some(name => /blackstartx|gesture-manager-extensions/i.test(name)), 'Package still depends on the original Gesture Manager or extension.');
 check(Object.hasOwn(manifest.vpmDependencies || {}, 'com.vrchat.avatars'), 'VRChat Avatars SDK dependency declared.');
-check(fs.existsSync(path.join(root, 'LICENSE.md')), 'Upstream MIT license included.');
+check(manifest.license === 'SEE LICENSE IN LICENSING.md', 'Manifest points to the AGPL grant and limited linking permission.');
+const projectLicense = path.join(root, 'LICENSE.md');
+check(fs.existsSync(projectLicense) && crypto.createHash('sha256').update(read(projectLicense).replaceAll('\r\n', '\n')).digest('hex') === '0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0', 'Complete GNU AGPL version 3 license text included.');
+const licensingNotice = path.join(root, 'LICENSING.md');
+check(fs.existsSync(licensingNotice) && /AGPL-3\.0-only/.test(read(licensingNotice)) && /Additional permission under GNU AGPL version 3 section 7/.test(read(licensingNotice)), 'Version-3-only grant and limited SDK linking permission included.');
+const upstreamLicense = path.join(root, 'ThirdParty/GestureManager/LICENSE.txt');
+check(fs.existsSync(upstreamLicense) && /BlackStartx/.test(read(upstreamLicense)) && /Permission is hereby granted, free of charge/.test(read(upstreamLicense)), 'Upstream MIT copyright and permission notice included.');
 check(fs.existsSync(path.join(root, 'ThirdParty/OVRLipSync/LICENSE.txt')), 'Meta license included.');
 check(fs.existsSync(path.join(root, 'ThirdParty/OVRLipSync/THIRD_PARTY_NOTICES.txt')), 'Meta third-party notices included.');
 

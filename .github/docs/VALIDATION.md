@@ -1,5 +1,14 @@
 # Development validation
 
+## AGPL version-3-only licensing (unreleased)
+
+Validated on 2026-10-17 with Python 3.14, Node.js and PowerShell on Windows.
+
+- All 47 distribution, release and VPM-listing tests passed, including the PowerShell packaging entry point. New cases reject missing/empty project license files, truncated AGPL text, an incomplete linking notice, removed upstream MIT permission and manifest declarations that omit the custom linking permission, before writing release output. The test temporary directory was placed inside `Output~` because the sandbox's default temporary directory denied access.
+- Package validation passed 1,767 checks using the disposable fixture's installed VRChat Base and Avatars SDK assets. The optional original-package coexistence check was not run because no original checkout was supplied.
+- Built local VPM ZIP and UnityPackage archives and verified exact license-file and metadata identity against source. The complete AGPL text matches the official GNU download (SHA-256 `0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0`). The original MIT notice matches baseline commit `9eea5c1` byte for byte. The root license GUID and all Meta SDK files, notices and the native binary are unchanged.
+- The license migration changes notices, metadata, packaging checks and documentation. No C# implementation, model, animation or scene asset was changed by this migration; Unity runtime and hardware checks were not rerun for it. No release, published tag or remote asset was modified. Previously distributed versions retain their existing grants.
+
 ## Descriptor-height third-person framing (unreleased)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.

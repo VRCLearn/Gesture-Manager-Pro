@@ -74,9 +74,11 @@ The project does not claim to reproduce all VRChat client behavior. Game Simulat
 
 ## Upstream and licenses
 
-The inherited simulator is based on Gesture Manager 3.9.9, commit `9eea5c1`, by BlackStartx. The original MIT copyright and permission notice is retained in [LICENSE.md](LICENSE.md). See [UPSTREAM.md](https://github.com/VRCLearn/Gesture-Manager-Pro/blob/main/.github/docs/UPSTREAM.md) for the source baseline and maintenance approach.
+Gesture Manager Pro is licensed under **GNU AGPL version 3 only (`AGPL-3.0-only`)**, with an additional permission under section 7 limited to linking with Unity, the VRChat Base/Avatars SDKs and the unchanged bundled OVRLipSync native library. Covered Pro code and modifications remain subject to AGPL, including applicable source-sharing requirements. Read [LICENSING.md](LICENSING.md) for the grant, exact exception and third-party scope, and [LICENSE.md](LICENSE.md) for the complete GNU AGPL text. The manifest uses `SEE LICENSE IN LICENSING.md` to describe these terms together. Previously distributed versions retain the permissions granted with them; this change does not revoke earlier MIT grants.
 
-The native analyzer is the unchanged Windows library from the official Oculus Lipsync Unity SDK 29.0.0. Its Meta SDK license, third-party notices, download provenance, and binary hash are retained in `ThirdParty/OVRLipSync`. It has been renamed to `VRCLearnOVRLipSync.dll` and its importer enables it only in the Windows x86_64 editor. The MIT license does not cover that native library.
+The inherited simulator is based on Gesture Manager 3.9.9, commit `9eea5c1`, by BlackStartx. The original MIT copyright and permission notice is retained verbatim in [ThirdParty/GestureManager/LICENSE.txt](ThirdParty/GestureManager/LICENSE.txt). See [UPSTREAM.md](https://github.com/VRCLearn/Gesture-Manager-Pro/blob/main/.github/docs/UPSTREAM.md) for the source baseline and maintenance approach.
+
+The native analyzer is the unchanged Windows library from the official Oculus Lipsync Unity SDK 29.0.0. Its Meta SDK license, third-party notices, download provenance, and binary hash are retained in `ThirdParty/OVRLipSync`. It has been renamed to `VRCLearnOVRLipSync.dll` and its importer enables it only in the Windows x86_64 editor. The GNU AGPL and upstream MIT licenses do not cover that native library; the linking permission does not replace Meta's terms.
 
 ## Packaging
 

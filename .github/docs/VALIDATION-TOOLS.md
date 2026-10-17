@@ -4,7 +4,7 @@ These checks target Unity 2022.3 and VRChat Avatars SDK 3.10.x. They test the st
 
 ## Static checks
 
-Run `python -m unittest discover -s .github/scripts -v` for distribution and publishing checks. The archive tests cover Unity-ignored names and their metadata, empty-folder extraction, orphan metadata rejection, source identity, and asset/license preservation. When PowerShell is installed, they also execute `Build-Package.ps1` to check shared filtering and propagation of validation failures; otherwise that entry-point check reports a skip.
+Run `python -m unittest discover -s .github/scripts -v` for distribution and publishing checks. The archive tests cover Unity-ignored names and their metadata, empty-folder extraction, orphan metadata rejection, source identity, and asset/license preservation. Both archives must preserve `LICENSE.md`, `LICENSING.md`, the original upstream MIT notice and Meta's notices/binary. Missing license files, truncated AGPL text, removed MIT permission and manifest declarations that omit the custom linking permission must fail before writing output. When PowerShell is installed, they also execute `Build-Package.ps1` to check shared filtering and propagation of validation failures; otherwise that entry-point check reports a skip.
 
 Run `node .github/scripts/Validate-Package.cjs` with `--dependency-root` pointing to each installed `com.vrchat.base` and `com.vrchat.avatars` package. To also check coexistence GUID isolation against an original Gesture Manager checkout, pass `--original-root` with that checkout's path.
 

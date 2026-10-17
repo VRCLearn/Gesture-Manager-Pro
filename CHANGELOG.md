@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- License Gesture Manager Pro under GNU AGPL version 3 only, with a section 7 linking permission limited to Unity, the VRChat Base/Avatars SDKs and the unchanged bundled OVRLipSync library. Preserve upstream MIT and Meta notices, include the complete terms in both package formats and retain prior releases' existing grants.
 - Use the descriptor viewpoint's world height for third person while keeping X/Z on the avatar's body axis, replacing the fixed 75%-height focus. Respect avatar scale and parent transforms, preserve exact first-person placement and add no extra vertical offset.
 - Keep camera height independent of mesh geometry, accessories and renderer bounds. Add descriptor-height, live viewpoint changes, input, collision and rendered framing regressions and update compatibility documentation.
 

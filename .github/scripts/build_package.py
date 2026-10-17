@@ -22,8 +22,10 @@ UNITY_ROOT = "Assets/VRCLearn/GestureManagerPro"
 GUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/" + REPOSITORY)
 ROOT_GUID = uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/" + REPOSITORY + "#" + UNITY_ROOT).hex
 OVR_BINARY_SHA256 = "2318c42eb806753e340b426d0b83dd3278f5b8d3b851ccf90a5be0ea8e1d2cd3"
+AGPL_TEXT_SHA256 = "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+LICENSE_DECLARATION = "SEE LICENSE IN LICENSING.md"
 DIRECTORIES = ("Scripts", "Resources", "ThirdParty")
-ROOT_FILES = ("package.json", "GestureManagerPro.prefab", "LICENSE.md", "README.md", "CHANGELOG.md")
+ROOT_FILES = ("package.json", "GestureManagerPro.prefab", "LICENSE.md", "LICENSING.md", "README.md", "CHANGELOG.md")
 EXCLUDED = {"__pycache__", "fixtures", "testfixtures"}
 
 
@@ -71,6 +73,8 @@ def staged_manifest(output: Path, download_url: str | None, repository: str | No
     manifest = json.loads((PACKAGE / "package.json").read_text(encoding="utf-8-sig"))
     if manifest.get("name") != PACKAGE_ID or "com.vrchat.avatars" not in manifest.get("vpmDependencies", {}):
         raise ValueError("The package must declare its Pro identity and VRChat Avatars SDK dependency.")
+    if manifest.get("license") != LICENSE_DECLARATION:
+        raise ValueError("The package license must refer to LICENSING.md, including the AGPL grant and linking permission.")
     if not re.fullmatch(r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)", manifest.get("version", "")):
         raise ValueError("Package version must be a numeric stable semantic version.")
     author = manifest.get("author", {})
@@ -148,10 +152,15 @@ def source_assets(manifest: dict) -> list[Asset]:
 def validate_vendor_assets(assets: list[Asset]) -> None:
     files = {asset.path.removeprefix(UNITY_ROOT + "/"): asset.content for asset in assets if asset.content is not None}
     vendor = "ThirdParty/OVRLipSync/"
-    for name in ("LICENSE.md", vendor + "LICENSE.txt", vendor + "THIRD_PARTY_NOTICES.txt", vendor + "PROVENANCE.json"):
+    upstream = "ThirdParty/GestureManager/LICENSE.txt"
+    for name in ("LICENSE.md", "LICENSING.md", upstream, vendor + "LICENSE.txt", vendor + "THIRD_PARTY_NOTICES.txt", vendor + "PROVENANCE.json"):
         if not files.get(name):
             raise ValueError("Release is missing its required license or vendor notice: " + name)
-    if b"BlackStartx" not in files["LICENSE.md"]:
+    if hashlib.sha256(files["LICENSE.md"].replace(b"\r\n", b"\n")).hexdigest() != AGPL_TEXT_SHA256:
+        raise ValueError("The complete, unmodified GNU AGPL version 3 license text must remain in the release.")
+    if b"AGPL-3.0-only" not in files["LICENSING.md"] or b"Additional permission under GNU AGPL version 3 section 7" not in files["LICENSING.md"]:
+        raise ValueError("The AGPL version-3-only grant and SDK linking permission must remain in the licensing notice.")
+    if b"BlackStartx" not in files[upstream] or b"Permission is hereby granted, free of charge" not in files[upstream]:
         raise ValueError("The upstream MIT copyright notice must remain in the release.")
     provenance = json.loads(files[vendor + "PROVENANCE.json"])
     binary_path = provenance.get("bundledAsset", "")

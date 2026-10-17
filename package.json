@@ -5,7 +5,7 @@
   "unity": "2022.3",
   "description": "A standalone avatar testing toolkit with multilingual interfaces, SDK model statistics, audio-driven lip sync, and observer/first/third-person game simulation, derived from Gesture Manager.",
   "type": "tool",
-  "license": "MIT AND LicenseRef-Meta-SDK",
+  "license": "SEE LICENSE IN LICENSING.md",
   "author": {
     "name": "VRCLearn",
     "url": "https://github.com/VRCLearn",
