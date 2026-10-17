@@ -1,117 +1,338 @@
 # Changelog
 
-## 1.0.0
+All notable changes to Gesture Manager Pro are documented in this file.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Release dates use `YYYY-MM-DD` in Asia/Shanghai (UTC+08:00).
 
-- Publish the first official release under GNU AGPL version 3 only, with a section 7 linking permission limited to Unity, the VRChat Base/Avatars SDKs and the unchanged bundled OVRLipSync library. Preserve upstream MIT and Meta notices and include the complete terms in both package formats. Earlier distributed copies retain their existing grants.
-- Remove author-credit footers and the supporter acknowledgements menu from the Inspector and radial interfaces. Remove the upstream supporter-list download and unused credit resources/translations; preserve legal attribution in license files.
-- Use the descriptor viewpoint's world height for third person while keeping X/Z on the avatar's body axis. Respect avatar scale and parent transforms, preserve exact first-person placement and add no extra vertical offset.
-- Keep camera height independent of mesh geometry, accessories and renderer bounds. Add descriptor-height, live viewpoint changes, input, collision and rendered framing regressions and update compatibility documentation.
-- During Tab free rotation, route comma/period (`<`/`>`) to camera-only yaw while A/D keeps turning the avatar independently. Preserve ordinary turning after free rotation ends and add regression coverage and five-language help.
+This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
+3.9.9; the original project's 3.x history is available in its
+[upstream releases](https://github.com/BlackStartx/VRC-Gesture-Manager/releases).
 
-## 0.5.0
+## [Unreleased]
 
-- Add captured Game-view Tab free rotation in third person. Mouse look rotates the camera independently of the avatar; A/D turns the avatar in place, and a new W/S press restores camera-relative movement. Preserve held forward/backward movement and repeated Tab orbits; clear free rotation on first-person/observer transitions and session cleanup. Add five-language controls help.
-- Connect the ordinary Scene Camera switch to the active Game Simulation view. Its state follows the View selector and F5; disabling the observer restores the preceding player-camera state, including third person zoomed into first person, without changing the regular camera preference.
-- Remove the forced right-side shoulder offset from third person and keep the descriptor viewpoint horizontally centered through turning, pitch, zoom and collision avoidance. Restore the player camera's perspective projection and lens settings when leaving a Scene observer.
-- Restore the selected Game camera's original local pose and projection settings when Scene Camera is disabled or its target changes. Release the override when the last emulator unlinks, Play Mode changes or scripts reload, preserving the enabled preference for the next emulator session.
+## [1.0.0] - 2026-10-17
 
-## 0.4.6
+> The official AGPL distribution replaced the earlier 1.0.0 files on
+> 2026-10-18. Refresh the VPM repository and reinstall if you installed the
+> earlier 1.0.0 package. Previously distributed copies retain their existing
+> license grants.
 
-- Remove the inherited Scene Camera tool's one-millimeter vertical offset so its Game camera and the simulation observer share the same framing when toggling Game Simulation.
-- Align the temporary movement capsule's collision skin with the avatar's support foot point. Entering Game Simulation, standing, walking and landing on level ground preserve the original root height without changing model assets or moving the floor.
-- Remove the separate Gravity / Jump setting. Game Simulation automatically enables gravity and grounded Space jumping with Scene Collisions, including natural falling after leaving a platform.
-- Replace the Game-view V camera cycle with F5 to enable or disable third-person mode. Enabling restores the last positive distance; disabling returns to first person. Scene Camera remains available through the View selector.
-- Add captured Game-view wheel zoom while third-person mode is enabled. Zero distance returns to first person without disabling the feature, allowing wheel zoom back out; disabling through F5 prevents wheel entry into third person. Allow 0–6 avatar heights in the distance field.
-- Preserve Scene-view F5, V and wheel navigation, modified Alt/Ctrl/Cmd wheel controls and Shift+F5 gesture input. Default observer mode and optional observer following remain unchanged.
+### Changed
 
-## 0.4.5
+- License the official release under AGPL-3.0-only, with a linking permission
+  limited to Unity, the VRChat Base/Avatars SDKs and the unchanged bundled OVRLipSync
+  library. Upstream MIT and Meta notices remain included; see
+  [LICENSING.md](https://github.com/VRCLearn/Gesture-Manager-Pro/blob/main/LICENSING.md)
+  for the complete terms.
 
-- Start Game Simulation with a Scene Camera observer view that stays in place by default. Add an optional **Follow Avatar in Observer View** toggle for Scene and Game observer cameras, preserving manual rotation, zoom and navigation; stopping removes only the session's follow translation. V cycles observer, first-person and third-person views.
-- Add an invisible temporary ground collider under Game Simulation when no supporting scene collider exists. Preserve real grounding and jump/landing behavior, reuse existing ground and remove the temporary collider when the session stops, pauses, loses its avatar or fails.
-- Allow a small contact tolerance in ground probes so CharacterController contact adjustment does not incorrectly publish airborne locomotion while walking on a floor.
-- Preserve the GM Inspector's `VRMode`, `TrackingType` and manually selected `Upright` during movement. Add C/Z posture toggles in Game and Scene views, restoring the prior `Upright` on exit only when the session changed it.
-- Support Shift running and grounded Space jumping in the Scene view alongside movement and turning, while retaining Scene camera navigation. Clear movement immediately when input is suspended or avatar locomotion is blocked.
-- Add horizontal acceleration/deceleration of 10.5 m/s². Use default walking/strafing at 2 m/s and forward/backward running at 4 m/s without accelerating strafing under Shift. Use a default jump impulse of 3 m/s independently of avatar height; gravity remains opt-in.
-- Document the static GestureManager+ reference comparison and VRChat desktop behavior. Keep the SDK's locomotion proxy placeholders unchanged: client-side replacement animations remain unsupported, and no substitute gaits are generated.
+### Removed
 
-## 0.4.4
+- Author-credit footers and supporter acknowledgements from the Inspector and
+  radial menus, including the remote supporter-list download.
 
-- Stop generating `Documentation~/SOURCE.json` and its metadata during packaging, fixing repeated missing-folder warnings in Unity. Source repository and revision information remains in the published `package.json`.
-- Preserve empty asset folders in VPM ZIPs and reject orphan metadata. Exclude Unity-ignored names, temporary files and their metadata from both distribution formats.
-- Use the validated Python builder for the PowerShell development entry point, keeping asset filtering, GUIDs, licenses and validation consistent. `Build-Package.ps1` now requires Python 3.10 or later and produces the ZIP, UnityPackage, manifest and checksums.
-- Add Japanese, Korean and Traditional Chinese interfaces alongside English and Simplified Chinese. Improve English wording, Simplified Chinese terminology, automatic language selection and language-specific font fallbacks while preserving user text, parameter identifiers and persisted language values.
-- Restore the original emulator Inspector layout with the language selector in gear settings and Model Statistics beside Enter Play Mode. Place Game Simulation in the standard Tools group and radial Tools submenu, with shared inline settings and session state.
-- Integrate default-enabled microphone lip sync into Game Simulation, removing the separate lip-sync tool and standalone simulation windows. Preserve running sessions across foldout and tab changes, and release microphone recording and restore owned state on stop, pause, avatar loss and failure.
+### Fixed
 
-## 0.4.3
+- Center third person on the avatar's body axis at the descriptor viewpoint's
+  world height. Framing respects scale and parent transforms, stays independent
+  of accessories and mesh bounds, and leaves first-person placement unchanged.
+- Make comma/period (`<`/`>`) rotate only the camera during Tab free rotation,
+  while A/D continues turning the avatar independently.
 
-- Use shared, language-specific system font chains in Model Statistics, Lip Sync Test and Game Simulation, following NDMF's editor localization approach. Regular faces and synthetic bold keep Chinese body text and headings consistent without adding a font binary or NDMF dependency.
-- Fix repeated font rebuilding and Editor stalls when scrolling or moving Model Statistics. Validate only active atlas pages, so unused null slots in TextCore's multi-page atlas capacity do not invalidate the font cache. Missing active resources still recover automatically.
-- Put the language selector and Model Statistics, Lip Sync Test and Game Simulation actions at the top of the Gesture Manager emulator Inspector, including prefab inspection. Open simulation and lip sync with the selected emulator; remove their standalone Tools entries and the separate language Preferences page.
-- Fix copying Unity's CPU-unreadable help icon by copying its texture on the GPU. Preserve the native format and shared texture settings while retaining the window-owned, smoothly filtered icon and cleanup.
+## [0.5.0] - 2026-10-17
 
-## 0.4.2
+### Added
 
-- Display the same Unity help/question-mark icon used by the SDK for **Not Rated** overall and metric ratings. Share the other rating icons' dimensions and spacing to align their captions. Table headings and bundle file sizes remain outside the performance-rating icon display.
-- Use the native 32x32 high-resolution help icon with bilinear filtering on a private window-owned copy. This avoids jagged edges when the icon is scaled to metric rows, preserves layout alignment, and leaves Unity's shared icon unchanged. Release the copy when the window closes.
-- The 0.4.2 release assets were refreshed with this icon fix. Reinstall 0.4.2 if it was installed before the refresh.
+- Tab free rotation in captured third-person Game view. Mouse look rotates the
+  camera independently, A/D turns the avatar, and a new W/S press restores
+  camera-relative movement. Holding W/S before pressing Tab preserves movement.
 
-## 0.4.1
+### Changed
 
-- Display the VRChat SDK's performance-rank icons beside the overall rating and individual metrics, using the same SDK resources as Actual Performance Window. Keep text labels and tooltips alongside the icons.
-- Align Simplified Chinese performance-rank and metric terminology with VRCX-0: 流畅, 低负载, 中负载, 高负载 and 极高负载. Preserve the SDK's non-local Contact scope and complete Bounds semantics.
-- Show unranked or unknown ratings as **Not Rated**, without a misleading rank icon. Clear the overall icon when no snapshot is selected.
+- Connect the Scene Camera switch to Game Simulation's View selection and F5
+  state. Turning the observer off restores the previous player view, including
+  third-person mode zoomed into first person.
 
-## 0.4.0
+### Fixed
 
-- Preserve **Before Processing** statistics as a separate feature, with manual Edit Mode capture, an observation while leaving Edit Mode, and a capture of the original avatar when an SDK build starts. Earlier mode-transition callbacks may already have changed the model when the transition observation runs.
-- Align processed statistics with Actual Performance Window: use the same SDK calculation and ratings for all 31 metrics, capture active scene avatars on the first Editor update in Play Mode, and observe the last-priority SDK preprocessing callback without repeating processors.
-- Keep current Play Mode scans separate from the automatic processed snapshot. Include simulator/runtime components exactly as the SDK sees them instead of filtering them out or recalculating grades.
-- Show the SDK's complete Bounds center/extents, raw constraint depth and available download/uncompressed sizes. Format texture memory and both size metrics to two decimal places in MB; retain the SDK rating when a value is unknown.
-- Retain the latest 48 Editor-session records. Add stage filtering and an **All Avatars** history view; identify models by object identity rather than merging same-name avatars. Keep old current-state and preview records in a separate legacy group.
-- Record both PC and Mobile ratings at each automatic capture. Identify the actual SDK build platform and attach a successful bundle's file size only to its matching platform record; a second rating does not imply a second platform build or asset import.
-- Keep SDK preprocessing observations separate from later SDK work, bundle generation and upload. A successful build confirms the SDK build event, without claiming that the recorded metrics represent every later transformation or measured client performance.
+- Remove the forced right-side offset from third-person framing.
+- Restore player-camera perspective and lens settings after an orthographic
+  Scene observer.
+- Restore the selected Game camera's original pose and projection when Scene
+  Camera is disabled, its target changes, Play Mode changes or scripts reload.
+  Keep the saved camera preference for the next session.
 
-## 0.3.0
+## [0.4.6] - 2026-10-17
 
-- Replace the Inspector's Discord-name button with **Model Statistics**, also available directly under Tools and while an avatar is connected.
-- Show read-only VRChat SDK performance metrics and ratings for PC and Mobile, including triangles, materials, texture memory, PhysBones, contacts and constraints.
-- Retain the latest 12 Editor-session snapshots with avatar identity, platform, timestamp and capture stage. Separate current-state scans, pre-simulator Play Mode previews, SDK preprocessing and SDK-confirmed successful builds without triggering extra builds.
-- Exclude the active simulator's temporary components from manual scans. Keep unavailable download/uncompressed sizes and constraint depth explicit; local bundle file size is shown separately after SDK build success.
-- Localize the new window in English and Simplified Chinese. Platform selection changes rating thresholds; texture memory still reflects the currently imported assets.
+### Added
 
-## 0.2.2
+- Mouse-wheel distance control while third-person mode is enabled. Zooming all
+  the way in shows first person; zooming out restores third person. The distance
+  setting accepts zero to six avatar heights.
 
-- Keep Unity's default editor styles when rebuilding the Game Simulation window, fixing its blank controls in Unity 2022.3.
-- Use editor application focus for Scene input. Unity's player focus flag only follows the Game view and previously kept Scene movement and turning suspended.
-- Retain short Scene movement and turning presses until the motor samples them, even when Unity delivers key down and key up between player updates.
+### Changed
 
-## 0.2.1
+- Use F5 to toggle third-person mode, replacing the Game-view V camera cycle.
+  Enabling the mode restores its last positive distance; disabling returns to
+  first person. The wheel cannot enable a disabled third-person mode.
+- Apply gravity and grounded Space jumping automatically when Scene Collisions
+  is enabled, including falling after leaving a platform.
 
-- Place the emulator, Game Simulation, lip sync and language actions directly in the Tools menu.
-- Control the avatar with WASD and comma/period in the Scene view while Game Simulation is active. Keep Scene camera navigation unchanged; right/middle mouse and Alt navigation suspend avatar input.
-- Keep mouse look, cursor capture, view switching, sprint and jump controls in the Game view. Clear Scene input when focus changes, simulation pauses or the session ends.
+### Removed
 
-## 0.2.0
+- The separate Gravity / Jump setting.
 
-- Add an explicit Game Simulation mode while preserving the normal Gesture Manager inspector and Scene Camera workflow. Enter or exit through Tools > Gesture Manager Pro > Game Simulation.
-- Add first-person descriptor viewpoints, live first/third-person switching with V, mouse look, WASD movement, comma/period turning, Shift sprint, and grounded Space jumping when gravity is enabled. Esc releases the cursor and suspends input; click the Game view or use Resume Input to continue.
-- Add third-person camera obstruction avoidance and bind simulator culling/contact rays to the simulation camera. Exit, pause, unlink, input failure and camera loss restore prior motion/camera/cursor ownership; restoration callback failures no longer retain control.
-- Hide the entire local avatar only during first-person simulation-camera rendering, preserving its visibility for other cameras. Client-style head clipping, visible first-person body/arms, VR tracking and IK are not implemented.
+### Fixed
 
-## 0.1.1
+- Prevent the avatar from appearing to move when switching between the ordinary
+  Scene Camera and the simulation observer.
+- Preserve the avatar's original standing height when starting simulation,
+  walking and landing, without moving the model or ground.
+- Preserve Scene-view F5 and wheel navigation, modified keyboard shortcuts and
+  Alt/Ctrl/Cmd wheel controls.
 
-- Declare the original VPM Gesture Manager package (`vrchat.blackstartx.gesture-manager`) as a legacy package. Installing or updating Pro through VPM removes that package to prevent simultaneous simulator use.
-- Document replacing existing original GM scene emulators with Pro. VPM package removal does not convert scene components or remove a manually imported original GM Assets folder; UnityPackage and UPM installs do not perform this VPM replacement.
+## [0.4.5] - 2026-10-16
 
-## 0.1.0
+### Added
 
-- Start a standalone VRCLearn VPM package based on Gesture Manager 3.9.9.
-- Embed the simulator with independent namespaces, assemblies, resource paths, and asset GUIDs.
-- Integrate direct English/Simplified Chinese localization and audio-driven lip sync tests.
-- Add a keyboard controlled mode and a reusable motion input interface for future VR adapters.
-- Target SDK3 and remove unreachable serialized controller objects with obsolete SDK references, preserving the actual animation graphs.
-- Retain upstream MIT attribution and the separate bundled Meta SDK terms and notices.
-- Publish the official-template VRCLearn VPM installation page, versioned Release ZIP/UnityPackage/manifest/checksums, and automatic index refresh for future updates.
+- A fixed Scene Camera observer as the default simulation view, with an optional
+  Follow Avatar in Observer View toggle. Following preserves manual navigation;
+  stopping restores only the translation applied by the simulator. V cycles
+  observer, first-person and third-person views.
+- Invisible temporary ground when no supporting scene collider exists. Reuse
+  existing ground and remove the temporary collider when simulation ends.
+- C/Z crouch and prone toggles, plus Scene-view Shift running and Space jumping.
+  Existing tracking-mode and manual posture settings remain in control; stopping
+  restores posture only if the session changed it.
 
-Initial development release; hardware and visual validation are required before a stable release.
+### Changed
+
+- Use walking/strafing at 2 m/s, forward/backward running at 4 m/s, horizontal
+  acceleration/deceleration of 10.5 m/s² and a 3 m/s jump impulse independent of
+  avatar height. Shift does not increase strafe speed; gravity is opt-in in this
+  version.
+- Document the GestureManager+ reference comparison and simulator limits.
+  Client-side locomotion-proxy replacement remains unsupported; no substitute
+  walking animations are supplied.
+
+### Fixed
+
+- Prevent floor-contact adjustments from incorrectly reporting airborne
+  locomotion while walking.
+- Clear movement when input is suspended or avatar locomotion is blocked,
+  while retaining Scene camera navigation.
+
+## [0.4.4] - 2026-10-16
+
+### Added
+
+- Japanese, Korean and Traditional Chinese interfaces alongside English and
+  Simplified Chinese, with automatic language selection.
+
+### Changed
+
+- Improve English wording, Chinese terminology and language-specific font
+  fallbacks while preserving user text, parameter identifiers and saved choices.
+- Restore the original Inspector layout: language selection in gear settings,
+  Model Statistics beside Enter Play Mode, and Game Simulation in Tools and the
+  radial Tools submenu.
+- Integrate default-enabled microphone lip sync into Game Simulation, with shared
+  settings and session state. Tab/foldout changes preserve sessions; stopping,
+  pausing, avatar loss and failures release the microphone and restore state.
+- Require Python 3.10 or later for the PowerShell packaging entry point and use
+  the same validated builder for both packaging commands.
+
+### Removed
+
+- Separate lip-sync tools and standalone simulation windows.
+
+### Fixed
+
+- Unity missing-folder warnings caused by generated `Documentation~/SOURCE.json`
+  and its metadata. Source revision information remains in `package.json`.
+- Preserve empty asset folders and their metadata in VPM ZIPs. Reject orphan
+  metadata and exclude Unity-ignored names and temporary files from both formats.
+
+## [0.4.3] - 2026-10-16
+
+### Changed
+
+- Use consistent language-specific system fonts in Model Statistics, Lip Sync
+  Test and Game Simulation, without bundling fonts or adding an NDMF dependency.
+- Move language selection and the three feature actions to the top of the
+  emulator Inspector, including prefab inspection. Open tools for the selected
+  emulator and remove their standalone menus and the language Preferences page.
+
+### Fixed
+
+- Editor stalls caused by repeated font rebuilding while scrolling or moving
+  Model Statistics.
+- Errors when copying Unity's CPU-unreadable help icon, preserving its shared
+  texture and keeping the displayed copy smoothly filtered.
+
+## [0.4.2] - 2026-10-15
+
+> Distribution files were refreshed with the icon fix on 2026-10-15.
+> Reinstall if you installed 0.4.2 before that refresh.
+
+### Changed
+
+- Use the SDK's standard help icon for Not Rated overall and metric ratings,
+  aligned with the other rating icons. Table headings and file sizes remain
+  outside the rating-icon display.
+
+### Fixed
+
+- Keep the help icon sharp and smoothly scaled without changing Unity's shared
+  icon or retaining its window-owned copy after the window closes.
+
+## [0.4.1] - 2026-10-15
+
+### Added
+
+- VRChat SDK performance-rank icons beside the overall rating and individual
+  metrics, with text labels and tooltips.
+
+### Changed
+
+- Align Simplified Chinese rank names with VRCX-0: 流畅, 低负载, 中负载,
+  高负载 and 极高负载, while retaining the SDK's contact and Bounds semantics.
+
+### Fixed
+
+- Display unknown or unranked results as Not Rated without a misleading rank
+  icon. Clear the overall icon when no snapshot is selected.
+
+## [0.4.0] - 2026-10-15
+
+### Added
+
+- Stage filtering and an All Avatars history view. Models with the same name
+  retain separate identities.
+- PC and Mobile ratings at automatic captures, with a successful build's bundle
+  size attached only to its actual build platform.
+
+### Changed
+
+- Expand session history from 12 to 48 records.
+- Keep Before Processing snapshots separate from current Play Mode scans, with
+  manual Edit Mode capture and automatic capture while leaving Edit Mode or
+  starting an SDK build. Earlier transition callbacks may already have changed
+  the model before the capture runs.
+- Use the SDK's calculator for all 31 metrics and PC/Mobile grades, including
+  simulator components, complete Bounds, constraint depth and unknown values.
+- Capture processed statistics on the first Editor update in Play Mode and at
+  the final SDK preprocessing callback, without running processors again.
+- Show texture memory and available download/uncompressed sizes to two decimal
+  places in MB. Keep unknown measurements explicit.
+- Distinguish SDK preprocessing, current Play Mode scans and SDK-confirmed build
+  results. These observations do not trigger extra builds or claim to measure
+  every later transformation or actual client performance.
+
+## [0.3.0] - 2026-10-15
+
+### Added
+
+- Read-only Model Statistics with VRChat SDK metrics and PC/Mobile ratings for
+  triangles, materials, texture memory, PhysBones, contacts and constraints.
+- History for up to 12 session snapshots, identifying the avatar, platform and
+  capture stage. Keep manual scans, pre-simulator previews, SDK preprocessing and
+  SDK-confirmed builds separate without triggering extra builds.
+- English and Simplified Chinese labels for the statistics window.
+
+### Changed
+
+- Replace the Inspector's Discord shortcut with Model Statistics, also available
+  from Tools and while an avatar is connected.
+- Exclude the active simulator's temporary components from manual scans. Keep
+  unavailable size/constraint measurements explicit and report local bundle size
+  separately after a successful SDK build.
+- Use platform selection to change rating thresholds; texture memory still
+  reflects the currently imported assets.
+
+## [0.2.2] - 2026-10-15
+
+### Fixed
+
+- Fix blank Game Simulation controls in Unity 2022.3.
+- Accept Scene movement while the Editor has focus, independently of Game-view
+  player focus.
+- Retain short Scene movement and turning presses until the motor samples them.
+
+## [0.2.1] - 2026-10-15
+
+### Added
+
+- Scene-view WASD movement and comma/period turning during Game Simulation.
+  Right/middle mouse and Alt navigation suspend avatar input to preserve normal
+  Scene camera controls.
+
+### Changed
+
+- Place emulator, Game Simulation, lip sync and language actions directly in Tools.
+- Retain Game-view mouse look, cursor capture, view switching, sprint and jump
+  controls. Clear Scene input on focus changes, pause and session end.
+
+## [0.2.0] - 2026-10-14
+
+### Added
+
+- Explicit Game Simulation through Tools > Gesture Manager Pro > Game Simulation,
+  alongside the normal Inspector and Scene Camera workflow.
+- Descriptor-based first person, live first-/third-person switching with V,
+  mouse look, WASD movement, comma/period turning and Shift sprint. Grounded
+  Space jumping requires gravity to be enabled in this version.
+- Cursor release with Esc and recapture by clicking Game view or Resume Input.
+- Third-person camera obstruction avoidance, with culling and contact rays bound
+  to the simulation camera. Stop, pause, unlink and failures restore prior state.
+- Camera-scoped first-person avatar hiding that leaves the model visible to other
+  cameras. Client head clipping, visible first-person body/arms, VR tracking and
+  IK are not implemented.
+
+## [0.1.1] - 2026-10-14
+
+### Changed
+
+- Automatically replace the original `vrchat.blackstartx.gesture-manager`
+  package through VPM when installing or updating Pro, preventing simultaneous
+  simulator use.
+
+> Migration: remove the old GM scene emulator and add a Pro emulator. Package
+> replacement does not convert existing scene components or remove a manually
+> imported original GM folder under Assets. UnityPackage and direct UPM installs
+> do not perform this VPM migration.
+
+## [0.1.0] - 2026-10-14
+
+Initial development release; visual and hardware acceptance remained incomplete.
+
+### Added
+
+- Standalone Unity/VPM package based on Gesture Manager 3.9.9, with its simulator
+  embedded under independent namespaces, assemblies, resources and asset GUIDs.
+- English/Simplified Chinese localization, audio-driven lip sync tests and a
+  keyboard controller with a motion-input interface for future VR adapters.
+- VPM installation website, ZIP and UnityPackage downloads, manifests, checksums
+  and automatic repository-index updates.
+- Upstream MIT attribution and separate bundled Meta SDK terms and notices.
+
+### Removed
+
+- SDK2 simulation and unused serialized controller objects with obsolete SDK
+  references, retaining the reachable animation graphs for the SDK3 target.
+
+[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.5.0...1.0.0
+[0.5.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.6...0.5.0
+[0.4.6]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.5...0.4.6
+[0.4.5]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.4...0.4.5
+[0.4.4]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.3...0.4.4
+[0.4.3]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.2...0.4.3
+[0.4.2]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.1...0.4.2
+[0.4.1]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.0...0.4.1
+[0.4.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.3.0...0.4.0
+[0.3.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.2.2...0.3.0
+[0.2.2]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.2.1...0.2.2
+[0.2.1]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.2.0...0.2.1
+[0.2.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.1.1...0.2.0
+[0.1.1]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.1.0...0.1.1
+[0.1.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/releases/tag/0.1.0

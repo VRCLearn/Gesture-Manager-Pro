@@ -8,6 +8,16 @@ Open https://vrclearn.github.io/Gesture-Manager-Pro/ and click **Add to VCC/ALCO
 
 ## Prepare a version
 
+Maintain `CHANGELOG.md` using Keep a Changelog: keep an `Unreleased` section,
+write released headings as `## [VERSION] - YYYY-MM-DD`, group entries under the
+applicable `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` or `Security`
+headings, and put version comparison links at the end. Omit empty categories.
+Use the original GitHub publication date in Asia/Shanghai; describe any authorized
+distribution refresh separately with its own date and reinstall instructions.
+The file covers Pro releases and links to the separate upstream 3.x history.
+The release generator preserves the selected version's categories and notices,
+excluding other versions and the footer's link definitions.
+
 1. Complete relevant Unity, hardware and distribution validation. Record any development-release limits accurately.
 2. Update `package.json` and `CHANGELOG.md`. The tag must match the three-part numeric version exactly, without a `v` prefix. The release builder generates the matching download URL; `zipSHA256` belongs only in the repository index, not inside the package manifest.
 3. Run `python -m unittest discover -s .github/scripts -v` and the existing Unity checks appropriate to the changes. The release workflow gates publication on the distribution tests and archive checks on Windows/macOS/Linux with Python 3.10 and 3.12. These checks do not replace Unity licensing or hardware acceptance.
