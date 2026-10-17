@@ -12,7 +12,7 @@ from build_package import build, PACKAGE, PACKAGE_ID, REPOSITORY, ROOT
 
 def release_notes(version: str) -> str:
     changelog = (PACKAGE / "CHANGELOG.md").read_text(encoding="utf-8-sig")
-    match = re.search(r"^##[ \t]+\[?" + re.escape(version) + r"\]?(?:[ \t]+-[^\n]*)?[ \t]*\r?\n(.*?)(?=^##[ \t]|\Z)", changelog, re.MULTILINE | re.DOTALL)
+    match = re.search(r"^##[ \t]+\[?" + re.escape(version) + r"\]?(?:[ \t]+-[^\n]*)?[ \t]*\r?\n(.*?)(?=^##[ \t]|^\[[^\]\r\n]+\]:[ \t]|\Z)", changelog, re.MULTILINE | re.DOTALL)
     if match is None or not match.group(1).strip():
         raise ValueError("Changelog must contain release notes for the exact package version.")
     return (f"Gesture Manager Pro {version}\n\n" + match.group(1).strip() +

@@ -40,6 +40,26 @@ class ReleaseTests(PackageFixture):
                 prepare_release.prepare(self.root / "release", tag, builder.REPOSITORY, "ab" * 20)
         self.assertFalse((self.root / "release").exists())
 
+    def test_dated_categorized_changelog_excludes_other_releases_and_link_definitions(self):
+        (self.package / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## [Unreleased]\n\n### Added\n\n- Planned feature.\n\n"
+            "## [0.1.0] - 2026-10-14\n\n### Added\n\n- Initial standalone release.\n\n"
+            "### Fixed\n\n- Correct avatar selection.\n\n"
+            "## [0.0.1] - 2026-10-13\n\n### Added\n\n- Earlier development.\n\n"
+            "[Unreleased]: https://example.invalid/compare/0.1.0...HEAD\n"
+            "[0.1.0]: https://example.invalid/compare/0.0.1...0.1.0\n"
+            "[0.0.1]: https://example.invalid/releases/0.0.1\n", encoding="utf-8")
+        notes = prepare_release.release_notes("0.1.0")
+        self.assertIn("### Added\n\n- Initial standalone release.", notes)
+        self.assertIn("### Fixed\n\n- Correct avatar selection.", notes)
+        self.assertNotIn("Planned feature.", notes)
+        self.assertNotIn("Earlier development.", notes)
+        oldest = prepare_release.release_notes("0.0.1")
+        self.assertIn("Earlier development.", oldest)
+        for selected in (notes, oldest):
+            self.assertNotIn("example.invalid", selected)
+            self.assertNotIn("[Unreleased]:", selected)
+
     def test_prerelease_and_leading_zero_versions_are_not_stable_tags(self):
         for version in ("0.1.0-beta.1", "v0.1.0", "00.1.0", "0.1.0+metadata"):
             manifest = dict(self.manifest, version=version)
