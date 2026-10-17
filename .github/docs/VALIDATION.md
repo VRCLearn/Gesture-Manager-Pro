@@ -1,6 +1,15 @@
 # Development validation
 
-## Author-credit interface removal (unreleased)
+## AGPL 1.0.0 replacement release validation
+
+Validated on 2026-10-18 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and Python 3.14 on Windows.
+
+- The final combined package passed the 815-assertion editor run and a fresh 873-assertion Play Mode run with graphics enabled. The Play runner exercised GPU first-/third-person and observer rendering, physical collision/jump/fall behavior, and actual Windows microphone recording, injected PCM analysis and cleanup. Before that run, all 482 package files and 11 runner/assembly-definition files matched the reviewed source by SHA-256; the run did not change them.
+- All 47 distribution, release and VPM-listing tests passed, including the PowerShell packaging entry point. Package validation passed 1,727 checks; localization passed 14,944 checks over 482 keys per language. Archive checks verified all license text and metadata, source identity, preserved Meta material and absence of deleted credit assets.
+- Optional APW reference-calculator comparisons for PC/Mobile were skipped because the fixture-only reference DLL was absent. Physical keyboard/mouse input, VR hardware and a VRChat client comparison were not performed. Unity's batch startup/shutdown messages include licensing, UDP and memory diagnostics; passing assertions do not mean a completely clean batch log.
+- The maintainer explicitly authorized replacing the published 1.0.0 distribution so that the official release uses AGPL-3.0-only with the limited SDK linking permission. The previous release metadata, all four asset hashes/files, annotated tag and VPM index were backed up before replacement. This exception preserves the existing main-branch commit history and older package versions; earlier distributed copies retain their existing grants. The individual implementation records below describe their earlier validation stages.
+
+## Author-credit interface removal (1.0.0)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
 
@@ -9,7 +18,7 @@ Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on 
 - Both local archive formats exclude the twelve removed credit files/metadata and preserve all AGPL, upstream MIT and Meta license files exactly. No model, animation or scene asset was changed by this interface cleanup. Play Mode, physical input and hardware checks were not rerun for it.
 - Backed up and synchronized the current package to Test-Avatar. Its Console reported no errors after compilation. Captured and inspected the actual selected GM Inspector: the author footer is absent and the normal title, settings gear, Play Mode and Model Statistics buttons remain visible. The editor stayed in Edit Mode with its previous selection and unsaved scene state. The synchronization's additional byte differences were line endings only; the backup records retain every previous file.
 
-## AGPL version-3-only licensing (unreleased)
+## AGPL version-3-only licensing (1.0.0)
 
 Validated on 2026-10-17 with Python 3.14, Node.js and PowerShell on Windows.
 
@@ -18,7 +27,7 @@ Validated on 2026-10-17 with Python 3.14, Node.js and PowerShell on Windows.
 - Built local VPM ZIP and UnityPackage archives and verified exact license-file and metadata identity against source. The complete AGPL text matches the official GNU download (SHA-256 `0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0`). The original MIT notice matches baseline commit `9eea5c1` byte for byte. The root license GUID and all Meta SDK files, notices and the native binary are unchanged.
 - The license migration changes notices, metadata, packaging checks and documentation. No C# implementation, model, animation or scene asset was changed by this migration; Unity runtime and hardware checks were not rerun for it. No release, published tag or remote asset was modified. Previously distributed versions retain their existing grants.
 
-## Descriptor-height third-person framing (unreleased)
+## Descriptor-height third-person framing (1.0.0)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
 
@@ -28,7 +37,7 @@ Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on 
 - An Edit Mode probe on Chocolat measured both the descriptor world Y and third-person focus Y as 1.040000 m, with focus X/Z at the root and viewport (0.5, 0.5). Changing only the preview viewpoint's X/Z kept framing unchanged; first-person position error was zero. The avatar root transform, descriptor, selection, unsaved scene flag and Scene view framing were preserved, and the probe removed its temporary objects. No model, animation or scene asset was edited.
 - Preview ViewPosition updates are read directly on ApplyView; a session retains its existing startup copy of the descriptor's local viewpoint. Runtime editing of the descriptor component, physical controls and a VRChat client comparison were not added or validated. The client's configurable offsets and exact orbit formula remain unsupported.
 
-## Release validation (1.0.0)
+## Initial 1.0.0 build validation (superseded distribution)
 
 Validated on 2026-10-17 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5, Python 3.14 and PowerShell on Windows.
 
