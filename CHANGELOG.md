@@ -12,11 +12,6 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [1.0.0] - 2026-10-17
 
-> The official AGPL distribution replaced the earlier 1.0.0 files on
-> 2026-10-18. Refresh the VPM repository and reinstall if you installed the
-> earlier 1.0.0 package. Previously distributed copies retain their existing
-> license grants.
-
 ### Changed
 
 - License the official release under AGPL-3.0-only, with a linking permission
