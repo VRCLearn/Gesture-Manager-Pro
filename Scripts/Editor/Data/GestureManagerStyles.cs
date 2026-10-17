@@ -1,15 +1,11 @@
 using UnityEditor;
 using UnityEngine;
-using VRCLearn.GestureManagerPro.Localization;
 
 namespace VRCLearn.GestureManagerPro.Editor.Data
 {
     public static class GestureManagerStyles
     {
-        private const string BsxName = "BlackStartx";
-
         private static GUIStyle _whiteLabel;
-        private static GUIStyle _bottomStyle;
         private static GUIStyle _emoteError;
         private static GUIStyle _guiHandTitle;
         private static GUIStyle _guiDebugTitle;
@@ -148,14 +144,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
             focused = { textColor = new Color(0.824f, 0.824f, 0.824f, 1.000f) }
         };
 
-        private static GUIStyle BottomStyle => _bottomStyle ??= new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 11,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleRight,
-            padding = new RectOffset(5, 5, 5, 5)
-        };
-
         internal static GUIStyle Centered => _centered ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true };
         internal static GUIStyle PlusButton => _plusButton ??= new GUIStyle { margin = new RectOffset(0, 20, 3, 3) };
 
@@ -279,7 +267,5 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
                 }
             }
         }
-
-        public static void Sign(string category = "Script") => GUILayout.Label(EditorLocalization.Format("{0} made by {1}", EditorLocalization.Tr(category), BsxName), BottomStyle);
     }
 }

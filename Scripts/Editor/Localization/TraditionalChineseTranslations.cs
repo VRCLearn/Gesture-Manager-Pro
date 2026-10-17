@@ -186,7 +186,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Options"] = "選項",
             ["Expressions"] = "表情",
             ["Looks"] = "外觀",
-            ["Thanks to..."] = "感謝...",
             ["New Remote"] = "建立遠端複製角色",
             ["New Friend"] = "建立好友複製角色",
             ["Main"] = "主體",
@@ -228,7 +227,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Release Poses"] = "解除姿勢固定",
             ["Reset Height"] = "重設身高",
             ["Avatar Height"] = "角色身高",
-            ["You!"] = "你！",
             ["You edit each tool settings in the \""] = "各工具的設定都在「",
             ["\" tab!"] = "」分頁中。",
             ["Back"] = "返回",
@@ -490,9 +488,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["The simulator has not initialized its motion parameters yet."] = "模擬器尚未初始化運動參數。",
             ["Keyboard control requires Active Input Handling set to Input Manager (Old) or Both."] = "鍵盤控制需要將 Active Input Handling 設為 Input Manager (Old) 或 Both。",
             ["Brightness"] = "明度",
-            ["Script"] = "指令碼",
-            ["UI"] = "介面",
-            ["{0} made by {1}"] = "{0}由 {1} 製作",
         };
     }
 }

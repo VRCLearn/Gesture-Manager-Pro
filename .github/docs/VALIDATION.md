@@ -1,5 +1,14 @@
 # Development validation
 
+## Author-credit interface removal (unreleased)
+
+Validated on 2026-10-17 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 on Windows with graphics enabled.
+
+- Removed Inspector and custom-radial credit footers, the supporter acknowledgements menu, its remote-list request/cache, dedicated slice/data classes and four unused icons. The main radial retains Options, Expressions, Looks, Clones and Tools as five contiguous entries. Removed five unused credit strings from each translated catalog and the obsolete credit-only argument classification; user-provided names remain untouched.
+- The editor integration runner passed 815 assertions after removing ten obsolete author-credit ordering assertions. A fixture-only legacy radial probe was updated to the simplified constructor before the successful run. Localization validation passed 14,944 checks over 482 keys in each of five languages; package validation passed 1,727 checks. The optional original-package coexistence comparison was not run.
+- Both local archive formats exclude the twelve removed credit files/metadata and preserve all AGPL, upstream MIT and Meta license files exactly. No model, animation or scene asset was changed by this interface cleanup. Play Mode, physical input and hardware checks were not rerun for it.
+- Backed up and synchronized the current package to Test-Avatar. Its Console reported no errors after compilation. Captured and inspected the actual selected GM Inspector: the author footer is absent and the normal title, settings gear, Play Mode and Model Statistics buttons remain visible. The editor stayed in Edit Mode with its previous selection and unsaved scene state. The synchronization's additional byte differences were line endings only; the backup records retain every previous file.
+
 ## AGPL version-3-only licensing (unreleased)
 
 Validated on 2026-10-17 with Python 3.14, Node.js and PowerShell on Windows.

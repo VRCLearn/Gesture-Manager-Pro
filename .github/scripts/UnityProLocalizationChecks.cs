@@ -40,7 +40,6 @@ public static class UnityProLocalizationChecks
             const string userName = "Tools / 工具 / ツール / 도구 / 工具";
             var metadata = EditorLocalization.Bind(new Label(),
                 EditorLocalization.Format("Avatar: {0}\nLip sync mode: {1}", userName, EditorLocalization.Tr("JawFlapBone")));
-            var author = EditorLocalization.Bind(new Label(), EditorLocalization.Format("{0} made by {1}", EditorLocalization.Tr("Script"), "BlackStartx"));
             var rawUser = EditorLocalization.Bind(new Label(), "Tools");
             var trickyNames = new[] { "A：B", "foo\nLip sync mode: bar", "Avatar: Tools\nLip sync mode: Game Simulation" };
             var trickyLabels = trickyNames.Select(name => EditorLocalization.Bind(new Label(),
@@ -55,8 +54,6 @@ public static class UnityProLocalizationChecks
                     "Mode templates reorder and translate their semantic argument: " + language);
                 check(metadata.text == EditorLocalization.Format("Avatar: {0}\nLip sync mode: {1}", userName, EditorLocalization.Tr("JawFlapBone")),
                     "Metadata names stay exact while a semantic mode caption switches: " + language);
-                check(author.text == EditorLocalization.Format("{0} made by {1}", EditorLocalization.Tr("Script"), "BlackStartx"),
-                    "Credits keep the author's name and follow localized argument order: " + language);
                 check(rawUser.text == "Tools", "A raw user name matching a source key is not bound or translated: " + language);
                 var literalCaption = new string(EditorLocalization.Tr("Tools").ToCharArray());
                 check(!EditorLocalization.TryGetSource(literalCaption, out _), "An equal user string cannot acquire a caption identity: " + language);

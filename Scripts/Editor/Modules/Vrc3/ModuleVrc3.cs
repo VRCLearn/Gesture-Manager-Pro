@@ -352,7 +352,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             var customEditor = editor as UnityEditor.Editor;
             if (!customEditor) return;
 
-            var menu = GetOrCreateRadial(customEditor, true);
+            var menu = GetOrCreateRadial(customEditor);
             var oscContainer = GetOrCreateOscContainer(customEditor);
             var weightController = GetOrCreateWeightController(customEditor);
 
@@ -736,9 +736,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         }
 
         [PublicAPI]
-        public RadialMenu GetOrCreateRadial(ScriptableObject editor) => GetOrCreateRadial(editor, false);
-
-        internal RadialMenu GetOrCreateRadial(ScriptableObject editor, bool official)
+        public RadialMenu GetOrCreateRadial(ScriptableObject editor)
         {
             if (_radialMenus.TryGetValue(editor, out var radial)) return radial;
 
@@ -749,7 +747,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
                 return _radialMenus[editor];
             }
 
-            _radialMenus[editor] = new RadialMenu(this, official);
+            _radialMenus[editor] = new RadialMenu(this);
             _radialMenus[editor].Set(Menu);
             return _radialMenus[editor];
         }

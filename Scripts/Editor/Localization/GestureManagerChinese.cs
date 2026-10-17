@@ -186,7 +186,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Options"] = "选项",
             ["Expressions"] = "表情",
             ["Looks"] = "外观",
-            ["Thanks to..."] = "感谢...",
             ["New Remote"] = "创建远程克隆",
             ["New Friend"] = "创建好友克隆",
             ["Main"] = "主体",
@@ -228,7 +227,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Release Poses"] = "解除姿势固定",
             ["Reset Height"] = "重置身高",
             ["Avatar Height"] = "角色身高",
-            ["You!"] = "你！",
             ["You edit each tool settings in the \""] = "各工具的设置都在“",
             ["\" tab!"] = "”选项卡中。",
             ["Back"] = "返回",
@@ -307,9 +305,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["- No parameters defined when menu is defined!"] = "- 已定义菜单，但未定义参数！",
             ["Menu uses a parameter that is not defined: {0}"] = "菜单使用了未定义的参数：{0}",
             ["Brightness"] = "明度",
-            ["Script"] = "脚本",
-            ["UI"] = "界面",
-            ["{0} made by {1}"] = "{0}由 {1} 制作",
         };
     }
 }

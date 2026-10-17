@@ -12,7 +12,6 @@ namespace VRCLearn.GestureManagerPro
         public const string Version = "Gesture Manager Pro 1.0";
         public static readonly Dictionary<GameObject, ModuleBase> ControlledAvatars = new();
         public static List<ModuleBase> LastCheckedActiveModules = new();
-        public static bool InWebClientRequest;
 
         private TransformData _managerTransform;
         private bool _drag;

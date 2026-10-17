@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using VRCLearn.GestureManagerPro.Editor.Data;
 using VRCLearn.GestureManagerPro.Editor.Library;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params;
 using VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices;
@@ -64,12 +63,9 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         private RadialSliceBase[] _buttons;
         private VisualElement[] _lines;
 
-        private readonly bool _official;
-
-        public RadialMenu(ModuleVrc3 module, bool official)
+        public RadialMenu(ModuleVrc3 module)
         {
             Module = module;
-            _official = official;
             _cursor = new RadialCursor();
             CreateRadial();
         }
@@ -104,7 +100,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             base.Render(root, rect);
             if (Event.current.type == EventType.MouseUp) OnClickEnd();
             HandleExternalInput();
-            if (!_official) GestureManagerStyles.Sign("UI");
         }
 
         protected override bool RenderCondition(ModuleVrc3 module, RadialMenu menu) => menu.ToolBar.Selected == 0;
@@ -146,15 +141,14 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         internal void MainMenuPrefab()
         {
             _menuPath.Clear();
-            var buttons = new RadialSliceBase[6];
+            var buttons = new RadialSliceBase[5];
             if (Module.DummyMode == null) buttons[0] = new RadialSliceButton(OptionMainMenuPrefab, EditorLocalization.Tr("Options"), ModuleVrc3Styles.Option);
             else buttons[0] = new RadialSliceButton(Module.DummyMode.StopExecution, Module.DummyMode.ExitDummyText, running: true);
             var isDisabled = Module.DummyMode != null || !_menu;
             buttons[1] = new RadialSliceButton(ExpressionsMenu, EditorLocalization.Tr("Expressions"), ModuleVrc3Styles.Expressions, enabled: !isDisabled);
             buttons[2] = new RadialSliceButton(LooksMenuPrefab, EditorLocalization.Tr("Looks"), ModuleVrc3Styles.Looks);
-            buttons[3] = new RadialSliceButton(SupporterMenuPrefab, EditorLocalization.Tr("Thanks to..."), ModuleVrc3Styles.Emojis);
-            buttons[4] = new RadialSliceButton(ClonesMenuPrefab, EditorLocalization.Tr("Clones"), ModuleVrc3Styles.Clones, enabled: Module.DummyMode == null);
-            buttons[5] = new RadialSliceButton(ToolMenuPrefab, EditorLocalization.Tr("Tools"), ModuleVrc3Styles.Tools);
+            buttons[3] = new RadialSliceButton(ClonesMenuPrefab, EditorLocalization.Tr("Clones"), ModuleVrc3Styles.Clones, enabled: Module.DummyMode == null);
+            buttons[4] = new RadialSliceButton(ToolMenuPrefab, EditorLocalization.Tr("Tools"), ModuleVrc3Styles.Tools);
             SetButtons(buttons);
             _radialDescription = Module.DummyMode?.DummyDescription();
         }
@@ -276,21 +270,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
                 new RadialSliceButton(Module.ResetPoses, EditorLocalization.Tr("Release Poses"), ModuleVrc3Styles.ReleasePoses),
                 new RadialSliceButton(Module.ResetHeight, EditorLocalization.Tr("Reset Height"), GetParam(Vrc3DefaultParams.ScaleModified), ModuleVrc3Styles.ResetHeight),
                 RadialMenuUtility.Buttons.RadialFromParam(this, EditorLocalization.Tr("Avatar Height"), GetParam(Vrc3DefaultParams.EyeHeightAsMeters), ModuleVrc3Styles.AvatarHeight, settings: Module.HeightSettings)
-            });
-        }
-
-        private void SupporterMenuPrefab()
-        {
-            Vrc3Supporter.Check();
-            OpenCustom(new RadialSliceBase[]
-            {
-                new RadialSliceSupporter(true, 0, 3, 400, ModuleVrc3Styles.SupportLike),
-                new RadialSliceSupporter(true, 1, 3, 800, ModuleVrc3Styles.SupportLike),
-                new RadialSliceSupporter(true, 2, 3, 1200, ModuleVrc3Styles.SupportLike),
-                new RadialSliceButton(null, EditorLocalization.Tr("You!"), ModuleVrc3Styles.SupportHeart) { SelectedCenterColor = Color.red },
-                new RadialSliceSupporter(false, 0, 3, 1600, ModuleVrc3Styles.SupportGold),
-                new RadialSliceSupporter(false, 1, 3, 2000, ModuleVrc3Styles.SupportGold),
-                new RadialSliceSupporter(false, 2, 3, 2400, ModuleVrc3Styles.SupportGold)
             });
         }
 

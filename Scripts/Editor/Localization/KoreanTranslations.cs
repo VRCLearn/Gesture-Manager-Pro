@@ -186,7 +186,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Options"] = "옵션",
             ["Expressions"] = "표현 메뉴",
             ["Looks"] = "모양",
-            ["Thanks to..."] = "감사의 말...",
             ["New Remote"] = "원격 클론 생성",
             ["New Friend"] = "친구 클론 생성",
             ["Main"] = "주 색상",
@@ -228,7 +227,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Release Poses"] = "포즈 고정 해제",
             ["Reset Height"] = "키 초기화",
             ["Avatar Height"] = "아바타 키",
-            ["You!"] = "여러분!",
             ["You edit each tool settings in the \""] = "각 도구의 설정은 \"",
             ["\" tab!"] = "\" 탭에서 변경할 수 있습니다!",
             ["Back"] = "뒤로",
@@ -490,9 +488,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["The simulator has not initialized its motion parameters yet."] = "시뮬레이터가 아직 이동 매개변수를 초기화하지 않았습니다.",
             ["Keyboard control requires Active Input Handling set to Input Manager (Old) or Both."] = "키보드 조작을 사용하려면 Active Input Handling을 Input Manager (Old) 또는 Both로 설정해야 합니다.",
             ["Brightness"] = "명도",
-            ["Script"] = "스크립트",
-            ["UI"] = "UI",
-            ["{0} made by {1}"] = "{0} 제작: {1}",
         };
     }
 }

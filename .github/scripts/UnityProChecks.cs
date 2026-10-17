@@ -150,7 +150,7 @@ public static class UnityProChecks
             Check(module.GetParam("Grounded") != null && module.GetParam("着地") == null, "Built-in parameter lookup key is preserved");
             Check(module.GetParam("State").Name == "State" && module.GetParam("Tools").Name == "Tools", "User parameter identifiers remain exact");
 
-            var radial = new RadialMenu(module, false);
+            var radial = new RadialMenu(module);
             radial.Set(null);
             manager.Module = module;
             typeof(RadialMenu).GetMethod("ToolMenuPrefab", Any).Invoke(radial, null);

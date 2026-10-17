@@ -19,7 +19,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         private static GameObject _cullingDiamond;
 
-        private static Texture2D _emojis;
         private static Texture2D _option;
         private static Texture2D _expressions;
         private static Texture2D _tools;
@@ -40,9 +39,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         private static Texture2D _axisRight;
         private static Texture2D _axisDown;
         private static Texture2D _axisLeft;
-        private static Texture2D _supportLike;
-        private static Texture2D _supportGold;
-        private static Texture2D _supportHeart;
         private static Texture2D _toolCamera;
         private static Texture2D _toolClick;
         private static Texture2D _toolPose;
@@ -87,7 +83,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         internal static GameObject CullingDiamond => !_cullingDiamond ? _cullingDiamond = Resources.Load<GameObject>("GestureManagerPro/Vrc3/Meshes/CullingDiamond") : _cullingDiamond;
 
-        internal static Texture2D Emojis => !_emojis ? _emojis = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Emojis") : _emojis;
         internal static Texture2D Option => !_option ? _option = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Option") : _option;
         internal static Texture2D Expressions => !_expressions ? _expressions = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Expressions") : _expressions;
         internal static Texture2D Tools => !_tools ? _tools = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Tools") : _tools;
@@ -108,9 +103,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         internal static Texture2D AxisRight => !_axisRight ? _axisRight = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Axis_Right") : _axisRight;
         internal static Texture2D AxisDown => !_axisDown ? _axisDown = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Axis_Down") : _axisDown;
         internal static Texture2D AxisLeft => !_axisLeft ? _axisLeft = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Axis_Left") : _axisLeft;
-        internal static Texture2D SupportLike => !_supportLike ? _supportLike = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Support_Like") : _supportLike;
-        internal static Texture2D SupportGold => !_supportGold ? _supportGold = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Support_Gold") : _supportGold;
-        internal static Texture2D SupportHeart => !_supportHeart ? _supportHeart = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Support_Heart") : _supportHeart;
         internal static Texture2D ToolCamera => !_toolCamera ? _toolCamera = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Tool_Camera") : _toolCamera;
         internal static Texture2D ToolClick => !_toolClick ? _toolClick = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Tool_Click") : _toolClick;
         internal static Texture2D ToolPose => !_toolPose ? _toolPose = Resources.Load<Texture2D>("GestureManagerPro/Vrc3/BSX_GM_Tool_Pose") : _toolPose;

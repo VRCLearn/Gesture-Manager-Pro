@@ -17,7 +17,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         private bool _localizedTitle;
 
         private RadialMenu _menu;
-        private RadialMenu Menu => _menu ??= _module.GetOrCreateRadial(this, true);
+        private RadialMenu Menu => _menu ??= _module.GetOrCreateRadial(this);
 
         private readonly GUILayoutOption[] _options = { GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true) };
         private static Vector2 HeaderSize => new(0, 21);

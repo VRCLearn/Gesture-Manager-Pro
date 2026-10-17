@@ -2,8 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
 using VRCLearn.GestureManagerPro.Data;
 using VRCLearn.GestureManagerPro.Editor.Data;
 using VRCLearn.GestureManagerPro.Editor.Library;
@@ -37,8 +35,6 @@ namespace VRCLearn.GestureManagerPro.Editor
         private const int AntiAliasing = 4;
 
         private const string StringPath = "Packages/com.vrclearn.gesture-manager-pro/GestureManagerPro.prefab";
-
-        private const string SupportURL = "https://raw.githubusercontent.com/BlackStartx/VRC-Gesture-Manager/master/.support";
 
         [MenuItem("Tools/Gesture Manager Pro", false, -42)]
         public static void AddNewEmulator()
@@ -114,8 +110,6 @@ namespace VRCLearn.GestureManagerPro.Editor
             if (Manager.Module != null) ModuleGui();
             else if (_setting) GestureManagerSettings.SettingGui(Manager);
             else SetupGui(isActive, Manager.enabled, isPlaying, isPrefab);
-
-            GestureManagerStyles.Sign();
         }
 
         private void ModuleGui()
@@ -240,37 +234,5 @@ namespace VRCLearn.GestureManagerPro.Editor
             if (GUILayout.Button(GestureManagerStyles.PlusTexture, GestureManagerStyles.PlusButton, GUILayout.Width(15), GUILayout.Height(15)))
                 click(i);
         }
-
-        /* ╭────────────────────────────╮ *
-         * │         Async Call         │ *
-         * ╰────────────────────────────╯ */
-
-        internal static async void CheckSupporters(Action<string> supporters)
-        {
-            if (GestureManager.InWebClientRequest) return;
-
-            GestureManager.InWebClientRequest = true;
-            var supportString = await GetSupport();
-            GestureManager.InWebClientRequest = false;
-            if (!string.IsNullOrEmpty(supportString)) supporters(supportString);
-        }
-
-        /* ╭────────────────────────────╮ *
-         * │         Async Task         │ *
-         * ╰────────────────────────────╯ */
-
-        private static async Task<string> Get(string url)
-        {
-            try
-            {
-                return await new WebClient().DownloadStringTaskAsync(url);
-            }
-            catch (WebException)
-            {
-                return null;
-            }
-        }
-
-        private static Task<string> GetSupport() => Get(SupportURL);
     }
 }

@@ -186,7 +186,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Options"] = "オプション",
             ["Expressions"] = "エクスプレッション",
             ["Looks"] = "配色",
-            ["Thanks to..."] = "支援者の皆さま",
             ["New Remote"] = "非フレンドのクローン",
             ["New Friend"] = "フレンドのクローン",
             ["Main"] = "メイン",
@@ -228,7 +227,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Release Poses"] = "ポーズ固定を解除",
             ["Reset Height"] = "身長をリセット",
             ["Avatar Height"] = "アバターの身長",
-            ["You!"] = "あなた！",
             ["You edit each tool settings in the \""] = "各ツールの設定は「",
             ["\" tab!"] = "」タブで変更できます。",
             ["Back"] = "戻る",
@@ -490,9 +488,6 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["The simulator has not initialized its motion parameters yet."] = "シミュレーターの移動パラメーターがまだ初期化されていません。",
             ["Keyboard control requires Active Input Handling set to Input Manager (Old) or Both."] = "キーボード操作には Active Input Handling を Input Manager (Old) または Both に設定する必要があります。",
             ["Brightness"] = "明度",
-            ["Script"] = "スクリプト",
-            ["UI"] = "UI",
-            ["{0} made by {1}"] = "{0}：{1}",
         };
     }
 }

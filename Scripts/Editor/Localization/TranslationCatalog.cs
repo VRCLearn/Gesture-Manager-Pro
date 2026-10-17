@@ -121,7 +121,7 @@ namespace VRCLearn.GestureManagerPro.Localization
             {
                 Source = source;
                 ArgumentCount = Placeholder.Matches(source).Cast<Match>().Max(match => int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)) + 1;
-                SemanticArguments = source.Contains("{0}-Mode") || source == "Send Custom {0}" || source == "{0} made by {1}" ||
+                SemanticArguments = source.Contains("{0}-Mode") || source == "Send Custom {0}" ||
                     source == "OVRLipSync could not {0}: native error {1}." || source == "Audio processing failed: {0}"
                     ? new[] { 0 } : source == "Avatar: {0}\nLip sync mode: {1}" ? new[] { 1 } : Array.Empty<int>();
                 var pattern = new StringBuilder(@"\A");
