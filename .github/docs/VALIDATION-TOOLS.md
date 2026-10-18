@@ -14,7 +14,7 @@ Run `node .github/scripts/Validate-Localization.cjs` to compare all five languag
 
 `node .github/scripts/Prune-ControllerOrphans.cjs` performs a dry run of controller graph reachability. `--apply` prunes orphan object blocks in the eight built-in controllers and their matching restore snapshots. It verifies that the retained objects are byte-for-byte unchanged and rejects missing local graph references. This cleanup was applied to the initial Pro baseline after checking that other package assets and source code did not reference the orphan subobjects.
 
-For a read-only report of external controller references, run `node .github/scripts/Inspect-ControllerReferences.cjs --sdk-root <com.vrchat.avatars directory>`. Supply `--output <report.json>` only when a saved diagnostic report is needed.
+For a read-only report of external controller references, run `node .github/scripts/Inspect-ControllerReferences.cjs --sdk-root <com.vrchat.avatars directory>`. To save a diagnostic report, create `Output~/` if needed and supply `--output Output~/ControllerReferenceReport.json`, keeping generated reports with the other ignored output.
 
 ## Unity integration checks
 
