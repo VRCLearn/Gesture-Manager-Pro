@@ -220,6 +220,10 @@ public static class UnityProChecks
             Check(((GestureManagerEditor)inspector).CreateInspectorGUI() != null, "Pro custom inspector creates its visual root");
 
             UnityProMotionChecks.Run(Check);
+            UnityProTrackingChecks.Run(Check);
+            UnityProVrMenuOscChecks.Run(Check);
+            if (AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName().Name == "VRCLearn.GestureManagerPro.SteamVR.Editor"))
+                UnityProSteamVrChecks.Run(Check);
             UnityProCameraChecks.Run(Check);
             UnityProStatisticsChecks.Run(Check);
             UnityProLocalizationChecks.Run(Check);

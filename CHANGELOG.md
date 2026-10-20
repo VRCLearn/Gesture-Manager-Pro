@@ -10,6 +10,33 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+### Added
+
+- Optional SteamVR input adapter with an isolated OpenVR loader, controller
+  bindings, stable tracker identities, and three- to eleven-point tracking.
+- Game Simulation VR mode with OSC body-tracker input, shared OSC listening,
+  calibration, independent Humanoid IK, camera-scoped SDK head clipping, and
+  headset expression/system menus. PC input remains available without XR packages.
+- Disposable VR validation fixtures and checks for tracking geometry, calibration,
+  menu semantics, UDP sharing, adapter isolation and session restoration.
+
+### Fixed
+
+- Keep one Game Simulation entry for both PC and VR input. Input choices no
+  longer use a slash that Unity interprets as a nested popup menu. PC is the
+  default for new sessions and after normal exit; VR remains an explicit choice.
+- Allow PC and VR input to switch directly during Game Simulation, preserving
+  the current avatar root and original exit restore pose. Failed handovers restore
+  the previous input and report the cause; held menu input and XR resources are released.
+- Configure the owned OpenVR loader without registering a temporary object as
+  a persistent Editor configuration asset, which previously blocked VR startup.
+
+### Notice
+
+- VRChat client IK is not included. Hardware compatibility and observable client
+  parity require the comparisons listed in `VR-SIMULATION.md`; default locomotion
+  proxy replacement and procedural auto-footsteps are not supplied by this change.
+
 ## [1.0.0] - 2026-10-17
 
 ### Changed

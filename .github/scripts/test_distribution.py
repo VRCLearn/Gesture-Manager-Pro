@@ -41,6 +41,7 @@ class PackageFixture(unittest.TestCase):
             "LICENSING.md": (ROOT / "LICENSING.md").read_bytes(),
             "ThirdParty/GestureManager/LICENSE.txt": (ROOT / "ThirdParty/GestureManager/LICENSE.txt").read_bytes(),
             "README.md": b"# Gesture Manager Pro\n",
+            "VR-SIMULATION.md": b"# VR simulation\n\nOptional SteamVR adapter setup and client comparison status.\n",
             "CHANGELOG.md": b"# Changelog\n\n## 0.1.0\n\n- Initial standalone release.\n\n## 0.0.1\n\n- Earlier development.\n",
             "GestureManagerPro.prefab": b"%YAML 1.1\n",
             "Scripts/Runtime/GestureManager.cs": b"public class Fixture { }\n",
@@ -104,6 +105,7 @@ class DistributionTests(PackageFixture):
         files = builder.validate_zip(Path(result["archive"]), manifest)
         assets = builder.validate_unitypackage(Path(result["unitypackage"]), manifest)
         self.assertIn("package.json", files)
+        self.assertIn("VR-SIMULATION.md", files)
         self.assertNotIn(builder.UNITY_ROOT + "/package.json", files)
         self.assertEqual(manifest["author"], self.manifest["author"])
         self.assertEqual(manifest["license"], "SEE LICENSE IN LICENSING.md")
