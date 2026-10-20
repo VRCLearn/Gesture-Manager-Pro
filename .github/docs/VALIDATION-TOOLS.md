@@ -43,6 +43,8 @@ Keep hardware and client comparison results separate from these injected-input c
 
 ## Additional integration coverage
 
+Clickable Contacts checks ignore the legacy switch/tag preferences and verify independent, disabled-by-default tool instances with empty filters. Real SDK receivers and parameter probes exercise tag filtering, held-contact release on disable/dispose/unlink, repeated cleanup and destroyed receivers. Unlinking reconstructs a default tool without writing Editor preferences.
+
 The motion checks also cover reference-derived acceleration/deceleration, direction reversal, forward running with independent strafe speed, Scene Shift/Space/C/Z event ownership and one-shot actions, default jump impulse and explicit height overrides. Session checks preserve external VR/tracking/posture state and verify explicit pose ownership, callback-failure cleanup and synchronous stopping. Graph checks distinguish unchanged SDK zero-duration proxies from an explicitly authored, test-only time-varying clip; that clip is never installed as an avatar animation or proxy replacement.
 
 Game-tool gravity checks enter through the real Game Simulation toggle with default settings, then inject motion frames into its motor. They verify automatic gravity, physical jump/landing, walking off the floor and falling, collision-disabled movement without gravity or jumping, and restoration of the avatar, parameters and temporary objects on exit. They retain the real keyboard session for ownership and cleanup but bypass OS focus and physical key sampling. Low-level adapter checks still exercise explicitly disabled gravity independently from the Game Simulation defaults.

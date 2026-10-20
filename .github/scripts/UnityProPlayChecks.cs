@@ -67,6 +67,7 @@ public static class UnityProPlayChecks
             _assertions = 0;
             UnityProStatisticsLifecycleChecks.Run(Check);
             ExecuteChecks();
+            CheckClickableContacts();
             CheckTemporaryGround();
             CheckGameSimulationGravity();
             CheckThirdPersonCamera();
@@ -95,6 +96,146 @@ public static class UnityProPlayChecks
         EditorApplication.update -= AwaitPlayMode;
         SessionState.SetBool(PendingKey, false);
         SessionState.EraseString(DeadlineKey);
+    }
+
+    private static void CheckClickableContacts()
+    {
+        const string enabledPreference = "GM3 ClickableContacts";
+        const string tagPreference = "GM3 ClickableContacts Tag";
+        const BindingFlags instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var hadEnabledPreference = EditorPrefs.HasKey(enabledPreference);
+        var previousEnabledPreference = EditorPrefs.GetBool(enabledPreference);
+        var hadTagPreference = EditorPrefs.HasKey(tagPreference);
+        var previousTagPreference = EditorPrefs.GetString(tagPreference);
+        var profilerEnabled = UnityEngine.Profiling.Profiler.enabled;
+        var profilerDriverEnabled = UnityEditorInternal.ProfilerDriver.enabled;
+        var type = typeof(AvatarTools.ClickableContacts);
+        var enabledField = type.GetField("_isActive", instance);
+        var tagField = type.GetField("_tag", instance);
+        var contactsField = type.GetField("_activeContact", instance);
+        var cameraField = type.GetField("_camera", instance);
+        var toggle = type.GetMethod("Toggle", instance);
+        var setEnabled = type.GetMethod("SetEnabled", instance);
+        var enable = type.GetMethod("Enable", instance);
+        var valid = type.GetMethod("IsValid", instance);
+        var tools = new List<AvatarTools.ClickableContacts>();
+        var owner = new AvatarTools();
+        GameObject receiverObject = null;
+        try
+        {
+            EditorPrefs.SetBool(enabledPreference, true);
+            EditorPrefs.SetString(tagPreference, "Legacy contact filter");
+            AvatarTools.ClickableContacts CreateTool()
+            {
+                var tool = new AvatarTools.ClickableContacts();
+                tools.Add(tool);
+                return tool;
+            }
+            bool Enabled(AvatarTools.ClickableContacts tool) => (bool)enabledField.GetValue(tool);
+            string Tag(AvatarTools.ClickableContacts tool) => (string)tagField.GetValue(tool);
+            int Held(AvatarTools.ClickableContacts tool) => ((System.Collections.IDictionary)contactsField.GetValue(tool)).Count;
+            bool LegacyUnchanged() => EditorPrefs.GetBool(enabledPreference) &&
+                EditorPrefs.GetString(tagPreference) == "Legacy contact filter";
+            void Toggle(AvatarTools.ClickableContacts tool) => toggle.Invoke(tool, new object[] { null });
+
+            var first = CreateTool();
+            var second = CreateTool();
+            Check(!Enabled(first) && Tag(first) == string.Empty && !Enabled(second) && Tag(second) == string.Empty,
+                "New Clickable Contacts instances ignore the old enabled and Tag preferences");
+            tagField.SetValue(first, "Allowed contact");
+            Toggle(first);
+            Check(Enabled(first) && Tag(first) == "Allowed contact" && !Enabled(second) && Tag(second) == string.Empty,
+                "Clickable Contacts enabled state and Tag belong only to their current tool instance");
+            Check(LegacyUnchanged(), "Changing Clickable Contacts state and Tag does not rewrite the legacy preferences");
+
+            receiverObject = new GameObject("Pro clickable Contact receiver validation");
+            var receiver = receiverObject.AddComponent<VRC.SDK3.Dynamics.Contact.Components.VRCContactReceiver>();
+            receiver.receiverType = VRC.Dynamics.ContactReceiver.ReceiverType.Constant;
+            receiver.parameter = "ProClickableContact";
+            receiver.collisionTags = new List<string> { "Allowed contact" };
+            var access = new ContactParameterProbe();
+            receiver.paramAccess = access;
+            Check((bool)valid.Invoke(first, new object[] { receiver }),
+                "The current Clickable Contacts Tag still accepts a matching Contact receiver");
+            tagField.SetValue(first, "Another contact");
+            Check(!(bool)valid.Invoke(first, new object[] { receiver }),
+                "The current Clickable Contacts Tag still rejects a nonmatching Contact receiver");
+            tagField.SetValue(first, string.Empty);
+            Check((bool)valid.Invoke(first, new object[] { receiver }),
+                "An empty current Clickable Contacts Tag still permits receivers without filtering");
+            tagField.SetValue(first, "Allowed contact");
+            enable.Invoke(first, new object[] { receiver, 1f });
+            Check(Held(first) == 1 && access.Value == 1f,
+                "Clickable Contacts publishes a held receiver parameter through the SDK access interface");
+            Toggle(first);
+            Check(!Enabled(first) && Held(first) == 0 && access.Value == 0f && Tag(first) == "Allowed contact",
+                "Disabling Clickable Contacts through its toggle releases held parameters while preserving the current filter");
+            Check(LegacyUnchanged(), "Disabling Clickable Contacts leaves both legacy preferences untouched");
+
+            Toggle(first);
+            enable.Invoke(first, new object[] { receiver, 1f });
+            setEnabled.Invoke(first, new object[] { false });
+            Check(!Enabled(first) && Held(first) == 0 && access.Value == 0f,
+                "The shared Clickable Contacts GUI disable path also releases held parameters");
+            Toggle(first);
+            enable.Invoke(first, new object[] { receiver, 1f });
+            first.Dispose();
+            first.Dispose();
+            Check(!Enabled(first) && Tag(first) == string.Empty && Held(first) == 0 && access.Value == 0f &&
+                cameraField.GetValue(first) == null,
+                "Repeated Clickable Contacts disposal releases held parameters and clears enabled, Tag, and camera state");
+
+            var owned = owner.ContactsClickable;
+            tools.Add(owned);
+            tagField.SetValue(owned, "Owned contact");
+            Toggle(owned);
+            enable.Invoke(owned, new object[] { receiver, 1f });
+            owner.Unlink(null);
+            var recreated = owner.ContactsClickable;
+            tools.Add(recreated);
+            Check(!ReferenceEquals(owned, recreated) && !Enabled(owned) && Held(owned) == 0 && access.Value == 0f &&
+                !Enabled(recreated) && Tag(recreated) == string.Empty,
+                "Unlinking an avatar releases held Contacts and recreates the tool with disabled and empty Tag defaults");
+            Check(LegacyUnchanged(), "Contact cleanup and rebinding do not modify the old persistent preferences");
+
+            Toggle(recreated);
+            enable.Invoke(recreated, new object[] { receiver, 1f });
+            UnityEngine.Object.DestroyImmediate(receiverObject);
+            receiverObject = null;
+            recreated.Dispose();
+            Check(!Enabled(recreated) && Held(recreated) == 0,
+                "Clickable Contacts cleanup tolerates a receiver destroyed during the current interaction");
+
+            EditorPrefs.DeleteKey(enabledPreference);
+            EditorPrefs.DeleteKey(tagPreference);
+            var fresh = CreateTool();
+            Toggle(fresh);
+            tagField.SetValue(fresh, "Temporary filter");
+            Toggle(fresh);
+            fresh.Dispose();
+            Check(!EditorPrefs.HasKey(enabledPreference) && !EditorPrefs.HasKey(tagPreference),
+                "New Clickable Contacts sessions never create enabled or Tag preferences");
+        }
+        finally
+        {
+            foreach (var tool in tools) tool.Dispose();
+            owner.Unlink(null);
+            if (receiverObject) UnityEngine.Object.DestroyImmediate(receiverObject);
+            UnityEngine.Profiling.Profiler.enabled = profilerEnabled;
+            UnityEditorInternal.ProfilerDriver.enabled = profilerDriverEnabled;
+            if (hadEnabledPreference) EditorPrefs.SetBool(enabledPreference, previousEnabledPreference);
+            else EditorPrefs.DeleteKey(enabledPreference);
+            if (hadTagPreference) EditorPrefs.SetString(tagPreference, previousTagPreference);
+            else EditorPrefs.DeleteKey(tagPreference);
+        }
+    }
+
+    private sealed class ContactParameterProbe : VRC.SDKBase.IAnimParameterAccess
+    {
+        internal float Value;
+        public bool boolVal { get => Value != 0f; set => Value = value ? 1f : 0f; }
+        public int intVal { get => Mathf.RoundToInt(Value); set => Value = value; }
+        public float floatVal { get => Value; set => Value = value; }
     }
 
     private static void CheckSimulationMicrophone()

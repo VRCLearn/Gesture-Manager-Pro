@@ -110,6 +110,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             _registeredTools = null;
             _sceneCamera?.Dispose();
             _sceneCamera = null;
+            _clickableContacts?.Dispose();
+            _clickableContacts = null;
         }
 
         public class UpdateSceneCamera : GmgDynamicFunction
@@ -256,23 +258,36 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
                 public float Float;
             }
 
-            private readonly BoolProperty _isActive = new("GM3 ClickableContacts");
-            private readonly StringProperty _tag = new("GM3 ClickableContacts Tag");
+            private bool _isActive;
+            private string _tag = string.Empty;
             private readonly Dictionary<ContactReceiver, Flat> _activeContact = new();
 
             protected internal override string Name => EditorLocalization.Tr("Clickable Contacts");
             protected override string Description => EditorLocalization.Tr("Click and trigger Avatar Contacts with your mouse!\n\nLike you can do with PhysBones~");
-            protected internal override bool Active => _isActive.Property;
+            protected internal override bool Active => _isActive;
 
             private Camera _camera = ModuleVrc3.MainCamera;
             private Camera Camera => !_camera ? _camera = ModuleVrc3.MainCamera : _camera;
 
-            protected internal override void Toggle(ModuleVrc3 module) => _isActive.Property = !_isActive.Property;
+            protected internal override void Toggle(ModuleVrc3 module) => SetEnabled(!_isActive);
+
+            private void SetEnabled(bool enabled)
+            {
+                _isActive = enabled;
+                if (!enabled) Disable();
+            }
+
+            public override void Dispose()
+            {
+                SetEnabled(false);
+                _tag = string.Empty;
+                _camera = null;
+            }
 
             protected override void Gui(ModuleVrc3 module)
             {
-                _isActive.Property = GmgLayoutHelper.ToggleRight(EditorLocalization.Tr("Enabled: "), _isActive.Property);
-                _tag.Property = GmgLayoutHelper.PlaceHolderTextField(EditorLocalization.Tr("Tag: "), _tag.Property, EditorLocalization.Tr(" <leave blank to ignore tags> "));
+                SetEnabled(GmgLayoutHelper.ToggleRight(EditorLocalization.Tr("Enabled: "), _isActive));
+                _tag = GmgLayoutHelper.PlaceHolderTextField(EditorLocalization.Tr("Tag: "), _tag, EditorLocalization.Tr(" <leave blank to ignore tags> "));
             }
 
             protected override void Update(ModuleVrc3 module) => LateUpdate(module);
@@ -409,7 +424,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
             private void Disable()
             {
-                foreach (var pair in _activeContact) pair.Key.SetParameter(0f);
+                foreach (var pair in _activeContact)
+                    if (pair.Key) pair.Key.SetParameter(0f);
                 _activeContact.Clear();
             }
 
@@ -471,7 +487,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
             private static Vector3 CapsuleVector(CollisionScene.Shape shape, float uniform, float lenght) => shape.axis * Mathf.Max(0.0f, Mathf.Min(shape.height * uniform, shape.maxSize) * 0.5f - lenght);
 
-            private bool IsValid(ContactReceiver receiver) => receiver.isActiveAndEnabled && string.IsNullOrEmpty(_tag.Property) || receiver.collisionTags.Contains(_tag.Property);
+            private bool IsValid(ContactReceiver receiver) => receiver.isActiveAndEnabled && string.IsNullOrEmpty(_tag) || receiver.collisionTags.Contains(_tag);
 
             private static float ValueFor(float distance, float lenght, bool isProximity) => isProximity ? Mathf.Clamp01((lenght - distance) / lenght) : distance < 0 ? 1f : 0f;
 
@@ -798,31 +814,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             }
         }
 
-        private class BoolProperty
-        {
-            private readonly string _key;
-
-            public BoolProperty(string key) => _key = key;
-
-            internal bool Property
-            {
-                get => EditorPrefs.GetBool(_key);
-                set => EditorPrefs.SetBool(_key, value);
-            }
-        }
-
-        private class StringProperty
-        {
-            private readonly string _key;
-
-            public StringProperty(string key) => _key = key;
-
-            internal string Property
-            {
-                get => EditorPrefs.GetString(_key);
-                set => EditorPrefs.SetString(_key, value);
-            }
-        }
     }
 }
 #endif

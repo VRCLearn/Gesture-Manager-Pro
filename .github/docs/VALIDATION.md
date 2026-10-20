@@ -1,5 +1,11 @@
 # Development validation
 
+## Session-only Clickable Contacts (unreleased)
+
+Validated on 2026-10-21 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11. Clickable Contacts now keeps its switch and tag filter only in the current tool instance. A new connection starts disabled with an empty filter, independently of the legacy Editor preferences. Both the Inspector and radial toggle release held contacts when disabling. Disposal and avatar unlink release and reset the tool, including when a receiver was destroyed; the unused preference wrappers were removed.
+
+The disposable tool-session runner passed 443 assertions (`Output~/tool-session-switches.log`): 15 new Contacts checks using a real SDK receiver and parameter-access probe, plus the existing 428 observer/lifecycle/free-look assertions. The checks cover legacy values being ignored and left untouched, independent instances, matching/nonmatching/empty tag filters, held-parameter cleanup and default state after rebinding. Package validation passed 1,799 checks. Physical mouse interaction and the full Play suite were not rerun. The production script was backed up and synchronized to Test-Avatar without changing the active scene; live activation awaits Unity's next script reload if compilation is deferred during Play Mode. No commit or push was made for either session-state change.
+
 ## Session-only Scene Camera switch (unreleased)
 
 Validated on 2026-10-21 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11. Scene Camera no longer reads or writes the legacy `GM3 SceneCamera` Editor preference. Its enabled state belongs to the current shared tool session; final owner disposal, Play transitions and script reload cleanup reset it to disabled while restoring the original camera. Explicit enabling still supports multiple live owners and recovery of a lost target within that session. Game Simulation continues to own its active observer selection separately.
