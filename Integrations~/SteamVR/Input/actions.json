@@ -1,0 +1,342 @@
+{
+    "action_sets": [
+        {
+            "name": "/actions/pro",
+            "usage": "leftright"
+        }
+    ],
+    "actions": [
+        {
+            "name": "/actions/pro/in/jump",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/sprint",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/menu",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/back",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/select",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/pause",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/recenter",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_thumb_touch",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_thumb_touch",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_index_touch",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_index_touch",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_gesture_1",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_gesture_2",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_gesture_3",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_gesture_4",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_gesture_5",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_gesture_6",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_gesture_7",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_gesture_1",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_gesture_2",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_gesture_3",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_gesture_4",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_gesture_5",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_gesture_6",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_gesture_7",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/move",
+            "type": "vector2",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/turn",
+            "type": "vector2",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/menu_axis",
+            "type": "vector2",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_trigger",
+            "type": "vector1",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_trigger",
+            "type": "vector1",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_grip",
+            "type": "vector1",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_grip",
+            "type": "vector1",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/hip_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_foot_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_foot_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/chest_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_knee_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_knee_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_elbow_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_elbow_pose",
+            "type": "pose",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/left_grip_button",
+            "type": "boolean",
+            "requirement": "optional"
+        },
+        {
+            "name": "/actions/pro/in/right_grip_button",
+            "type": "boolean",
+            "requirement": "optional"
+        }
+    ],
+    "default_bindings": [
+        {
+            "controller_type": "oculus_touch",
+            "binding_url": "bindings_oculus_touch.json"
+        },
+        {
+            "controller_type": "knuckles",
+            "binding_url": "bindings_knuckles.json"
+        },
+        {
+            "controller_type": "vive_controller",
+            "binding_url": "bindings_vive_controller.json"
+        },
+        {
+            "controller_type": "holographic_controller",
+            "binding_url": "bindings_holographic_controller.json"
+        },
+        {
+            "controller_type": "hpmotioncontroller",
+            "binding_url": "bindings_hpmotioncontroller.json"
+        },
+        {
+            "controller_type": "vive_tracker_waist",
+            "binding_url": "bindings_vive_tracker_waist.json"
+        },
+        {
+            "controller_type": "vive_tracker_left_foot",
+            "binding_url": "bindings_vive_tracker_left_foot.json"
+        },
+        {
+            "controller_type": "vive_tracker_right_foot",
+            "binding_url": "bindings_vive_tracker_right_foot.json"
+        },
+        {
+            "controller_type": "vive_tracker_chest",
+            "binding_url": "bindings_vive_tracker_chest.json"
+        },
+        {
+            "controller_type": "vive_tracker_left_knee",
+            "binding_url": "bindings_vive_tracker_left_knee.json"
+        },
+        {
+            "controller_type": "vive_tracker_right_knee",
+            "binding_url": "bindings_vive_tracker_right_knee.json"
+        },
+        {
+            "controller_type": "vive_tracker_left_elbow",
+            "binding_url": "bindings_vive_tracker_left_elbow.json"
+        },
+        {
+            "controller_type": "vive_tracker_right_elbow",
+            "binding_url": "bindings_vive_tracker_right_elbow.json"
+        },
+        {
+            "controller_type": "vive_tracker_left_shoulder",
+            "binding_url": "bindings_vive_tracker_left_shoulder.json"
+        },
+        {
+            "controller_type": "vive_tracker_right_shoulder",
+            "binding_url": "bindings_vive_tracker_right_shoulder.json"
+        }
+    ],
+    "localization": [
+        {
+            "language_tag": "en_us",
+            "/actions/pro": "Gesture Manager Pro",
+            "/actions/pro/in/jump": "Jump",
+            "/actions/pro/in/sprint": "Sprint",
+            "/actions/pro/in/menu": "Menu",
+            "/actions/pro/in/back": "Back",
+            "/actions/pro/in/select": "Select",
+            "/actions/pro/in/pause": "Pause",
+            "/actions/pro/in/recenter": "Recenter",
+            "/actions/pro/in/left_thumb_touch": "Left Thumb Touch",
+            "/actions/pro/in/right_thumb_touch": "Right Thumb Touch",
+            "/actions/pro/in/left_index_touch": "Left Index Touch",
+            "/actions/pro/in/right_index_touch": "Right Index Touch",
+            "/actions/pro/in/left_gesture_1": "Left Gesture 1",
+            "/actions/pro/in/left_gesture_2": "Left Gesture 2",
+            "/actions/pro/in/left_gesture_3": "Left Gesture 3",
+            "/actions/pro/in/left_gesture_4": "Left Gesture 4",
+            "/actions/pro/in/left_gesture_5": "Left Gesture 5",
+            "/actions/pro/in/left_gesture_6": "Left Gesture 6",
+            "/actions/pro/in/left_gesture_7": "Left Gesture 7",
+            "/actions/pro/in/right_gesture_1": "Right Gesture 1",
+            "/actions/pro/in/right_gesture_2": "Right Gesture 2",
+            "/actions/pro/in/right_gesture_3": "Right Gesture 3",
+            "/actions/pro/in/right_gesture_4": "Right Gesture 4",
+            "/actions/pro/in/right_gesture_5": "Right Gesture 5",
+            "/actions/pro/in/right_gesture_6": "Right Gesture 6",
+            "/actions/pro/in/right_gesture_7": "Right Gesture 7",
+            "/actions/pro/in/move": "Move",
+            "/actions/pro/in/turn": "Turn",
+            "/actions/pro/in/menu_axis": "Menu Axis",
+            "/actions/pro/in/left_trigger": "Left Trigger",
+            "/actions/pro/in/right_trigger": "Right Trigger",
+            "/actions/pro/in/left_grip": "Left Grip",
+            "/actions/pro/in/right_grip": "Right Grip",
+            "/actions/pro/in/left_pose": "Left Pose",
+            "/actions/pro/in/right_pose": "Right Pose",
+            "/actions/pro/in/hip_pose": "Hip Pose",
+            "/actions/pro/in/left_foot_pose": "Left Foot Pose",
+            "/actions/pro/in/right_foot_pose": "Right Foot Pose",
+            "/actions/pro/in/chest_pose": "Chest Pose",
+            "/actions/pro/in/left_knee_pose": "Left Knee Pose",
+            "/actions/pro/in/right_knee_pose": "Right Knee Pose",
+            "/actions/pro/in/left_elbow_pose": "Left Elbow Pose",
+            "/actions/pro/in/right_elbow_pose": "Right Elbow Pose",
+            "/actions/pro/in/left_grip_button": "Left Grip Button",
+            "/actions/pro/in/right_grip_button": "Right Grip Button"
+        }
+    ]
+}

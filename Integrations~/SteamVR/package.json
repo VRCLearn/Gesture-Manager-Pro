@@ -1,0 +1,15 @@
+{
+    "name": "com.vrclearn.gesture-manager-pro.steamvr",
+    "displayName": "Gesture Manager Pro - SteamVR Input",
+    "version": "1.0.0",
+    "unity": "2022.3",
+    "description": "Optional Editor Play Mode SteamVR controller and full-body tracking adapter for Gesture Manager Pro.",
+    "license": "SEE LICENSE IN LICENSING.md",
+    "author": { "name": "VRCLearn", "url": "https://github.com/VRCLearn" },
+    "dependencies": {
+        "com.vrclearn.gesture-manager-pro": "1.0.0",
+        "com.valvesoftware.unity.openvr": "1.2.1",
+        "com.unity.xr.management": "4.3.3",
+        "com.unity.inputsystem": "1.6.1"
+    }
+}
