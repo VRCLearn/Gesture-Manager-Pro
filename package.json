@@ -3,8 +3,11 @@
   "displayName": "Gesture Manager Pro",
   "version": "1.0.0",
   "unity": "2022.3",
-  "description": "A standalone avatar testing toolkit with multilingual interfaces, SDK model statistics, audio-driven lip sync, and observer/first/third-person game simulation, derived from Gesture Manager.",
+  "description": "A standalone avatar testing toolkit with multilingual interfaces, SDK statistics, lip sync, desktop game simulation and optional SteamVR/OSC full-body avatar control, derived from Gesture Manager.",
   "type": "tool",
+  "dependencies": {
+    "com.unity.ugui": "1.0.0"
+  },
   "license": "SEE LICENSE IN LICENSING.md",
   "author": {
     "name": "VRCLearn",
