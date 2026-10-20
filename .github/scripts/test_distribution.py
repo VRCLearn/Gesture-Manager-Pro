@@ -54,6 +54,10 @@ class PackageFixture(unittest.TestCase):
                 "binarySHA256": self.binary_sha, "binaryBytes": len(binary)
             })
         }
+        for directory in ("Scripts/Editor/SteamVR", "Resources/GestureManagerPro/SteamVR", "ThirdParty/SteamVR"):
+            for path in (ROOT / directory).rglob("*"):
+                if path.is_file() and path.suffix != ".meta":
+                    contents[path.relative_to(ROOT).as_posix()] = path.read_bytes()
         for name, content in contents.items():
             path = self.package / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -131,6 +135,43 @@ class DistributionTests(PackageFixture):
         self.assertEqual(result["sha256"], sums[Path(result["archive"]).name])
         self.assertEqual(result["unitypackageSha256"], sums[Path(result["unitypackage"]).name])
 
+    def test_single_package_contains_optional_steamvr_sources_bindings_and_notices(self):
+        result = self.build()
+        manifest = json.loads(Path(result["manifest"]).read_bytes())
+        files = builder.validate_zip(Path(result["archive"]), manifest)
+        assets = builder.validate_unitypackage(Path(result["unitypackage"]), manifest)
+        paths = ("Scripts/Editor/SteamVR/SteamVrInputSource.cs",
+                 "Scripts/Editor/SteamVR/SteamVrOwnedLoader.cs",
+                 "Scripts/Editor/SteamVR/VRCLearn.GestureManagerPro.SteamVR.Editor.asmdef",
+                 "Resources/GestureManagerPro/SteamVR/actions.json",
+                 "ThirdParty/SteamVR/ThirdPartyNotices.md")
+        actions = json.loads((self.package / paths[3]).read_bytes())
+        paths += tuple("Resources/GestureManagerPro/SteamVR/" + binding["binding_url"]
+                       for binding in actions["default_bindings"])
+        for name in paths:
+            self.assertEqual(files[name], (self.package / name).read_bytes())
+            self.assertEqual(files[name + ".meta"], (self.package / (name + ".meta")).read_bytes())
+            self.assertEqual(assets[builder.UNITY_ROOT + "/" + name]["asset"], files[name])
+        self.assertFalse(set(manifest.get("dependencies", {})) & {"com.valvesoftware.unity.openvr", "com.unity.inputsystem", "com.unity.xr.management"})
+        self.assertFalse(any(name.endswith((".tgz", ".so", ".dylib")) or "openvr_api" in name for name in files))
+
+    def test_unconditional_vr_dependencies_or_missing_assembly_constraints_are_rejected(self):
+        target = self.package / "package.json"
+        for dependency in ("com.valvesoftware.unity.openvr", "com.unity.inputsystem", "com.unity.xr.management"):
+            manifest = dict(self.manifest, dependencies={dependency: "1.0.0"})
+            target.write_bytes(builder.encode_json(manifest))
+            with self.subTest(dependency=dependency), self.assertRaisesRegex(ValueError, "optional VR packages"):
+                self.build()
+            self.assertFalse((self.root / "output").exists())
+        target.write_bytes(builder.encode_json(self.manifest))
+        assembly = self.package / "Scripts/Editor/SteamVR/VRCLearn.GestureManagerPro.SteamVR.Editor.asmdef"
+        definition = json.loads(assembly.read_bytes())
+        definition.pop("defineConstraints", None)
+        assembly.write_bytes(builder.encode_json(definition))
+        with self.assertRaisesRegex(ValueError, "disabled without"):
+            self.build()
+        self.assertFalse((self.root / "output").exists())
+
     def test_existing_asset_and_folder_metadata_remain_identical_across_formats(self):
         result = self.build()
         manifest = json.loads(Path(result["manifest"]).read_bytes())
@@ -206,7 +247,7 @@ class DistributionTests(PackageFixture):
     def test_powershell_entrypoint_preserves_release_filtering_and_validation(self):
         scripts = self.package / ".github/scripts"
         scripts.mkdir(parents=True)
-        for name in ("Build-Package.ps1", "build_package.py"):
+        for name in ("Build-Package.ps1", "build_package.py", "validate_steamvr.py"):
             shutil.copyfile(ROOT / ".github/scripts" / name, scripts / name)
         for name in ("Plugins/Win64/VRCLearnOVRLipSync.dll", "PROVENANCE.json"):
             shutil.copyfile(ROOT / self.vendor / name, self.package / self.vendor / name)

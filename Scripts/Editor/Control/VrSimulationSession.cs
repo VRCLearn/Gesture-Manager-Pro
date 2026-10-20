@@ -87,7 +87,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _headChop = _module.GlobalHeadChopEnabled;
                 _poseWeight = _module.CalibrationPoseWeight;
                 _avatarStateCaptured = true;
-                if (source == null) throw new InvalidOperationException("Install the optional SteamVR adapter before starting VR control.");
+                if (source == null) throw new InvalidOperationException("Install SteamVR support from Tools > Gesture Manager Pro - VR Setup before starting VR control.");
                 if (!source.Start(out var startError)) throw new InvalidOperationException(startError);
                 if (_settings.OscEnabled)
                 {

@@ -7,7 +7,7 @@ using UnityEditor;
 using UnityEngine;
 using VRCLearn.GestureManagerPro.Control;
 
-/// <summary>Optional fixture checks. Invoke only in a fixture with the SteamVR companion installed.</summary>
+/// <summary>Optional fixture checks. Invoke with the official OpenVR and Unity XR dependencies installed.</summary>
 public static class UnityProSteamVrChecks
 {
     public static void Run(Action<bool, string> check)
@@ -18,6 +18,15 @@ public static class UnityProSteamVrChecks
         check(type != null, "The optional SteamVR assembly compiles against the original OpenVR XR dependency");
         if (type == null) return;
         var flags = BindingFlags.Static | BindingFlags.NonPublic;
+        var manifestPath = (string)type.GetMethod("ResolveActionManifest", flags).Invoke(null, null);
+        check(Path.IsPathRooted(manifestPath) && File.Exists(manifestPath) &&
+            File.Exists(Path.Combine(Path.GetDirectoryName(manifestPath), "bindings_oculus_touch.json")),
+            "The bundled action manifest and adjacent bindings resolve from the main GMP installation");
+        var package = UnityEditor.PackageManager.PackageInfo.FindForAssembly(type.Assembly);
+        check(package == null
+                ? AssetDatabase.GetAssetPath(Resources.Load<TextAsset>("GestureManagerPro/SteamVR/actions")).StartsWith("Assets/", StringComparison.Ordinal)
+                : package.name == "com.vrclearn.gesture-manager-pro",
+            "The SteamVR adapter and resources belong to the main GMP installation");
         var convert = type.GetMethod("ConvertPose", flags);
         var parse = type.GetMethod("ParseTrackerRole", flags);
         var matrixType = convert.GetParameters()[0].ParameterType;
@@ -113,7 +122,7 @@ public static class UnityProSteamVrChecks
         var source = (IVrInputSource)Activator.CreateInstance(sourceType);
         var configure = loaderType.GetMethod("Configure", flags);
         var create = loaderType.GetMethod("CreateConfiguration", flags);
-        var manifest = Path.GetFullPath(Path.Combine(UnityEditor.PackageManager.PackageInfo.FindForAssembly(sourceType.Assembly).resolvedPath, "Input", "actions.json"));
+        var manifest = (string)sourceType.GetMethod("ResolveActionManifest", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, null);
         try
         {
             settingsType.GetField("EditorAppKey").SetValue(settings, "application.pro.fixture.original");

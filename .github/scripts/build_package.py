@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 import uuid
 import zipfile
 
+from validate_steamvr import validate as validate_steamvr
+
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT
 PACKAGE_ID = "com.vrclearn.gesture-manager-pro"
@@ -112,6 +114,7 @@ def validate_https(url: str) -> None:
 
 
 def source_assets(manifest: dict) -> list[Asset]:
+    validate_steamvr(PACKAGE)
     encoded_manifest = encode_json(manifest)
     assets = [Asset(UNITY_ROOT, generated_metadata(UNITY_ROOT, folder=True, root=True), None)]
     entries = []

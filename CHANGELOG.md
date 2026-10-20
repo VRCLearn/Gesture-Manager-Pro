@@ -10,15 +10,27 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-21
+
 ### Added
 
-- Optional SteamVR input adapter with an isolated OpenVR loader, controller
+- Included optional SteamVR integration with an isolated OpenVR loader, controller
   bindings, stable tracker identities, and three- to eleven-point tracking.
+- A **Tools > Gesture Manager Pro - VR Setup** menu entry that installs VR support
+  directly outside Play Mode, without an initialized avatar. It downloads and
+  verifies Valve's original OpenVR 1.2.1 archive and installs the required Unity
+  dependencies through Unity Package Manager.
 - Game Simulation VR mode with OSC body-tracker input, shared OSC listening,
   calibration, independent Humanoid IK, camera-scoped SDK head clipping, and
   headset expression/system menus. PC input remains available without XR packages.
 - Disposable VR validation fixtures and checks for tracking geometry, calibration,
   menu semantics, UDP sharing, adapter isolation and session restoration.
+
+### Changed
+
+- Distribute GMP and its SteamVR integration as one VPM/UnityPackage package.
+  The optional SteamVR assembly is enabled by installed VR dependencies; PC use
+  does not require them.
 
 ### Fixed
 
@@ -38,6 +50,8 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ### Notice
 
+- VR control and full-body tracking are experimental. Physical headset operation,
+  native XR handovers and VRChat client parity remain unverified; PC is the default.
 - VRChat client IK is not included. Hardware compatibility and observable client
   parity require the comparisons listed in `VR-SIMULATION.md`; default locomotion
   proxy replacement and procedural auto-footsteps are not supplied by this change.
@@ -347,7 +361,8 @@ Initial development release; visual and hardware acceptance remained incomplete.
 - SDK2 simulation and unused serialized controller objects with obsolete SDK
   references, retaining the reachable animation graphs for the SDK3 target.
 
-[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.5.0...1.0.0
 [0.5.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.6...0.5.0
 [0.4.6]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.5...0.4.6

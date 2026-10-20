@@ -8,9 +8,10 @@ https://github.com/ValveSoftware/steamvr_unity_plugin/tree/2.8.0/Assets/SteamVR/
 
 Valve's XR plugin uses the BSD 3-Clause license, except identified Unity headers
 under the Unity Companion License. Obtain and preserve all notices in the
-original dependency. The dependency is not included in the adapter tarball.
+original dependency. The dependency is downloaded separately and is not included
+in the Gesture Manager Pro distribution.
 
-`Editor/SteamVrOwnedLoader.cs` contains configuration ABI declarations and a
+`Scripts/Editor/SteamVR/SteamVrOwnedLoader.cs` contains configuration ABI declarations and a
 minimal initialization sequence derived from that plugin's `OpenVRLoader.cs`.
 Those portions retain the following notice:
 
@@ -48,6 +49,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 - SteamVR 2.8.0 release: https://github.com/ValveSoftware/steamvr_unity_plugin/releases/tag/2.8.0
 - Unity XR Plug-in Management and Input System are installed separately through Unity Package Manager and retain their respective Unity licenses.
 
-The JSON bindings in this adapter are new Pro bindings using the documented
+The JSON bindings in `Resources/GestureManagerPro/SteamVR` are new Pro bindings using the documented
 SteamVR binding format. They are not VRChat's shipped bindings. They do not
 inherit a user's VRChat application bindings.

@@ -215,9 +215,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private static IVrInputSource CreateVrSource()
         {
             if (VrInputProviders.Providers.Count == 0)
-                throw new InvalidOperationException("Install the optional SteamVR adapter before starting VR control.");
+                throw new InvalidOperationException("Install SteamVR support from Tools > Gesture Manager Pro - VR Setup before starting VR control.");
             return VrInputProviders.Providers[0].Create() ??
-                throw new InvalidOperationException("Install the optional SteamVR adapter before starting VR control.");
+                throw new InvalidOperationException("Install SteamVR support from Tools > Gesture Manager Pro - VR Setup before starting VR control.");
         }
 
         private bool StartInput(IVrInputSource preparedSource = null)
@@ -347,7 +347,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 }
             }
             else if (VrInputProviders.Providers.Count == 0)
-                EditorGUILayout.HelpBox(EditorLocalization.Tr("Install the optional SteamVR adapter before starting VR control."), MessageType.Info);
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Install SteamVR support from Tools > Gesture Manager Pro - VR Setup before starting VR control."), MessageType.Info);
         }
 
         private static string RoleLabel(TrackingRole role)

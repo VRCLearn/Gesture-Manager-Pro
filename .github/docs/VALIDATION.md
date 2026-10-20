@@ -1,5 +1,20 @@
 # Development validation
 
+## 1.1.0 validation
+
+GMP 1.1.0 includes its SteamVR integration and bindings in one package. Edit Mode setup downloads and verifies the unchanged official Valve OpenVR 1.2.1 archive. PC remains the default and XR dependencies are optional.
+
+Validated on 2026-10-21 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in disposable Windows fixtures.
+
+- The editor runner passed 906 assertions without OpenVR or Input System installed (`Output~/SingleGmpPcValidation-editor.log`). The same GMP package passed 938 editor assertions with the official OpenVR plugin and the Unity VR dependencies installed (`Output~/SingleGmpVrValidation-editor.log`). These runs cover compilation with and without the optional integration and the existing editor/PC behavior; they do not establish physical headset operation.
+- Package validation passed 1,906 checks, localization passed 17,089 checks and all 54 Python distribution/release/listing tests passed. The single package includes the SteamVR integration and bindings; its distribution does not include a companion adapter archive or Valve's plugin.
+- Graphics-enabled full Play runs passed 1,076 assertions both without the VR dependencies (`Output~/SingleGmpPurePc-play.log`) and with them (`Output~/SingleGmpVrValidation-play.log`). The checks include PC movement/cameras, simulator graph and cleanup, plus injected tracking, calibration, VR lifecycle and local/observer rendering. They do not start a physical headset session.
+- The fresh-fixture `UnityProVrInstallChecks.Run` check passed real official download, pinned SHA-256 verification, closed-window ownership, download completion during Play Mode with package changes deferred to Edit Mode, UPM installation, domain-reload recovery, included-provider registration, and scene/XR configuration preservation (`Output~/SingleGmpPcValidation-real-install-final.log`). The initial run used a raw-byte comparison of the SDK XR asset and failed after Unity/SDK reserialization reordered internal file IDs (`Output~/SingleGmpPcValidation-real-install.log`). The corrected check compares the actual platform mapping, startup flags and loader identities; its final run passed without rewriting that configuration.
+- Removing OpenVR and Input System through UPM disabled the included SteamVR provider and passed the 906-assertion main-package editor/PC regression (`Output~/SingleGmpPcValidation-remove-vr.log`). Unity briefly compiled a stale source list and reported `CS2001` errors for removed Input System files, then regenerated it and compiled successfully. These successful final results do not mean the complete logs contain no errors; earlier failures and Unity/SDK startup/shutdown diagnostics are retained.
+- A separate UnityPackage fixture extracted the actual candidate asset records into `Assets/VRCLearn/GestureManagerPro` and passed 33 focused checks with no failures (`Output~/single-gmp-unitypackage.log`). It compiled the main/control/SteamVR assemblies outside UPM, resolved the action manifest and all 15 adjacent default bindings from the real Assets path, registered one provider, opened the Edit Mode setup menu without changing the scene/XR/manifest, and verified acceptance of the official archive and rejection of a same-size modified copy. It did not start XR or connect a headset.
+
+Physical headset operation, native XR handovers and VRChat client parity remain unverified.
+
 ## Session-only Clickable Contacts (unreleased)
 
 Validated on 2026-10-21 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11. Clickable Contacts now keeps its switch and tag filter only in the current tool instance. A new connection starts disabled with an empty filter, independently of the legacy Editor preferences. Both the Inspector and radial toggle release held contacts when disabling. Disposal and avatar unlink release and reset the tool, including when a receiver was destroyed; the unused preference wrappers were removed.

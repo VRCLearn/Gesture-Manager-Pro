@@ -1,0 +1,24 @@
+{
+    "name": "VRCLearn.GestureManagerPro.SteamVR.Editor",
+    "rootNamespace": "VRCLearn.GestureManagerPro.SteamVR.Editor",
+    "references": [
+        "VRCLearn.GestureManagerPro.Control",
+        "Unity.XR.OpenVR",
+        "Unity.XR.Management"
+    ],
+    "includePlatforms": ["Editor"],
+    "defineConstraints": ["UNITY_EDITOR_WIN", "GMP_OPENVR_1_2_1", "GMP_XR_MANAGEMENT"],
+    "versionDefines": [
+        {
+            "name": "com.valvesoftware.unity.openvr",
+            "expression": "[1.2.1,1.3.0)",
+            "define": "GMP_OPENVR_1_2_1"
+        },
+        {
+            "name": "com.unity.xr.management",
+            "expression": "[4.3.3,5.0.0)",
+            "define": "GMP_XR_MANAGEMENT"
+        }
+    ],
+    "autoReferenced": true
+}

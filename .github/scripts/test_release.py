@@ -1,4 +1,5 @@
 """Stable tags and release preparation use exact manifest/source identities."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -33,6 +34,29 @@ class ReleaseTests(PackageFixture):
         self.assertIn("Initial standalone release.", notes)
         self.assertNotIn("Earlier development.", notes)
         self.assertIn("https://vrclearn.github.io/Gesture-Manager-Pro/", notes)
+
+        checksum_lines = (self.root / "release/SHA256SUMS.txt").read_text(encoding="utf-8").splitlines()
+        paths = [Path(result[key]) for key in ("archive", "unitypackage")]
+        self.assertEqual(checksum_lines, [f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}" for path in paths])
+        self.assertNotIn("steamvrAdapter", result)
+        self.assertEqual({path.name for path in (self.root / "release").iterdir()},
+                         {path.name for path in paths} | {"package.json", "SHA256SUMS.txt", "release-notes.md"})
+
+    def test_missing_bundled_steamvr_source_cannot_prepare_an_incomplete_release(self):
+        (self.package / "Scripts/Editor/SteamVR/SteamVrOwnedLoader.cs").unlink()
+        with self.assertRaises(FileNotFoundError):
+            prepare_release.prepare(self.root / "release", "0.1.0", builder.REPOSITORY, "ab" * 20)
+        self.assertFalse((self.root / "release").exists())
+
+    def test_missing_steamvr_binding_or_valve_notice_fails_before_writing_artifacts(self):
+        for name in ("Resources/GestureManagerPro/SteamVR/actions.json", "ThirdParty/SteamVR/ThirdPartyNotices.md"):
+            path = self.package / name
+            content = path.read_bytes()
+            path.unlink()
+            with self.subTest(name=name), self.assertRaises(FileNotFoundError):
+                prepare_release.prepare(self.root / "release", "0.1.0", builder.REPOSITORY, "ab" * 20)
+            self.assertFalse((self.root / "release").exists())
+            path.write_bytes(content)
 
     def test_mismatched_missing_or_prefixed_tags_cannot_create_release_output(self):
         for tag in ("v0.1.0", "0.2.0", "main", "", None):

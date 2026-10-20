@@ -86,6 +86,7 @@ public static class UnityProChecks
             Check(core != simulator && simulator != localization && localization != audioTools, "Core, simulator, localization, and audio tools use separate assemblies");
             Check(!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName().Name == "vrchat.blackstartx.gesture-manager"), "Fixture does not contain the original Gesture Manager");
             CheckToolsMenu(typeof(GestureManagerEditor), "AddNewEmulator", "Tools/Gesture Manager Pro");
+            UnityProVrSetupChecks.Run(Check);
             Check(new[] { typeof(GameSimulationTool), typeof(MicrophoneLipSync), typeof(VRCLearn.GestureManagerPro.Diagnostics.ModelStatisticsWindow) }
                 .All(type => !type.GetMethods(Any).Any(method => method.IsDefined(typeof(MenuItem), false))),
                 "Feature tools do not add standalone Tools menu entries");

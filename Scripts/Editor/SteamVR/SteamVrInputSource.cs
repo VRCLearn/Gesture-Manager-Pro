@@ -18,7 +18,8 @@ namespace VRCLearn.GestureManagerPro.SteamVR.Editor
     /// <summary>Owns an Editor XR loader; reads OpenVR actions without the SteamVR Unity Plugin.</summary>
     public sealed class SteamVrInputSource : IVrInputSource
     {
-        private const string PackageId = "com.vrclearn.gesture-manager-pro.steamvr";
+        private const string PackageId = "com.vrclearn.gesture-manager-pro";
+        private const string ActionManifestResource = "GestureManagerPro/SteamVR/actions";
         private const string ActionSet = "/actions/pro";
         private const string ActionPrefix = ActionSet + "/in/";
         private static SteamVrInputSource Owner;
@@ -86,10 +87,7 @@ namespace VRCLearn.GestureManagerPro.SteamVR.Editor
 
             try
             {
-                var package = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(SteamVrInputSource).Assembly);
-                if (package == null || package.name != PackageId) throw new InvalidOperationException("The SteamVR adapter must be installed as its separate UPM package.");
-                var manifest = Path.GetFullPath(Path.Combine(package.resolvedPath, "Input", "actions.json"));
-                if (!File.Exists(manifest)) throw new FileNotFoundException("The SteamVR action manifest is missing.", manifest);
+                var manifest = ResolveActionManifest();
                 Owner = this;
                 _loader = ScriptableObject.CreateInstance<SteamVrOwnedLoader>();
                 _loader.hideFlags = HideFlags.HideAndDontSave;
@@ -385,6 +383,20 @@ namespace VRCLearn.GestureManagerPro.SteamVR.Editor
             int leftGesture, int rightGesture) => new VrInputFrame(Axis("menu_axis"), Pressed("menu"), Pressed("back"),
                 Pressed("select"), Released("select"), Pressed("pause"), Pressed("recenter"), leftTrigger, rightTrigger,
                 leftGrip, rightGrip, leftGesture, rightGesture, GestureWeight(leftGesture, leftTrigger), GestureWeight(rightGesture, rightTrigger));
+
+        internal static string ResolveActionManifest()
+        {
+            var asset = Resources.Load<TextAsset>(ActionManifestResource);
+            if (!asset) throw new FileNotFoundException("The bundled SteamVR action manifest is missing.");
+            var assetPath = AssetDatabase.GetAssetPath(asset);
+            var package = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(SteamVrInputSource).Assembly);
+            var manifest = package != null && package.name == PackageId
+                ? Path.Combine(package.resolvedPath, "Resources", "GestureManagerPro", "SteamVR", "actions.json")
+                : assetPath;
+            manifest = Path.GetFullPath(manifest);
+            if (!File.Exists(manifest)) throw new FileNotFoundException("The bundled SteamVR action manifest is missing.", manifest);
+            return manifest;
+        }
 
         public MotionInputFrame Sample() { Poll(); return _motion; }
 
