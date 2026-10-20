@@ -22,6 +22,8 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ### Fixed
 
+- Reset Scene Camera to disabled when its last owner disconnects, Play Mode
+  changes or scripts reload, instead of retaining an Editor preference.
 - Keep one Game Simulation entry for both PC and VR input. Input choices no
   longer use a slash that Unity interprets as a nested popup menu. PC is the
   default for new sessions and after normal exit; VR remains an explicit choice.

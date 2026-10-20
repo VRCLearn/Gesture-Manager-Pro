@@ -124,7 +124,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             private static Camera _camera;
             private static CameraState _originalState;
             private static int _instances;
-            private static readonly BoolProperty IsActive = new("GM3 SceneCamera");
+            private static bool _enabled;
             private bool _disposed;
 
             private sealed class CameraState
@@ -162,7 +162,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
             protected internal override string Name => EditorLocalization.Tr("Scene Camera");
             protected override string Description => EditorLocalization.Tr("This will match your game view with your scene view!\n\nClick the button to setup the main camera automatically~");
-            protected internal override bool Active => SimulationView?.SceneCameraEnabled ?? IsActive.Property;
+            protected internal override bool Active => SimulationView?.SceneCameraEnabled ?? _enabled;
 
             static UpdateSceneCamera()
             {
@@ -177,7 +177,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             public UpdateSceneCamera()
             {
                 _instances++;
-                if (SimulationView == null && IsActive.Property && !_camera && ModuleVrc3.MainCamera) Set(ModuleVrc3.MainCamera);
+                if (SimulationView == null && _enabled && !_camera && ModuleVrc3.MainCamera) Set(ModuleVrc3.MainCamera);
             }
 
             public override void Dispose()
@@ -209,7 +209,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             {
                 // Game Simulation supplies the displayed camera while it owns the view.
                 if (SimulationView != null) return;
-                if (!_camera && IsActive.Property && ModuleVrc3.MainCamera) Set(ModuleVrc3.MainCamera);
+                if (!_camera && _enabled && ModuleVrc3.MainCamera) Set(ModuleVrc3.MainCamera);
                 if (_camera && (_camera.gameObject.hideFlags & HideFlags.DontSave) != 0) return;
                 var sceneView = SceneView.lastActiveSceneView;
                 if (!sceneView) return;
@@ -237,7 +237,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
                     _camera = camera;
                     if (_camera) _originalState = new CameraState(_camera);
                 }
-                IsActive.Property = Exist(_camera);
+                _enabled = Exist(_camera);
             }
 
             private static void RestoreCamera()
@@ -245,6 +245,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
                 if (_camera && _originalState != null) _originalState.Restore(_camera);
                 _camera = null;
                 _originalState = null;
+                _enabled = false;
             }
         }
 

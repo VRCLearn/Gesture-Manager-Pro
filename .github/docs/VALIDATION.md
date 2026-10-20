@@ -1,5 +1,13 @@
 # Development validation
 
+## Session-only Scene Camera switch (unreleased)
+
+Validated on 2026-10-21 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11. Scene Camera no longer reads or writes the legacy `GM3 SceneCamera` Editor preference. Its enabled state belongs to the current shared tool session; final owner disposal, Play transitions and script reload cleanup reset it to disabled while restoring the original camera. Explicit enabling still supports multiple live owners and recovery of a lost target within that session. Game Simulation continues to own its active observer selection separately.
+
+A disposable fixture runner invoked the existing `CheckObserverCamera` and `CheckGameSimulationFreeLook` checks and passed 428 assertions (`Output~/scene-camera-session-only.log`). Coverage includes an old saved true value being ignored, new/recreated tools staying disabled, idempotent cleanup, target loss and restoration, and all four combinations of ordinary session state and unused legacy preference during the Game Simulation bridge. Package validation passed 1,799 checks. The full Play suite and actual no-domain-reload Play transitions were not rerun; the previously documented close-distance camera failure remains unresolved. Batch shutdown allocation diagnostics remain in the log.
+
+The validated production script was backed up and synchronized to Test-Avatar without switching, saving or testing its active scene. At the final observation the Editor remained in Play Mode in the same unsaved scene, with zero Console errors or warnings; the old assembly was still loaded while compilation was pending. The live fix therefore awaits Unity's next script reload, which may be deferred until Play Mode ends according to its script-change setting. The disposable fixture confirms compilation and behavior independently of that live reload.
+
 ## Maintainer PC compatibility confirmation (unreleased)
 
 On 2026-10-21, the maintainer confirmed that PC mode remains usable with these changes and requested local commits in separate functional batches. VR headset operation and client parity remain pending hardware validation. This manual confirmation complements the automated checks below; the previously recorded full Play camera-centering failure remains unresolved. The blue-background report concerned the operated test scene and was resolved by creating a new scene; it is not recorded as a confirmed GMP regression.

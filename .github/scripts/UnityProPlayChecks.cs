@@ -1780,9 +1780,11 @@ public static class UnityProPlayChecks
         var previousTarget = targetField.GetValue(null);
         var stateField = toolType.GetField("_originalState", BindingFlags.Static | BindingFlags.NonPublic);
         var instancesField = toolType.GetField("_instances", BindingFlags.Static | BindingFlags.NonPublic);
+        var enabledField = toolType.GetField("_enabled", BindingFlags.Static | BindingFlags.NonPublic);
         var previousState = stateField.GetValue(null);
         var previousInstances = instancesField.GetValue(null);
-        // Avoid rebinding the shared target or persisting the Scene Camera preference.
+        var previousEnabled = enabledField.GetValue(null);
+        // Avoid rebinding the shared target or changing its current session state.
         // The lifecycle fixture below separately exercises the public constructor.
         var sceneCameraTool = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(toolType);
         var originalPosition = originalCamera.transform.position;
@@ -1803,6 +1805,7 @@ public static class UnityProPlayChecks
         {
             stateField.SetValue(null, null);
             instancesField.SetValue(null, 0);
+            enabledField.SetValue(null, true);
             targetField.SetValue(null, originalCamera);
             // Both Game cameras use their own full Game viewport, rather than
             // adopting the differently shaped Scene window's aspect ratio.
@@ -1876,6 +1879,7 @@ public static class UnityProPlayChecks
             targetField.SetValue(null, previousTarget);
             stateField.SetValue(null, previousState);
             instancesField.SetValue(null, previousInstances);
+            enabledField.SetValue(null, previousEnabled);
             originalCamera.transform.SetPositionAndRotation(originalPosition, originalRotation);
             originalCamera.orthographic = originalOrthographic;
             originalCamera.orthographicSize = originalSize;
@@ -1898,13 +1902,16 @@ public static class UnityProPlayChecks
         var targetField = type.GetField("_camera", shared);
         var stateField = type.GetField("_originalState", shared);
         var instancesField = type.GetField("_instances", shared);
+        var enabledField = type.GetField("_enabled", shared);
         var set = type.GetMethod("Set", shared);
         var restore = type.GetMethod("RestoreCamera", shared);
         var toggle = type.GetMethod("Toggle", instance);
         var update = type.GetMethod("Update", instance);
+        var active = type.GetProperty("Active", instance);
         var previousTarget = targetField.GetValue(null);
         var previousState = stateField.GetValue(null);
         var previousInstances = instancesField.GetValue(null);
+        var previousEnabled = enabledField.GetValue(null);
         var hadPreference = EditorPrefs.HasKey(preference);
         var previousPreference = EditorPrefs.GetBool(preference);
         var previousPivot = observer.pivot;
@@ -1917,11 +1924,13 @@ public static class UnityProPlayChecks
         GameObject parent = null;
         GameObject secondObject = null;
         GameObject temporaryObject = null;
+        GameObject lostTargetObject = null;
         try
         {
             targetField.SetValue(null, null);
             stateField.SetValue(null, null);
             instancesField.SetValue(null, 0);
+            enabledField.SetValue(null, false);
             EditorPrefs.DeleteKey(preference);
             foreach (var entry in existingCameras) entry.camera.enabled = false;
             parent = new GameObject("Pro Scene Camera lifecycle parent");
@@ -1960,6 +1969,7 @@ public static class UnityProPlayChecks
             void Set(Camera camera) => set.Invoke(null, new object[] { camera });
             void Update(AvatarTools.UpdateSceneCamera tool) => update.Invoke(tool, new object[] { module });
             Camera Target() => (Camera)targetField.GetValue(null);
+            bool Enabled() => (bool)enabledField.GetValue(null);
             bool Released() => !Target() && stateField.GetValue(null) == null;
             void Navigate(int step)
             {
@@ -1972,53 +1982,63 @@ public static class UnityProPlayChecks
             }
 
             var owner = CreateTool();
-            Check(Released() && !EditorPrefs.HasKey(preference) && (int)instancesField.GetValue(null) == 1,
-                "Constructing an inactive Scene Camera tool leaves an absent preference and target untouched");
+            Update(owner);
+            Check(Released() && !Enabled() && !(bool)active.GetValue(owner) && !EditorPrefs.HasKey(preference) &&
+                (int)instancesField.GetValue(null) == 1 && firstState.Matches(first),
+                "A new Scene Camera tool and its updates stay disabled without creating a persistent preference");
+            EditorPrefs.SetBool(preference, true);
+            var legacyOwner = CreateTool();
+            Update(owner);
+            Update(legacyOwner);
+            Check(Released() && !Enabled() && !(bool)active.GetValue(legacyOwner) && firstState.Matches(first) &&
+                EditorPrefs.GetBool(preference),
+                "A legacy enabled Scene Camera preference cannot activate a new tool or a later update");
+            legacyOwner.Dispose();
             Set(first);
             var originalSnapshot = stateField.GetValue(null);
             Navigate(1);
             Update(owner);
-            Check(Target() == first && EditorPrefs.GetBool(preference) && !firstState.Matches(first) &&
+            Check(Target() == first && Enabled() && (bool)active.GetValue(owner) && !firstState.Matches(first) &&
                 Vector3.Distance(first.transform.position, observer.camera.transform.position) < 0.0001f,
                 "The real Scene Camera Set and Update capture the original camera and synchronize the selected target; target=" +
-                (Target() ? Target().name : "null") + ", preference=" + EditorPrefs.GetBool(preference) +
+                (Target() ? Target().name : "null") + ", enabled=" + Enabled() +
                 ", unchanged=" + firstState.Matches(first) + ", targetPosition=" + first.transform.position +
                 ", observerPosition=" + observer.camera.transform.position + ", activeView=" + SceneView.lastActiveSceneView);
             Set(first);
             Check(ReferenceEquals(stateField.GetValue(null), originalSnapshot),
                 "Selecting the same Scene Camera target preserves its original snapshot");
             var secondOwner = CreateTool();
-            Check(Target() == first && ReferenceEquals(stateField.GetValue(null), originalSnapshot) &&
+            Check(Target() == first && Enabled() && ReferenceEquals(stateField.GetValue(null), originalSnapshot) &&
                 (int)instancesField.GetValue(null) == 2,
                 "A second real Scene Camera constructor shares ownership without capturing the synchronized pose again");
             Navigate(2);
             Update(secondOwner);
             owner.Dispose();
-            Check(Target() == first && !firstState.Matches(first) && (int)instancesField.GetValue(null) == 1,
+            Check(Target() == first && Enabled() && !firstState.Matches(first) && (int)instancesField.GetValue(null) == 1,
                 "Disposing one Scene Camera owner leaves the remaining owner's target active");
             secondOwner.Dispose();
-            Check(Released() && firstState.Matches(first) && EditorPrefs.GetBool(preference) &&
+            Check(Released() && !Enabled() && firstState.Matches(first) && EditorPrefs.GetBool(preference) &&
                 (int)instancesField.GetValue(null) == 0,
-                "Disposing the last Scene Camera owner restores local pose and projection while retaining the enabled preference");
+                "Disposing the last Scene Camera owner restores local pose and projection, disables the session, and leaves the legacy preference untouched");
             owner.Dispose();
             secondOwner.Dispose();
-            Check((int)instancesField.GetValue(null) == 0 && firstState.Matches(first),
+            Check((int)instancesField.GetValue(null) == 0 && !Enabled() && firstState.Matches(first),
                 "Repeated Scene Camera disposal cannot decrement ownership or restore twice");
 
             var remainingOwner = CreateTool();
-            Check(Target() == first && stateField.GetValue(null) != null && firstState.Matches(first),
-                "A later Scene Camera constructor recaptures the restored Main Camera when the saved preference is enabled");
-            Set(null);
+            Update(remainingOwner);
+            Check(Released() && !Enabled() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
+                "Recreating Scene Camera after final disposal starts disabled despite the legacy enabled preference");
             for (var round = 0; round < 3; round++)
             {
                 toggle.Invoke(remainingOwner, new object[] { null });
-                Check(Target() == first && EditorPrefs.GetBool(preference),
+                Check(Target() == first && Enabled() && (bool)active.GetValue(remainingOwner),
                     "Scene Camera Toggle without a module selects the real eligible Main Camera");
                 Navigate(round + 3);
                 Update(remainingOwner);
                 Check(!firstState.Matches(first), "An enabled Scene Camera follows subsequent manual Scene navigation");
                 toggle.Invoke(remainingOwner, new object[] { module });
-                Check(Released() && firstState.Matches(first) && !EditorPrefs.GetBool(preference),
+                Check(Released() && !Enabled() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
                     "Scene Camera Toggle off restores the original local pose and every synchronized projection setting");
                 Navigate(round + 6);
                 Update(remainingOwner);
@@ -2053,36 +2073,74 @@ public static class UnityProPlayChecks
             Update(remainingOwner);
             Set(temporary);
             Update(remainingOwner);
-            Check(Released() && !EditorPrefs.GetBool(preference) && firstState.Matches(first) && temporaryState.Matches(temporary),
+            Check(Released() && !Enabled() && EditorPrefs.GetBool(preference) && firstState.Matches(first) && temporaryState.Matches(temporary),
                 "Selecting a DontSave camera behaves as disabling Scene Camera and never mutates the temporary target");
 
             Set(first);
             Update(remainingOwner);
             restore.Invoke(null, null);
-            Check(Released() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
-                "The shared assembly/play lifecycle cleanup restores the camera and releases its snapshot while preserving preference");
+            Check(Released() && !Enabled() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
+                "The shared assembly/play lifecycle cleanup restores the camera, releases its snapshot, and disables the current session");
             restore.Invoke(null, null);
-            Check(Released() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
-                "Repeated lifecycle cleanup is harmless and retains the saved enabled preference");
+            Check(Released() && !Enabled() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
+                "Repeated lifecycle cleanup is harmless and never rewrites the legacy preference");
+            Update(remainingOwner);
+            var cleanedOwner = CreateTool();
+            Update(cleanedOwner);
+            Check(Released() && !Enabled() && firstState.Matches(first),
+                "Existing and newly constructed owners cannot reactivate Scene Camera after lifecycle cleanup");
+            cleanedOwner.Dispose();
+
+            // A vanished target can be recovered only while the explicit enable
+            // belongs to this live session, before any lifecycle cleanup.
+            lostTargetObject = new GameObject("Pro vanished Scene Camera target");
+            var lostTarget = lostTargetObject.AddComponent<Camera>();
+            Set(lostTarget);
+            Update(remainingOwner);
+            UnityEngine.Object.DestroyImmediate(lostTargetObject);
+            lostTargetObject = null;
             first.enabled = false;
             Update(remainingOwner);
-            Check(Released() && EditorPrefs.GetBool(preference),
-                "An update with no eligible Main Camera preserves the preference for later recovery");
+            Check(!Target() && Enabled() && EditorPrefs.GetBool(preference),
+                "A missing target and no eligible Main Camera retain only the current session's explicit enable for recovery");
             var waitingOwner = CreateTool();
-            Check(Released() && EditorPrefs.GetBool(preference),
-                "Constructing another owner while no Main Camera exists also preserves the enabled preference");
+            Check(!Target() && Enabled() && EditorPrefs.GetBool(preference),
+                "Another live owner shares the explicit enabled state while no Main Camera is available");
             first.enabled = true;
             Update(waitingOwner);
-            Check(Target() == first && !firstState.Matches(first),
-                "A later update automatically captures and synchronizes the Main Camera after it becomes available");
+            Check(Target() == first && Enabled() && !firstState.Matches(first),
+                "Within the same enabled session, a later update captures and synchronizes a Main Camera after it becomes available");
+            lostTargetObject = new GameObject("Pro second vanished Scene Camera target");
+            lostTarget = lostTargetObject.AddComponent<Camera>();
+            Set(lostTarget);
+            UnityEngine.Object.DestroyImmediate(lostTargetObject);
+            lostTargetObject = null;
+            var recoveringOwner = CreateTool();
+            Check(Target() == first && Enabled() && firstState.Matches(first) && stateField.GetValue(null) != null,
+                "A constructor recovers a lost target only when another live owner explicitly enabled the same current session");
+            Update(recoveringOwner);
+            recoveringOwner.Dispose();
             remainingOwner.Dispose();
-            Check(Target() == first, "The recovered Scene Camera remains owned until the last live tool is disposed");
+            Check(Target() == first && Enabled(), "The recovered Scene Camera remains owned until the last live tool is disposed");
             waitingOwner.Dispose();
-            Check(Released() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
-                "Final disposal after automatic recovery restores the original state and preserves the enabled preference");
+            Check(Released() && !Enabled() && firstState.Matches(first) && EditorPrefs.GetBool(preference),
+                "Final disposal after same-session recovery restores the camera and clears the enabled state");
+            var recreatedOwner = CreateTool();
+            Update(recreatedOwner);
+            Check(Released() && !Enabled() && firstState.Matches(first),
+                "Recreating after target recovery also starts disabled rather than restoring a previous session");
+            Set(first);
+            Update(recreatedOwner);
             EditorPrefs.SetBool(preference, false);
             restore.Invoke(null, null);
-            Check(Released() && !EditorPrefs.GetBool(preference), "Lifecycle cleanup also preserves a disabled Scene Camera preference");
+            Check(Released() && !Enabled() && firstState.Matches(first) && !EditorPrefs.GetBool(preference),
+                "Lifecycle cleanup disables an active session without modifying an existing false legacy preference");
+            EditorPrefs.DeleteKey(preference);
+            Set(first);
+            Update(recreatedOwner);
+            Set(null);
+            Check(Released() && !Enabled() && firstState.Matches(first) && !EditorPrefs.HasKey(preference),
+                "Explicit enabling, camera updates, and disabling never create the legacy Scene Camera preference");
         }
         finally
         {
@@ -2091,9 +2149,11 @@ public static class UnityProPlayChecks
             targetField.SetValue(null, previousTarget);
             stateField.SetValue(null, previousState);
             instancesField.SetValue(null, previousInstances);
+            enabledField.SetValue(null, previousEnabled);
             if (hadPreference) EditorPrefs.SetBool(preference, previousPreference);
             else EditorPrefs.DeleteKey(preference);
             if (temporaryObject) UnityEngine.Object.DestroyImmediate(temporaryObject);
+            if (lostTargetObject) UnityEngine.Object.DestroyImmediate(lostTargetObject);
             if (secondObject) UnityEngine.Object.DestroyImmediate(secondObject);
             if (parent) UnityEngine.Object.DestroyImmediate(parent);
             foreach (var entry in existingCameras)
@@ -2113,6 +2173,7 @@ public static class UnityProPlayChecks
         var targetField = sceneType.GetField("_camera", shared);
         var stateField = sceneType.GetField("_originalState", shared);
         var instancesField = sceneType.GetField("_instances", shared);
+        var enabledField = sceneType.GetField("_enabled", shared);
         var set = sceneType.GetMethod("Set", shared);
         var restore = sceneType.GetMethod("RestoreCamera", shared);
         var sceneToggle = sceneType.GetMethod("Toggle", instance);
@@ -2121,6 +2182,7 @@ public static class UnityProPlayChecks
         var previousTarget = targetField.GetValue(null);
         var previousState = stateField.GetValue(null);
         var previousInstances = instancesField.GetValue(null);
+        var previousEnabled = enabledField.GetValue(null);
         var previousBridge = AvatarTools.UpdateSceneCamera.SimulationView;
         var hadPreference = EditorPrefs.HasKey(preference);
         var previousPreference = EditorPrefs.GetBool(preference);
@@ -2143,6 +2205,7 @@ public static class UnityProPlayChecks
             targetField.SetValue(null, null);
             stateField.SetValue(null, null);
             instancesField.SetValue(null, 0);
+            enabledField.SetValue(null, false);
             EditorPrefs.SetBool(preference, false);
             avatar = new GameObject("Pro game Scene Camera bridge avatar");
             avatar.transform.SetPositionAndRotation(new Vector3(35f, 20f, -45f), Quaternion.Euler(0f, 23f, 0f));
@@ -2220,14 +2283,19 @@ public static class UnityProPlayChecks
                     label + " clears the bridge, ownership, and temporary camera while restoring the module camera");
             }
 
-            // Run with both ordinary preferences: Game Simulation must own the
-            // button's displayed state without persisting its view selection.
-            for (var preferenceRound = 0; preferenceRound < 2; preferenceRound++)
+            // Run every ordinary-session/legacy-preference combination: the
+            // bridge owns only the displayed state and never reads or writes the old key.
+            for (var preferenceRound = 0; preferenceRound < 4; preferenceRound++)
             {
-                var ordinaryEnabled = preferenceRound != 0;
+                var ordinaryEnabled = preferenceRound % 2 != 0;
+                var legacyPreference = preferenceRound / 2 != 0;
+                EditorPrefs.SetBool(preference, legacyPreference);
                 Navigate(true, preferenceRound);
                 set.Invoke(null, new object[] { ordinaryEnabled ? originalCamera : null });
                 if (ordinaryEnabled) sceneUpdate.Invoke(sceneTool, new object[] { module });
+                Check(SceneActive() == ordinaryEnabled && (bool)enabledField.GetValue(null) == ordinaryEnabled &&
+                    EditorPrefs.GetBool(preference) == legacyPreference,
+                    "The ordinary Scene Camera button reflects its current session independently of the legacy preference");
                 var ordinaryMainState = new SceneCameraState(originalCamera);
                 var ordinarySnapshot = stateField.GetValue(null);
                 ClickGame();
@@ -2240,8 +2308,8 @@ public static class UnityProPlayChecks
                 session.Poll();
                 sceneUpdate.Invoke(sceneTool, new object[] { module });
                 Check(ordinaryMainState.Matches(originalCamera) && ReferenceEquals(stateField.GetValue(null), ordinarySnapshot) &&
-                    EditorPrefs.GetBool(preference) == ordinaryEnabled,
-                    "While simulation owns the view, ordinary Scene Camera updates preserve Main Camera, its snapshot, and its preference");
+                    (bool)enabledField.GetValue(null) == ordinaryEnabled && EditorPrefs.GetBool(preference) == legacyPreference,
+                    "While simulation owns the view, ordinary Scene Camera updates preserve Main Camera, its snapshot, its session state, and the unrelated legacy preference");
                 ClickScene();
                 Check(session.ViewMode == SimulationViewMode.FirstPerson && !session.ThirdPersonEnabled && !SceneActive() &&
                     !Keyboard().ObserverView && (bool)typeof(KeyboardMotionInputSource).GetField("_captureRequested", instance).GetValue(Keyboard()),
@@ -2324,15 +2392,18 @@ public static class UnityProPlayChecks
                 Check(ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, session),
                     "Disposing a rejected duplicate cannot clear the successful session's bridge");
                 duplicateTool = null;
-                Check(ordinaryMainState.Matches(originalCamera) && EditorPrefs.GetBool(preference) == ordinaryEnabled,
-                    "All ordinary-button, F5, wheel, and dropdown changes preserve the original Main Camera and ordinary preference");
+                Check(ordinaryMainState.Matches(originalCamera) && (bool)enabledField.GetValue(null) == ordinaryEnabled &&
+                    EditorPrefs.GetBool(preference) == legacyPreference,
+                    "All ordinary-button, F5, wheel, and dropdown changes preserve Main Camera and the prior ordinary session without modifying the legacy key");
                 ClickGame();
                 CheckReleased("Exiting through the registered Game Simulation tool");
                 Check(!ownedObject && SceneActive() == ordinaryEnabled && ordinaryMainState.Matches(originalCamera) &&
-                    EditorPrefs.GetBool(preference) == ordinaryEnabled,
-                    "Exit restores ordinary Scene Camera Active to its unchanged saved preference");
+                    (bool)enabledField.GetValue(null) == ordinaryEnabled && EditorPrefs.GetBool(preference) == legacyPreference,
+                    "Exit returns ordinary Scene Camera Active to its unchanged live session state, independently of the legacy preference");
                 restore.Invoke(null, null);
-                Check(initialMainState.Matches(originalCamera), "Ordinary Scene Camera cleanup still restores its own pre-simulation camera snapshot");
+                Check(initialMainState.Matches(originalCamera) && !SceneActive() && !(bool)enabledField.GetValue(null) &&
+                    EditorPrefs.GetBool(preference) == legacyPreference,
+                    "Ordinary Scene Camera cleanup restores its pre-simulation snapshot and disables the session without rewriting the legacy key");
             }
 
             EditorPrefs.SetBool(preference, false);
@@ -2392,6 +2463,7 @@ public static class UnityProPlayChecks
             targetField.SetValue(null, previousTarget);
             stateField.SetValue(null, previousState);
             instancesField.SetValue(null, previousInstances);
+            enabledField.SetValue(null, previousEnabled);
             if (hadPreference) EditorPrefs.SetBool(preference, previousPreference);
             else EditorPrefs.DeleteKey(preference);
             if (manager) { manager.Module = null; UnityEngine.Object.DestroyImmediate(manager.gameObject); }
