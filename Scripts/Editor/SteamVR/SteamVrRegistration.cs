@@ -1,5 +1,5 @@
 using UnityEditor;
-using UnityEngine.XR.Management;
+using UnityEditor.XR.Management;
 using VRCLearn.GestureManagerPro.Control;
 
 namespace VRCLearn.GestureManagerPro.SteamVR.Editor
@@ -9,18 +9,24 @@ namespace VRCLearn.GestureManagerPro.SteamVR.Editor
     {
         static SteamVrRegistration()
         {
-            VrInputProviders.Register("steamvr", "SteamVR", () => new SteamVrInputSource(), ConfigureSessionStartup);
+            VrInputProviders.Register("steamvr", "SteamVR", () => new SteamVrInputSource(), ConfigureSessionStartup, IsSessionStartupConfigured);
+        }
+
+        private static bool IsSessionStartupConfigured()
+        {
+            var settings = XRGeneralSettingsPerBuildTarget.XRGeneralSettingsForBuildTarget(BuildTargetGroup.Standalone);
+            return !settings || !settings.InitManagerOnStart;
         }
 
         private static void ConfigureSessionStartup()
         {
-            // Invoked by the explicit VR Setup button, never by registration or Start.
+            // Invoked by explicit VR preparation, never by registration or Start.
             // The adapter owns its loader and does not replace the project's loader list.
-            var settings = XRGeneralSettings.Instance;
+            var settings = XRGeneralSettingsPerBuildTarget.XRGeneralSettingsForBuildTarget(BuildTargetGroup.Standalone);
             if (!settings || !settings.InitManagerOnStart) return;
             settings.InitManagerOnStart = false;
             EditorUtility.SetDirty(settings);
-            AssetDatabase.SaveAssets();
+            AssetDatabase.SaveAssetIfDirty(settings);
         }
     }
 }

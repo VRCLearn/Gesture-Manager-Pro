@@ -4,7 +4,8 @@
     "references": [
         "VRCLearn.GestureManagerPro.Control",
         "Unity.XR.OpenVR",
-        "Unity.XR.Management"
+        "Unity.XR.Management",
+        "Unity.XR.Management.Editor"
     ],
     "includePlatforms": ["Editor"],
     "defineConstraints": ["UNITY_EDITOR_WIN", "GMP_OPENVR_1_2_1", "GMP_XR_MANAGEMENT"],

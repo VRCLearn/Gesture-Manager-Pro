@@ -108,18 +108,19 @@ namespace VRCLearn.GestureManagerPro.Control
             public readonly string Id, DisplayName;
             public readonly Func<IVrInputSource> Create;
             public readonly Action Configure;
-            public Provider(string id, string displayName, Func<IVrInputSource> create, Action configure = null)
-            { Id = id; DisplayName = displayName; Create = create; Configure = configure; }
+            public readonly Func<bool> IsConfigured;
+            public Provider(string id, string displayName, Func<IVrInputSource> create, Action configure = null, Func<bool> isConfigured = null)
+            { Id = id; DisplayName = displayName; Create = create; Configure = configure; IsConfigured = isConfigured; }
         }
 
         private static readonly List<Provider> Registered = new List<Provider>();
         public static IReadOnlyList<Provider> Providers => Registered.AsReadOnly();
 
-        public static void Register(string id, string displayName, Func<IVrInputSource> create, Action configure = null)
+        public static void Register(string id, string displayName, Func<IVrInputSource> create, Action configure = null, Func<bool> isConfigured = null)
         {
             if (string.IsNullOrEmpty(id) || create == null) throw new ArgumentException("A VR provider needs an identifier and factory.");
             Registered.RemoveAll(provider => provider.Id == id);
-            Registered.Add(new Provider(id, displayName, create, configure));
+            Registered.Add(new Provider(id, displayName, create, configure, isConfigured));
         }
     }
 }

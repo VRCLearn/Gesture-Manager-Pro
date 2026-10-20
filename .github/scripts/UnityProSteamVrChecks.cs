@@ -90,8 +90,89 @@ public static class UnityProSteamVrChecks
             check(!source.Start(out error) && !string.IsNullOrEmpty(error), "Disposed SteamVR sources reject restart and support idempotent disposal");
             EditorBuildSettings.TryGetConfigObject<UnityEngine.Object>("Unity.XR.OpenVR.Settings", out var after);
             check(before == after, "Validation failures and disposal preserve the project's existing XR configuration");
+            CheckSessionPreparation(type, check);
             CheckOwnedLoaderConfiguration(type, check);
             CheckTrackingSpaceEvents(type, check);
+        }
+    }
+
+    private static void CheckSessionPreparation(Type sourceType, Action<bool, string> check)
+    {
+        const string key = "com.unity.xr.management.loader_settings";
+        Func<string, Type> findType = name => AppDomain.CurrentDomain.GetAssemblies()
+            .Select(assembly => assembly.GetType(name)).First(candidate => candidate != null);
+        var settingsType = findType("UnityEngine.XR.Management.XRGeneralSettings");
+        var managerType = findType("UnityEngine.XR.Management.XRManagerSettings");
+        var containerType = findType("UnityEditor.XR.Management.XRGeneralSettingsPerBuildTarget");
+        var loaderType = sourceType.Assembly.GetType("VRCLearn.GestureManagerPro.SteamVR.Editor.SteamVrOwnedLoader").BaseType;
+        var instance = settingsType.GetProperty("Instance");
+        var initOnStart = settingsType.GetProperty("InitManagerOnStart");
+        var setSettings = containerType.GetMethod("SetSettingsForBuildTarget");
+        EditorBuildSettings.TryGetConfigObject<UnityEngine.Object>(key, out var previous);
+        var previousInstance = instance.GetValue(null);
+        var container = ScriptableObject.CreateInstance(containerType);
+        var standalone = ScriptableObject.CreateInstance(settingsType);
+        var android = ScriptableObject.CreateInstance(settingsType);
+        var manager = ScriptableObject.CreateInstance(managerType);
+        var loader = ScriptableObject.CreateInstance(loaderType);
+        var unrelated = new AnimationClip { frameRate = 60f };
+        var assetPath = AssetDatabase.GenerateUniqueAssetPath("Assets/ProSteamVrPreparationRegression.asset");
+        var unrelatedPath = AssetDatabase.GenerateUniqueAssetPath("Assets/ProSteamVrUnrelatedRegression.anim");
+        try
+        {
+            AssetDatabase.CreateAsset(container, assetPath);
+            foreach (var asset in new[] { standalone, android, manager, loader }) AssetDatabase.AddObjectToAsset(asset, container);
+            settingsType.GetProperty("AssignedSettings").SetValue(standalone, manager);
+            check((bool)managerType.GetMethod("TryAddLoader").Invoke(manager, new object[] { loader, -1 }),
+                "The session preparation fixture includes a persisted project loader");
+            setSettings.Invoke(container, new object[] { BuildTargetGroup.Standalone, standalone });
+            setSettings.Invoke(container, new object[] { BuildTargetGroup.Android, android });
+            EditorUtility.SetDirty(container);
+            AssetDatabase.SaveAssetIfDirty(container);
+            EditorBuildSettings.AddConfigObject(key, container, true);
+            AssetDatabase.CreateAsset(unrelated, unrelatedPath);
+            var unrelatedBytes = File.ReadAllBytes(unrelatedPath);
+            unrelated.frameRate = 72f;
+            EditorUtility.SetDirty(unrelated);
+
+            var provider = VrInputProviders.Providers.First(candidate => candidate.Id == "steamvr");
+            var count = VrInputProviders.Providers.Count;
+            var androidJson = EditorJsonUtility.ToJson(android);
+            var managerJson = EditorJsonUtility.ToJson(manager);
+            var before = File.ReadAllBytes(assetPath);
+            check(provider.Configure != null && provider.IsConfigured != null && !provider.IsConfigured() &&
+                File.ReadAllBytes(assetPath).SequenceEqual(before),
+                "SteamVR reports automatic standalone XR startup without changing or saving project settings");
+            provider.Configure();
+            var prepared = File.ReadAllBytes(assetPath);
+            check(provider.IsConfigured() && !(bool)initOnStart.GetValue(standalone) &&
+                !EditorUtility.IsDirty(standalone) && !prepared.SequenceEqual(before),
+                "Explicit preparation disables and persists only standalone XR automatic startup");
+            check((bool)initOnStart.GetValue(android) && EditorJsonUtility.ToJson(android) == androidJson &&
+                EditorJsonUtility.ToJson(manager) == managerJson && VrInputProviders.Providers.Count == count,
+                "Preparing SteamVR preserves Android XR settings, existing project loaders and provider registration");
+            check(EditorUtility.IsDirty(unrelated) && Mathf.Approximately(unrelated.frameRate, 72f) &&
+                File.ReadAllBytes(unrelatedPath).SequenceEqual(unrelatedBytes),
+                "VR preparation leaves unrelated unsaved assets dirty and does not save them");
+            provider.Configure();
+            check(provider.IsConfigured() && File.ReadAllBytes(assetPath).SequenceEqual(prepared) &&
+                !EditorUtility.IsDirty(standalone),
+                "Repeated VR preparation is idempotent and does not rewrite an already prepared XR asset");
+            setSettings.Invoke(container, new object[] { BuildTargetGroup.Standalone, null });
+            provider.Configure();
+            check(provider.IsConfigured() && File.ReadAllBytes(assetPath).SequenceEqual(prepared) &&
+                EditorJsonUtility.ToJson(android) == androidJson,
+                "A project without standalone XR settings is already ready for the owned loader and needs no new settings asset");
+        }
+        finally
+        {
+            EditorBuildSettings.RemoveConfigObject(key);
+            if (previous) EditorBuildSettings.AddConfigObject(key, previous, true);
+            instance.SetValue(null, previousInstance);
+            AssetDatabase.DeleteAsset(unrelatedPath);
+            AssetDatabase.DeleteAsset(assetPath);
+            foreach (var asset in new UnityEngine.Object[] { unrelated, container, standalone, android, manager, loader })
+                if (asset) UnityEngine.Object.DestroyImmediate(asset);
         }
     }
 
