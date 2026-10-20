@@ -10,6 +10,33 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-21
+
+### Changed
+
+- Move VR installation and configuration into the GMP component Inspector's
+  **Settings > VR Setup** section and remove the separate top-level Tools command.
+- Replace separate package, input and XR startup steps with one **Enable VR**
+  action. The setup automatically configures PC/VR input and on-demand XR startup,
+  reports when a Unity restart is required, and keeps dependency details under
+  **Advanced**. PC remains the default Game Simulation input.
+
+### Fixed
+
+- Check the complete VR dependency set and project configuration before reporting
+  VR as ready or creating a SteamVR input source. Pending setup or a required
+  Editor restart reports the next step while PC simulation remains available.
+- Defer final VR configuration until Unity returns to Edit Mode and finishes
+  compiling or importing, including when installation resumes after a domain reload.
+- Configure on-demand XR startup for Standalone without replacing existing loader
+  assignments or changing other platforms. Save only the affected settings assets,
+  preserving unrelated unsaved asset changes.
+
+### Notice
+
+- Physical headset display, controller operation, native XR handovers and VRChat
+  client parity remain unverified. VR control and full-body tracking are experimental.
+
 ## [1.1.0] - 2026-10-21
 
 ### Added
@@ -361,7 +388,8 @@ Initial development release; visual and hardware acceptance remained incomplete.
 - SDK2 simulation and unused serialized controller objects with obsolete SDK
   references, retaining the reachable animation graphs for the SDK3 target.
 
-[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.5.0...1.0.0
 [0.5.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.4.6...0.5.0

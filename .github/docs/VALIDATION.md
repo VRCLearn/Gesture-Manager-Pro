@@ -1,5 +1,16 @@
 # Development validation
 
+## 1.2.0 validation
+
+Validated on 2026-10-21 with Unity 2022.3.22f1 and VRChat Avatars SDK 3.10.5 in disposable Windows fixtures.
+
+- Editor checks passed 923 assertions without VR dependencies and 962 with the official OpenVR plugin and its Unity dependencies (`Output~/Release120-pc-editor.log`, `Output~/Release120-vr-restart-editor.log`). Coverage includes the component settings entry, passive UI behavior, complete dependency readiness, explicit project configuration, restart handling, existing loader assignments, other platforms and unrelated unsaved assets.
+- Graphics-enabled Play checks passed 1,088 assertions in each fixture (`Output~/Release120-VrValidationProject-play.log`, `Output~/Release120-SimpleVrInstallValidation-play.log`). These cover PC movement, cameras, injected VR tracking and handovers, menu release and restoration. Native XR display/input subsystems and GMP loader instances remain absent during idle Play Mode, PC simulation and VR selection before startup.
+- The real installation check passed official download and hash verification, closed-window ownership, Play Mode deferral, UPM installation, domain-reload recovery and automatic project setup (`Output~/SimpleVr-real-install.log`). A subsequent fresh Editor process confirmed persisted Both input handling, both input backends, working legacy input access, a cleared restart marker, ready dependencies and zero native XR sessions.
+- All 54 Python distribution/release tests passed. Package validation passed 1,906 checks and localization passed 17,305 checks across 559 keys in each of five languages. The optional comparison against an original Gesture Manager checkout was not run.
+
+Physical headset display, controller operation, native XR handovers and VRChat client parity remain unverified. The Play checks use injected tracking rather than a physical headset. Unity shutdown allocation diagnostics remain in the logs.
+
 ## 1.1.0 validation
 
 GMP 1.1.0 includes its SteamVR integration and bindings in one package. Edit Mode setup downloads and verifies the unchanged official Valve OpenVR 1.2.1 archive. PC remains the default and XR dependencies are optional.

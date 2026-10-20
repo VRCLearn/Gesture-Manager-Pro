@@ -1,7 +1,7 @@
 {
   "name": "com.vrclearn.gesture-manager-pro",
   "displayName": "Gesture Manager Pro",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "unity": "2022.3",
   "description": "A standalone avatar testing toolkit with multilingual interfaces, SDK statistics, lip sync, desktop game simulation and optional SteamVR/OSC full-body avatar control, derived from Gesture Manager.",
   "type": "tool",
@@ -21,7 +21,7 @@
   "vpmDependencies": {
     "com.vrchat.avatars": ">=3.10.4 <3.11.0"
   },
-  "url": "https://github.com/VRCLearn/Gesture-Manager-Pro/releases/download/1.1.0/com.vrclearn.gesture-manager-pro-1.1.0.zip",
+  "url": "https://github.com/VRCLearn/Gesture-Manager-Pro/releases/download/1.2.0/com.vrclearn.gesture-manager-pro-1.2.0.zip",
   "changelogUrl": "https://github.com/VRCLearn/Gesture-Manager-Pro/blob/main/CHANGELOG.md",
   "legacyFolders": {
     "Assets/VRCLearn/GestureManagerPro": "2adf77dcbd7b51e09ec05535b7920724"
