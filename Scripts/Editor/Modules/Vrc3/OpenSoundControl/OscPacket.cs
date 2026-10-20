@@ -8,7 +8,14 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
 {
     public class OscPacket
     {
-        public static IEnumerable<Message> GetMessages(byte[] oscData) => oscData[0] == '#' ? ParseBundle(oscData)._messages : new[] { Message.ParseMessage(oscData) };
+        public static IEnumerable<Message> GetMessages(byte[] oscData) => GetMessages(oscData, 0);
+
+        private static IEnumerable<Message> GetMessages(byte[] oscData, int depth)
+        {
+            if (oscData == null || oscData.Length < 4) throw new ArgumentException("OSC packet is empty or truncated.", nameof(oscData));
+            if (depth > 32) throw new ArgumentException("OSC bundle nesting exceeds 32 levels.", nameof(oscData));
+            return oscData[0] == '#' ? ParseBundle(oscData, depth)._messages : new[] { Message.ParseMessage(oscData) };
+        }
 
         private readonly ulong _timeTag;
         private readonly IList<Message> _messages;
@@ -46,14 +53,19 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
             return output;
         }
 
-        private static OscPacket ParseBundle(byte[] bundle)
+        private static OscPacket ParseBundle(byte[] bundle, int depth)
         {
             var messages = new List<Message>();
             var index = 0;
             var bundleTagString = Encoding.ASCII.GetString(SubArray(bundle, ref index, 8));
             var timeULong = GetULong(bundle, ref index);
             if (bundleTagString != "#bundle\0") throw new Exception("Not a bundle");
-            while (index < bundle.Length) messages.Add(Message.ParseMessage(SubArray(bundle, ref index, GetInt(bundle, ref index))));
+            while (index < bundle.Length)
+            {
+                var length = GetInt(bundle, ref index);
+                if (length <= 0 || length > bundle.Length - index) throw new ArgumentException("OSC bundle element is truncated.");
+                messages.AddRange(GetMessages(SubArray(bundle, ref index, length), depth + 1));
+            }
             return new OscPacket(timeULong, messages);
         }
 
@@ -182,6 +194,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
 
         private static T[] SubArray<T>(T[] sourceArray, ref int sourceIndex, int length)
         {
+            if (length < 0 || sourceIndex < 0 || length > sourceArray.Length - sourceIndex)
+                throw new ArgumentException("OSC data element is truncated or has an invalid length.");
             var destinationArray = new T[length];
             Array.Copy(sourceArray, sourceIndex, destinationArray, 0, length);
             sourceIndex += length;

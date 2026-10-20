@@ -25,7 +25,7 @@ OVR_BINARY_SHA256 = "2318c42eb806753e340b426d0b83dd3278f5b8d3b851ccf90a5be0ea8e1
 AGPL_TEXT_SHA256 = "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
 LICENSE_DECLARATION = "SEE LICENSE IN LICENSING.md"
 DIRECTORIES = ("Scripts", "Resources", "ThirdParty")
-ROOT_FILES = ("package.json", "GestureManagerPro.prefab", "LICENSE.md", "LICENSING.md", "README.md", "CHANGELOG.md")
+ROOT_FILES = ("package.json", "GestureManagerPro.prefab", "LICENSE.md", "LICENSING.md", "README.md", "CHANGELOG.md", "VR-SIMULATION.md")
 EXCLUDED = {"__pycache__", "fixtures", "testfixtures"}
 
 

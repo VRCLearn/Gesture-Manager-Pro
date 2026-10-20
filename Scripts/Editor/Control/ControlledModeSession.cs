@@ -9,6 +9,8 @@ using UnityEngine.SceneManagement;
 
 namespace VRCLearn.GestureManagerPro.Control.Editor
 {
+    public enum ControlledSessionMode { Automatic, MotionAdapter, GameSimulation, VirtualReality }
+
     public sealed class ControlledModeSession : IDisposable, AvatarTools.UpdateSceneCamera.ISimulationView
     {
         private static readonly Dictionary<GestureManager, ControlledModeSession> Owners = new Dictionary<GestureManager, ControlledModeSession>();
@@ -63,6 +65,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             }
         }
         public bool Running { get; private set; }
+        public ControlledSessionMode Mode { get; private set; }
         public string Error { get; private set; }
         public event Action Stopped;
         public bool LocomotionBlocked => _module != null && (_module.IsLocomotionDisabled || _module.IsPoseSpaceActive || _module.IsPoseModeActive || _module.IsDummyModeActive);
@@ -70,7 +73,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public bool Start(GestureManager manager, IMotionInputSource input, float speed = 2f, float turnSpeed = 120f,
             bool collisions = true, bool gravity = false, bool previewCamera = false,
             SimulationViewMode viewMode = SimulationViewMode.SceneCamera, float cameraDistance = 2f,
-            bool followObserverCamera = false)
+            bool followObserverCamera = false, ControlledSessionMode mode = ControlledSessionMode.Automatic)
         {
             if (_stopping) return false;
             Stop();
@@ -84,7 +87,10 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                     throw new InvalidOperationException("Select an active Gesture Manager Pro controlling an SDK3 avatar.");
                 if (input == null) throw new ArgumentNullException(nameof(input));
                 if (input is KeyboardMotionInputSource) KeyboardMotionInputSource.EnsureAvailable();
-                var gameSimulation = input is KeyboardMotionInputSource keyboard && keyboard.GameSimulation;
+                Mode = mode == ControlledSessionMode.Automatic
+                    ? (input is KeyboardMotionInputSource keyboard && keyboard.GameSimulation
+                        ? ControlledSessionMode.GameSimulation : ControlledSessionMode.MotionAdapter) : mode;
+                var gameSimulation = Mode == ControlledSessionMode.GameSimulation || Mode == ControlledSessionMode.VirtualReality;
                 if (gameSimulation && _gameSimulationOwner != null && _gameSimulationOwner.Running)
                     throw new InvalidOperationException("Another game simulation is already active.");
                 if (Owners.ContainsKey(manager) || manager.IsPlayerControlled)
@@ -138,7 +144,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 if (previewCamera || gameSimulation)
                 {
                     CreateGroundIfNeeded();
-                    CreatePreviewCamera(height);
+                    if (Mode != ControlledSessionMode.VirtualReality) CreatePreviewCamera(height);
                 }
                 if (gameSimulation)
                 {
@@ -154,6 +160,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             }
             catch (Exception exception)
             {
+                if (!(exception is InvalidOperationException) && !(exception is ArgumentException)) Debug.LogException(exception);
                 Error = Message(exception);
                 Stop();
                 return false;
@@ -219,6 +226,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         public void SetViewMode(SimulationViewMode mode)
         {
+            if (Mode == ControlledSessionMode.VirtualReality) return;
             var selected = mode == SimulationViewMode.FirstPerson || mode == SimulationViewMode.ThirdPerson
                 ? mode : SimulationViewMode.SceneCamera;
             if (selected == SimulationViewMode.SceneCamera && ViewMode != SimulationViewMode.SceneCamera)
@@ -437,6 +445,45 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         }
 
         public void Dispose() => Stop();
+
+        public void UseExternalCamera(Camera camera)
+        {
+            if (!Running || Mode != ControlledSessionMode.VirtualReality || !camera)
+                throw new InvalidOperationException("An active VR session and a camera are required.");
+            _originalModuleCamera = _module.SimulationCamera;
+            _ownedCamera = camera;
+            _module.SimulationCamera = camera;
+            ViewMode = SimulationViewMode.FirstPerson;
+        }
+
+        /// <summary>Preserves a backend handoff position without changing the session's exit restore pose.</summary>
+        public void Reposition(Pose pose)
+        {
+            if (!Running || !Motor || !_avatar)
+                throw new InvalidOperationException("An active controlled session is required before repositioning.");
+            // Halt publishes synchronously; the handoff must not count as observer-follow movement.
+            var observerPosition = _observerPosition;
+            _observerPosition = pose.position;
+            try { Motor.Reposition(pose); }
+            catch { _observerPosition = observerPosition; throw; }
+            // Publishing parameters may synchronously stop and destroy this session.
+            if (!Running || !Motor || !_avatar) return;
+            if (_input is KeyboardMotionInputSource keyboard) keyboard.FreeLook = false;
+            if (ViewCamera)
+            {
+                ViewCamera.Pitch = Motor.ViewPitch;
+                ViewCamera.YawOverride = null;
+                ViewCamera.ApplyView();
+            }
+            SyncObserverCamera();
+        }
+
+        public void RefreshAvatarDimensions()
+        {
+            if (!Running || !Motor || _module == null) return;
+            _height = CapsuleHeight(_module);
+            Motor.Resize(_height, Mathf.Clamp(_height * 0.12f, 0.05f, 0.5f));
+        }
         private void OnPlayModeChanged(PlayModeStateChange state) { if (state != PlayModeStateChange.EnteredPlayMode) Stop(); }
         private void OnPauseChanged(PauseState state) { if (state == PauseState.Paused) Stop(); }
         private void OnInputFailed(Exception exception) { Error = Message(exception); Stop(); }

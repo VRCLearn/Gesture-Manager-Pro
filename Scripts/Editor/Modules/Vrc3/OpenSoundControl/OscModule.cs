@@ -180,6 +180,10 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
             }
             catch (Exception)
             {
+                _listener?.Close();
+                _listener = null;
+                _sender?.Close();
+                _sender = null;
                 var messageString = listenerPort == VrcListenerPort ? VrcReceiverPortUsed : EditorLocalization.Format("The port {0} is already in use.", listenerPort);
                 EditorUtility.DisplayDialog(EditorLocalization.Tr("Gesture Manager Pro"), messageString, ":c");
             }
@@ -218,12 +222,23 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.OpenSoundControl
 
         private void AddQueue(byte[] bytes)
         {
-            lock (_queue) _queue.Add(bytes);
+            lock (_queue)
+            {
+                if (_queue.Count >= 256) _queue.RemoveAt(0);
+                _queue.Add(bytes);
+            }
         }
 
         private void OnListenerBytes(byte[] bytes)
         {
-            foreach (var message in OscPacket.GetMessages(bytes)) OnMessage(message);
+            try
+            {
+                foreach (var message in OscPacket.GetMessages(bytes)) OnMessage(message);
+            }
+            catch (Exception)
+            {
+                // Malformed datagrams must not interrupt the shared tracking/debug update loop.
+            }
         }
 
         public void DebugLayout(VisualElement root, VisualEpContainer holder, float width)

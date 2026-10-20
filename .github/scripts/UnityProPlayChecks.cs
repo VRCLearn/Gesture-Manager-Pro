@@ -76,6 +76,8 @@ public static class UnityProPlayChecks
             CheckSimulationMicrophone();
             UnityProCameraChecks.Run(Check);
             UnityProGraphChecks.RunChecks(Check);
+            UnityProVrLifecycleChecks.Run(Check);
+            UnityProVrVisibilityChecks.Run(Check);
             UnityProSimulationRenderChecks.RunChecks(Check);
             Debug.Log("[Pro Play validation] PASS: " + _assertions + " assertions. Injected motion input, simulator parameter publishing, exclusive ownership, failure/pause/unlink handling, and restoration.");
             exitCode = 0;

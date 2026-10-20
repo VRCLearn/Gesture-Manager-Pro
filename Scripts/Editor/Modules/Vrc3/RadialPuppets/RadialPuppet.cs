@@ -61,7 +61,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets
 
         public override void Update(RadialCursor cursor)
         {
-            if (cursor.GetRadial(Clamp, out var range)) TrySetValue(Control.Settings.RangeFrom(Get), range);
+            if (cursor.GetRadial(Clamp, out var range) && !Control.SetExpressionRadial(range.Value))
+                TrySetValue(Control.Settings.RangeFrom(Get), range);
         }
 
         private void TrySetValue(Range from, Range to)

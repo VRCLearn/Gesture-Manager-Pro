@@ -1,0 +1,19 @@
+{
+    "controller_type": "vive_tracker_right_elbow",
+    "name": "Gesture Manager Pro vive_tracker_right_elbow",
+    "description": "Pro simulator actions. Customize in SteamVR bindings.",
+    "bindings": {
+        "/actions/pro": {
+            "sources": [],
+            "poses": [
+                {
+                    "path": "/user/elbow/right/pose/raw",
+                    "output": "/actions/pro/in/right_elbow_pose"
+                }
+            ],
+            "chords": []
+        }
+    },
+    "options": {},
+    "simulated_actions": []
+}
