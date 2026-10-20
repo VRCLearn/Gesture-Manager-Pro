@@ -6,8 +6,12 @@ using System.Security.Cryptography;
 using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Networking;
+using VRCLearn.GestureManagerPro.Editor;
+using VRCLearn.GestureManagerPro.Editor.Data;
+using VRCLearn.GestureManagerPro.Editor.Library;
 using VRCLearn.GestureManagerPro.Localization;
 using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
@@ -15,7 +19,29 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 {
     public sealed class VrSetupWindow : EditorWindow
     {
-        [MenuItem("Tools/Gesture Manager Pro - VR Setup", false, -41)]
+        private static bool _showSettings;
+        private static bool _showAdvanced;
+
+        [InitializeOnLoadMethod]
+        private static void RegisterSettings()
+        {
+            GestureManagerSettings.AdditionalSettingsGui -= DrawInspectorSettings;
+            GestureManagerSettings.AdditionalSettingsGui += DrawInspectorSettings;
+            VrDependencyInstaller.Changed -= RepaintInspectors;
+            VrDependencyInstaller.Changed += RepaintInspectors;
+        }
+
+        private static void DrawInspectorSettings()
+        {
+            if (!GmgLayoutHelper.FoldoutSection(EditorLocalization.Tr("VR Setup"), ref _showSettings)) return;
+            DrawSetupGui();
+        }
+
+        private static void RepaintInspectors()
+        {
+            foreach (var inspector in Resources.FindObjectsOfTypeAll<GestureManagerEditor>()) inspector.Repaint();
+        }
+
         public static void ShowSetup()
         {
             var window = GetWindow<VrSetupWindow>();
@@ -24,39 +50,56 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             window.Show();
         }
 
-        private void OnGUI()
+        private void OnGUI() => DrawSetupGui();
+
+        private static void DrawSetupGui()
         {
-            EditorGUILayout.HelpBox(EditorLocalization.Tr("GMP includes the SteamVR adapter. Install VR support to download Valve's original OpenVR XR Plugin 1.2.1 and install its Unity dependencies. PC simulation does not require these packages."), MessageType.Info);
+            EditorGUILayout.HelpBox(EditorLocalization.Tr("Enable VR once, then connect your headset to SteamVR and select VR in Game Simulation. PC controls remain available."), MessageType.Info);
+            var installed = VrDependencyInstaller.DependenciesReady && VrInputProviders.Providers.Count > 0;
+            var needsSetup = installed && VrDependencyInstaller.NeedsProjectSetup;
             EditorGUILayout.LabelField(EditorLocalization.Tr("SteamVR Support"), EditorLocalization.Tr(
-                VrInputProviders.Providers.Count > 0 ? "Installed" : "Not Installed"));
+                !installed ? "Not Installed" : needsSetup ? "Setup Required" : VrDependencyInstaller.RestartRequired ? "Restart Unity" : "Ready"));
             using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || VrDependencyInstaller.IsBusy))
             {
-                if (GUILayout.Button(EditorLocalization.Tr("Install SteamVR Support"))) VrDependencyInstaller.Install();
-                if (GUILayout.Button(EditorLocalization.Tr("Install from Local Archive...")))
+                if ((!installed || needsSetup) && GUILayout.Button(EditorLocalization.Tr("Enable VR")))
                 {
-                    var path = EditorUtility.OpenFilePanel(EditorLocalization.Tr("Select OpenVR XR Plugin 1.2.1"), string.Empty, "tgz");
-                    if (!string.IsNullOrEmpty(path)) VrDependencyInstaller.InstallFromArchive(path);
+                    if (installed) VrDependencyInstaller.PrepareProject();
+                    else VrDependencyInstaller.Install();
                 }
-                using (new EditorGUI.DisabledScope(VrInputProviders.Providers.Count == 0))
-                    if (GUILayout.Button(EditorLocalization.Tr("Use Manual XR Startup")))
-                        foreach (var provider in VrInputProviders.Providers) provider.Configure?.Invoke();
             }
-            EditorGUILayout.HelpBox(EditorLocalization.Tr("Manual XR startup disables automatic XR initialization for this project. Pro starts and releases its own loader for each VR session."), MessageType.Info);
+            if (VrDependencyInstaller.RestartRequired && !VrDependencyInstaller.IsBusy)
+            {
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Restart Unity once to finish enabling VR. Save your work before restarting."), MessageType.Warning);
+                using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || VrDependencyInstaller.IsBusy))
+                    if (GUILayout.Button(EditorLocalization.Tr("Restart Unity")) && EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                        EditorApplication.OpenProject(Path.GetFullPath(Path.Combine(Application.dataPath, "..")));
+            }
             var status = VrDependencyInstaller.Status;
-            if (!string.IsNullOrEmpty(status)) EditorGUILayout.HelpBox(status, VrDependencyInstaller.HasError ? MessageType.Error : MessageType.Info);
+            if (!string.IsNullOrEmpty(status) && (!VrDependencyInstaller.RestartRequired || VrDependencyInstaller.IsBusy || VrDependencyInstaller.HasError))
+                EditorGUILayout.HelpBox(status, VrDependencyInstaller.HasError ? MessageType.Error : MessageType.Info);
             if (VrDependencyInstaller.IsDownloading)
             {
                 var rect = EditorGUILayout.GetControlRect();
                 EditorGUI.ProgressBar(rect, VrDependencyInstaller.DownloadProgress, EditorLocalization.Tr("Downloading OpenVR XR Plugin 1.2.1..."));
             }
-            EditorGUILayout.HelpBox(EditorLocalization.Tr("The 19.52 MB Valve archive is verified with SHA-256 and kept in LocalPackages~. Input System 1.6.1 and XR Management 4.4.0 are installed when needed; compatible installed versions are reused. XR project settings change only when you click Use Manual XR Startup."), MessageType.Info);
+            _showAdvanced = EditorGUILayout.Foldout(_showAdvanced, EditorLocalization.Tr("Advanced"), true);
+            if (_showAdvanced)
+            {
+                using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || VrDependencyInstaller.IsBusy))
+                    if (GUILayout.Button(EditorLocalization.Tr("Install from Local Archive...")))
+                    {
+                        var path = EditorUtility.OpenFilePanel(EditorLocalization.Tr("Select OpenVR XR Plugin 1.2.1"), string.Empty, "tgz");
+                        if (!string.IsNullOrEmpty(path)) VrDependencyInstaller.InstallFromArchive(path);
+                    }
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("The 19.52 MB Valve archive is verified with SHA-256 and kept in LocalPackages~. Input System 1.6.1 and XR Management 4.4.0 are installed when needed; compatible installed versions are reused."), MessageType.Info);
+            }
         }
 
         private void OnEnable() => VrDependencyInstaller.Changed += Repaint;
         private void OnDisable() => VrDependencyInstaller.Changed -= Repaint;
     }
 
-    // Package operations belong to the editor session, not an individual setup window.
+    // Package operations belong to the editor session, independent of the Inspector or setup window.
     [InitializeOnLoad]
     internal static class VrDependencyInstaller
     {
@@ -89,6 +132,17 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         internal static bool IsBusy => CurrentStage != Stage.Idle;
         internal static bool IsDownloading => CurrentStage == Stage.Downloading;
         internal static bool HasError => SessionState.GetBool(SessionPrefix + "error", false);
+        internal static bool RestartRequired => SessionState.GetBool(SessionPrefix + "restart-required", false);
+        internal static bool DependenciesReady => DependenciesInstalled(PackageInfo.GetAllRegisteredPackages());
+        internal static bool NeedsProjectSetup => VrInputProviders.Providers.Count > 0 &&
+            (InputHandling != 2 || VrInputProviders.Providers.Any(provider => provider.IsConfigured != null && !provider.IsConfigured()));
+        internal static int InputHandling
+        {
+            get
+            {
+                using (var settings = PlayerInputSettings()) return settings.FindProperty("activeInputHandler").intValue;
+            }
+        }
         internal static float DownloadProgress => _download == null ? 0f : Mathf.Clamp01(_download.downloadProgress);
         internal static string ArchivePath => Path.GetFullPath(Path.Combine(Application.dataPath, "../LocalPackages~/com.valvesoftware.unity.openvr-1.2.1.tgz"));
         private static string PartialPath => ArchivePath + ".download";
@@ -112,6 +166,49 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 else BeginDownload();
             }
             catch (Exception exception) { Fail(exception.Message); }
+        }
+
+        internal static void PrepareProject()
+        {
+            if (!CanInstall()) return;
+            try { Succeed(); }
+            catch (Exception exception) { Fail(exception.Message); }
+        }
+
+        private static SerializedObject PlayerInputSettings()
+        {
+            var settings = Resources.FindObjectsOfTypeAll<PlayerSettings>().FirstOrDefault();
+            if (!settings) settings = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset").OfType<PlayerSettings>().FirstOrDefault();
+            if (!settings) throw new InvalidOperationException(EditorLocalization.Tr("Unity's input settings are unavailable. Wait for the editor to finish importing and try again."));
+            var serialized = new SerializedObject(settings);
+            if (serialized.FindProperty("activeInputHandler") != null) return serialized;
+            serialized.Dispose();
+            throw new InvalidOperationException(EditorLocalization.Tr("Unity's input settings are unavailable. Wait for the editor to finish importing and try again."));
+        }
+
+        internal static void ConfigureInputHandling()
+        {
+            using (var settings = PlayerInputSettings())
+            {
+                var input = settings.FindProperty("activeInputHandler");
+                if (input.intValue == 2) return;
+                // A domain reload does not restart native input. Keep this marker until
+                // the Editor process really restarts, even after scripts recompile.
+                SessionState.SetBool(SessionPrefix + "restart-required", true);
+                input.intValue = 2;
+                settings.ApplyModifiedPropertiesWithoutUndo();
+                AssetDatabase.SaveAssetIfDirty(settings.targetObject);
+            }
+        }
+
+        private static void ConfigureProject()
+        {
+            if (VrInputProviders.Providers.Count == 0)
+                throw new InvalidOperationException(EditorLocalization.Tr("SteamVR support is still compiling. Wait for Unity to finish, then enable VR again."));
+            if (VrInputProviders.Providers.Any(provider => provider.Id == "steamvr") && !DependenciesReady)
+                throw new InvalidOperationException(EditorLocalization.Tr("Enable VR from the GMP component's Settings > VR Setup before starting VR control."));
+            foreach (var provider in VrInputProviders.Providers) provider.Configure?.Invoke();
+            ConfigureInputHandling();
         }
 
         internal static void InstallFromArchive(string path)
@@ -161,6 +258,10 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         {
             if (!CanSubmitPackageRequest()) { WaitForEditor(false); return; }
             var packages = PackagesToInstall(ArchivePath, PackageInfo.GetAllRegisteredPackages());
+            // Enable both backends before adding Input System so its own first-install
+            // dialog does not interrupt the requested setup or disable PC input.
+            ConfigureInputHandling();
+            if (!CanSubmitPackageRequest()) { WaitForEditor(false); return; }
             CurrentStage = Stage.Installing;
             SetStatus("Installing VR dependencies...");
             _install = Client.AddAndRemove(packages);
@@ -284,7 +385,11 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 {
                     var request = _check;
                     _check = null;
-                    if (request.Status == StatusCode.Success && DependenciesInstalled(request.Result)) Succeed();
+                    if (request.Status == StatusCode.Success && DependenciesInstalled(request.Result))
+                    {
+                        if (!CanSubmitPackageRequest()) { WaitForEditor(true); return; }
+                        Succeed();
+                    }
                     else Fail(request.Error?.message ?? EditorLocalization.Tr("VR dependencies are incomplete. Retry installation after Unity finishes resolving packages."));
                 }
             }
@@ -293,8 +398,10 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         private static void Succeed()
         {
+            ConfigureProject();
             CurrentStage = Stage.Idle;
-            SetStatus("VR support installed. Click Use Manual XR Startup, then connect to SteamVR and enter Game Simulation with VR input.");
+            SetStatus(RestartRequired ? "Restart Unity once to finish enabling VR. Save your work before restarting." :
+                "VR support is ready. Connect your headset to SteamVR and select VR in Game Simulation.");
         }
 
         private static void Fail(string detail)

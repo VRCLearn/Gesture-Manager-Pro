@@ -4,6 +4,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Playables;
+using UnityEngine.XR;
 using VRCLearn.GestureManagerPro;
 using VRCLearn.GestureManagerPro.Control;
 using VRCLearn.GestureManagerPro.Control.Editor;
@@ -27,6 +28,8 @@ public static class UnityProVrLifecycleChecks
     public static void Run(Action<bool, string> check)
     {
         check(EditorApplication.isPlaying && !EditorApplication.isPaused, "VR lifecycle checks run in resumed Play Mode");
+        var nativeXr = new NativeXrState();
+        check(nativeXr.Idle, "Play Mode without Game Simulation has no native XR display/input subsystem or GMP SteamVR loader");
         ProValidationWindow host = null;
         GestureManager manager = null;
         Animator avatar = null;
@@ -254,9 +257,9 @@ public static class UnityProVrLifecycleChecks
                 "An exception in tracking polling tears down the complete production session and preserves its cause");
             CheckRestored(check, module, observer, originalParameters, originalPose, originalRoot, avatar);
             CheckGameSimulationEntry(check, manager, module, bones, descriptor, observer,
-                originalParameters, originalPose, originalRoot, avatar);
+                originalParameters, originalPose, originalRoot, avatar, nativeXr);
             CheckInputSwitching(check, manager, module, bones, descriptor, observer,
-                originalParameters, originalPose, originalRoot, avatar);
+                originalParameters, originalPose, originalRoot, avatar, nativeXr);
             var resettingSource = new FakeVrInput { Tracking = Frame(bones, descriptor, false) };
             check(session.Start(manager, resettingSource, settings, collisions: false), "The VR session can restart before testing simulator reset ownership");
             var previousParameter = module.GetParam("TrackingType");
@@ -299,12 +302,14 @@ public static class UnityProVrLifecycleChecks
             if (observer) UnityEngine.Object.DestroyImmediate(observer.gameObject);
             if (human) UnityEngine.Object.DestroyImmediate(human);
             if (host) UnityEngine.Object.DestroyImmediate(host);
+            nativeXr.CheckUnchanged(check, "Full VR lifecycle fixture cleanup");
         }
     }
 
     private static void CheckGameSimulationEntry(Action<bool, string> check, GestureManager manager,
         ModuleVrc3 module, Dictionary<HumanBodyBones, Transform> bones, VRCAvatarDescriptor descriptor,
-        Camera observer, Dictionary<string, float> originalParameters, float originalPose, Pose originalRoot, Animator avatar)
+        Camera observer, Dictionary<string, float> originalParameters, float originalPose, Pose originalRoot, Animator avatar,
+        NativeXrState nativeXr)
     {
         // Exercise the same tool toggle used by the Inspector and radial tools menu,
         // including provider discovery. The native SteamVR provider must never run here.
@@ -333,17 +338,20 @@ public static class UnityProVrLifecycleChecks
             settings.UserHeight = 0f;
             settings.UserArmSpan = 0f;
             var toggle = typeof(GameSimulationTool).GetMethod("Toggle", Any);
+            nativeXr.CheckUnchanged(check, "Creating an idle Game Simulation tool");
 
             toggle.Invoke(tool, new object[] { module });
             check(creations == 0 && motion.Running && motion.Mode == ControlledSessionMode.GameSimulation &&
                 keyboard.GetValue(tool) is KeyboardMotionInputSource && !vr.Running && (int)inputMode.GetValue(tool) == 0,
                 "A new game simulation starts with PC input without constructing a VR provider");
+            nativeXr.CheckUnchanged(check, "Running the default PC simulation");
             toggle.Invoke(tool, new object[] { module });
             check(!motion.Running && !vr.Running && (int)inputMode.GetValue(tool) == 0 && creations == 0,
                 "Exiting the default PC session leaves PC selected for the next entry");
             CheckRestored(check, module, observer, originalParameters, originalPose, originalRoot, avatar);
 
             inputMode.SetValue(tool, 1);
+            nativeXr.CheckUnchanged(check, "Selecting VR before starting Game Simulation");
             toggle.Invoke(tool, new object[] { module });
             check(creations == 1 && source.Starts == 1 && source.Running && vr.Running && motion.Running &&
                 motion.Mode == ControlledSessionMode.VirtualReality && keyboard.GetValue(tool) == null &&
@@ -389,6 +397,7 @@ public static class UnityProVrLifecycleChecks
                 !vr.Running && !vr.Camera && manager.IsPlayerControlled &&
                 Mathf.Abs(module.GetParam("VRMode").FloatValue() - originalParameters["VRMode"]) < 0.0001f,
                 "Selecting PC uses the keyboard game-simulation backend without constructing a VR provider or changing VRMode: " + motion.Error);
+            nativeXr.CheckUnchanged(check, "Running PC after an injected VR session");
             if (motion.Running) toggle.Invoke(tool, new object[] { module });
             check(!motion.Running && !vr.Running && !manager.IsPlayerControlled && keyboard.GetValue(tool) == null && creations == 3,
                 "The same game-simulation exit restores the PC backend without touching the VR provider registry");
@@ -404,7 +413,8 @@ public static class UnityProVrLifecycleChecks
 
     private static void CheckInputSwitching(Action<bool, string> check, GestureManager manager,
         ModuleVrc3 module, Dictionary<HumanBodyBones, Transform> bones, VRCAvatarDescriptor descriptor,
-        Camera observer, Dictionary<string, float> originalParameters, float originalPose, Pose originalRoot, Animator avatar)
+        Camera observer, Dictionary<string, float> originalParameters, float originalPose, Pose originalRoot, Animator avatar,
+        NativeXrState nativeXr)
     {
         // Switch through the production Inspector input selector, without entering any native XR loader.
         // The simulator stays active across backend replacement and owns one original exit baseline.
@@ -466,6 +476,7 @@ public static class UnityProVrLifecycleChecks
             motion.Reposition(firstPosition);
             check(isActive() && motion.Running && motion.Mode == ControlledSessionMode.GameSimulation && sameRoot(firstPosition),
                 "Input switching begins from an active PC simulation after avatar movement and rotation");
+            nativeXr.CheckUnchanged(check, "PC movement and camera changes");
             var missingProvider = select(1);
             check(!missingProvider && isActive() && motion.Running && !vr.Running && (int)inputMode.GetValue(tool) == 0 &&
                 ReferenceEquals(motion.Motor, firstPcMotor) && ReferenceEquals(keyboard.GetValue(tool), firstKeyboard) &&
@@ -535,6 +546,7 @@ public static class UnityProVrLifecycleChecks
                 failedSource.Starts == 1 && failedSource.Disposals == 1 && !failedSource.Running && sameRoot(secondPosition) &&
                 ((string)inputError.GetValue(tool))?.Contains("Injected VR startup failure.") == true,
                 "A VR startup failure after releasing PC restores an active first-person PC backend and mouse-capture request at the same pose and retains the failure message");
+            nativeXr.CheckUnchanged(check, "PC recovery after a failed injected VR handover");
             failStart = false;
             var retry = select(1);
             var retrySource = source;
@@ -556,6 +568,7 @@ public static class UnityProVrLifecycleChecks
                 var previousCamera = vr.Camera;
                 continuous &= select(0) && isActive() && motion.Mode == ControlledSessionMode.GameSimulation &&
                     previousSource.Disposals == 1 && !previousCamera && sameRoot(secondPosition);
+                nativeXr.CheckUnchanged(check, "PC handover " + (index + 1) + " after injected VR");
                 continuous &= select(1) && isActive() && vr.Running && motion.Mode == ControlledSessionMode.VirtualReality &&
                     source.Starts == 1 && source.Disposals == 0 && sameRoot(secondPosition);
             }
@@ -581,6 +594,7 @@ public static class UnityProVrLifecycleChecks
             foreach (var created in sources) disposedExactlyOnce &= created.Disposals == 1 && !created.Running;
             check(disposedExactlyOnce, "Failed and successful VR providers are each disposed exactly once after switching, exit and tool disposal");
             CheckRestored(check, module, observer, originalParameters, originalPose, originalRoot, avatar);
+            nativeXr.CheckUnchanged(check, "Repeated input handovers, exit and tool disposal");
         }
         finally
         {
@@ -590,6 +604,37 @@ public static class UnityProVrLifecycleChecks
             UnityEngine.Object.DestroyImmediate(menu);
             providers.Clear();
             providers.AddRange(registeredProviders);
+        }
+    }
+
+    private sealed class NativeXrState
+    {
+        private readonly Dictionary<object, bool> _subsystems = new Dictionary<object, bool>();
+        private readonly HashSet<int> _loaders = new HashSet<int>();
+        internal bool Idle => _subsystems.Count == 0 && _loaders.Count == 0;
+
+        internal NativeXrState()
+        {
+            var displays = new List<XRDisplaySubsystem>();
+            SubsystemManager.GetSubsystems(displays);
+            foreach (var display in displays) _subsystems.Add(display, display.running);
+            var inputs = new List<XRInputSubsystem>();
+            SubsystemManager.GetSubsystems(inputs);
+            foreach (var input in inputs) _subsystems.Add(input, input.running);
+            // Use the runtime type name so this fixture also compiles without optional VR packages.
+            foreach (var candidate in Resources.FindObjectsOfTypeAll<ScriptableObject>())
+                if (candidate.GetType().FullName == "VRCLearn.GestureManagerPro.SteamVR.Editor.SteamVrOwnedLoader")
+                    _loaders.Add(candidate.GetInstanceID());
+        }
+
+        internal void CheckUnchanged(Action<bool, string> check, string operation)
+        {
+            var current = new NativeXrState();
+            var unchanged = current._subsystems.Count == _subsystems.Count;
+            foreach (var entry in _subsystems)
+                unchanged &= current._subsystems.TryGetValue(entry.Key, out var running) && running == entry.Value;
+            check(unchanged && _loaders.SetEquals(current._loaders),
+                operation + " leaves native XR display/input instances, running states and GMP SteamVR loader instances unchanged");
         }
     }
 

@@ -215,9 +215,19 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private static IVrInputSource CreateVrSource()
         {
             if (VrInputProviders.Providers.Count == 0)
-                throw new InvalidOperationException("Install SteamVR support from Tools > Gesture Manager Pro - VR Setup before starting VR control.");
-            return VrInputProviders.Providers[0].Create() ??
-                throw new InvalidOperationException("Install SteamVR support from Tools > Gesture Manager Pro - VR Setup before starting VR control.");
+                throw new InvalidOperationException("Enable VR from the GMP component's Settings > VR Setup before starting VR control.");
+            var provider = VrInputProviders.Providers[0];
+            if (provider.Id == "steamvr")
+            {
+                if (!VrDependencyInstaller.DependenciesReady)
+                    throw new InvalidOperationException("Enable VR from the GMP component's Settings > VR Setup before starting VR control.");
+                if (VrDependencyInstaller.RestartRequired)
+                    throw new InvalidOperationException("Restart Unity once to finish enabling VR. Save your work before restarting.");
+                if (VrDependencyInstaller.NeedsProjectSetup)
+                    throw new InvalidOperationException("Exit Play Mode to finish enabling VR from the GMP component's Settings > VR Setup.");
+            }
+            return provider.Create() ??
+                throw new InvalidOperationException("Enable VR from the GMP component's Settings > VR Setup before starting VR control.");
         }
 
         private bool StartInput(IVrInputSource preparedSource = null)
@@ -347,7 +357,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 }
             }
             else if (VrInputProviders.Providers.Count == 0)
-                EditorGUILayout.HelpBox(EditorLocalization.Tr("Install SteamVR support from Tools > Gesture Manager Pro - VR Setup before starting VR control."), MessageType.Info);
+                EditorGUILayout.HelpBox(EditorLocalization.Tr("Enable VR from the GMP component's Settings > VR Setup before starting VR control."), MessageType.Info);
         }
 
         private static string RoleLabel(TrackingRole role)

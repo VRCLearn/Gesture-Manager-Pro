@@ -77,11 +77,11 @@ namespace VRCLearn.GestureManagerPro.SteamVR.Editor
             if (Owner != null && Owner != this)
             { error = "Another Gesture Manager Pro SteamVR session is running."; return false; }
             if (XRGeneralSettings.Instance && XRGeneralSettings.Instance.Manager && XRGeneralSettings.Instance.Manager.activeLoader)
-            { error = "An XR Manager already owns a loader. Disable automatic XR initialization before starting the Pro-owned SteamVR session."; return false; }
+            { error = "Another VR session is using the headset. Stop it before switching to VR in GMP."; return false; }
             var displays = new List<XRDisplaySubsystem>();
             SubsystemManager.GetSubsystems(displays);
             foreach (var display in displays)
-                if (display != null) { error = "An XR display is already initialized. Stop that session before starting the Pro-owned SteamVR session."; return false; }
+                if (display != null) { error = "Another VR session is using the headset. Stop it before switching to VR in GMP."; return false; }
             if (OpenVRHelpers.IsUsingSteamVRInput())
             { error = "The full SteamVR Unity Plugin is active in this project. Use a project with the OpenVR XR Plugin only to avoid competing action manifests."; return false; }
 

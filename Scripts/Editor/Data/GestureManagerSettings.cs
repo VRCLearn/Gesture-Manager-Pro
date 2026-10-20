@@ -30,6 +30,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
         private static bool _generalSettings;
         private static bool _simulationSettings;
 
+        public static event System.Action AdditionalSettingsGui;
+
         public static void SettingGui(GestureManager manager)
         {
             GUILayout.Label(EditorLocalization.Tr("Here you can customize the tool settings!"), GestureManagerStyles.MiddleStyle);
@@ -38,6 +40,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Data
             LanguageGui();
             using (new GUILayout.VerticalScope(GestureManagerStyles.EmoteError)) GeneralSettings(manager);
             using (new GUILayout.VerticalScope(GestureManagerStyles.EmoteError)) SimulationSettings(manager);
+            if (AdditionalSettingsGui != null)
+                using (new GUILayout.VerticalScope(GestureManagerStyles.EmoteError)) AdditionalSettingsGui();
         }
 
         private static void LanguageGui()

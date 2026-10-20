@@ -26,6 +26,8 @@ public static class UnityProVrInstallChecks
         SessionState.SetBool(Key + "begun", false);
         SessionState.SetBool(Key + "reloaded", false);
         SessionState.SetBool(Key + "waited-for-edit-mode", false);
+        SessionState.SetInt(Key + "input-before", (int)Installer.GetProperty("InputHandling", Static).GetValue(null));
+        SessionState.SetBool(Key + "restart-before", Flag("RestartRequired"));
         SessionState.SetString(Key + "deadline", DateTime.UtcNow.AddMinutes(6).Ticks.ToString());
         var scene = SceneManager.GetActiveScene();
         SessionState.SetString(Key + "scene", scene.path);
@@ -82,7 +84,9 @@ public static class UnityProVrInstallChecks
                 var archive = (string)Installer.GetProperty("ArchivePath", Static).GetValue(null);
                 Require(!File.Exists(archive), "Use a fresh PC fixture so the official archive is really downloaded.");
                 Require(!Flag("IsBusy"), "No previous installer operation is active.");
-                Require(EditorApplication.ExecuteMenuItem("Tools/Gesture Manager Pro - VR Setup"), "Setup opens from the Edit Mode menu.");
+                VrSetupWindow.ShowSetup();
+                Require(Resources.FindObjectsOfTypeAll<VrSetupWindow>().Length == 1,
+                    "The existing simulation shortcut opens a single setup view in Edit Mode.");
                 SessionState.SetBool(Key + "begun", true);
                 Installer.GetMethod("Install", Static).Invoke(null, null);
                 Require(Flag("IsDownloading"), "The one-click action starts downloading the official Valve archive.");
@@ -118,6 +122,17 @@ public static class UnityProVrInstallChecks
                 "The installer deferred package changes until the fixture returned to Edit Mode.");
             Require(Resources.FindObjectsOfTypeAll<VrSetupWindow>().Length == 0,
                 "Installation completed with the setup window closed.");
+            Require((int)Installer.GetProperty("InputHandling", Static).GetValue(null) == 2,
+                "The one-click installation enabled Both input handling for VR and PC input.");
+            Require(Flag("RestartRequired") == (SessionState.GetInt(Key + "input-before", 0) != 2 ||
+                SessionState.GetBool(Key + "restart-before", false)),
+                "The input restart requirement survives domain reload and is added only when input handling changes.");
+            Require(!(bool)Installer.GetProperty("NeedsProjectSetup", Static).GetValue(null) &&
+                VrInputProviders.Providers.All(provider => provider.IsConfigured == null || provider.IsConfigured()),
+                "The one-click installation completed XR project setup without a second configuration button.");
+            var standalone = StandaloneXrSettings();
+            Require(standalone && !new SerializedObject(standalone).FindProperty("m_InitManagerOnStart").boolValue,
+                "Standalone XR automatic startup is disabled so GMP can own each requested VR session.");
             var scene = SceneManager.GetActiveScene();
             Require(scene.path == SessionState.GetString(Key + "scene", "") &&
                 scene.isDirty == SessionState.GetBool(Key + "dirty", false) &&
@@ -125,8 +140,8 @@ public static class UnityProVrInstallChecks
                 "Installation preserved the current scene and its objects.");
             foreach (var path in PreservedSettings)
                 Require(SettingsSnapshot(path) == SessionState.GetString(Key + path, ""),
-                    "Installation did not rewrite XR settings: " + path);
-            Finish(0, "PASS: official download, hash verification, UPM install, closed-window ownership, Play Mode deferral, domain-reload recovery, bundled provider registration and scene/XR preservation.");
+                    "Installation preserved XR loader lists, other platforms and unrelated settings: " + path);
+            Finish(0, "PASS: official download, hash verification, UPM install, closed-window ownership, Play Mode deferral, domain-reload recovery, bundled provider registration, automatic VR project setup and scene/unrelated-XR preservation.");
         }
         catch (Exception exception) { Finish(1, "FAIL: " + exception); }
     }
@@ -170,6 +185,7 @@ public static class UnityProVrInstallChecks
         // Unity/SDK reserialization can regenerate internal file IDs. Compare the
         // platform mapping, startup flags and loader identities, rather than those IDs.
         var records = new List<string>();
+        var standalone = StandaloneXrSettings();
         foreach (var asset in AssetDatabase.LoadAllAssetsAtPath(path).Where(value => value))
         {
             var serialized = new SerializedObject(asset);
@@ -179,6 +195,9 @@ public static class UnityProVrInstallChecks
             {
                 var property = serialized.FindProperty(name);
                 if (property == null) continue;
+                // The explicit Enable VR action deliberately takes ownership of
+                // Standalone startup. Other platform flags and all loaders are retained.
+                if (name == "m_InitManagerOnStart" && asset == standalone) continue;
                 if (property.isArray && property.propertyType != SerializedPropertyType.String)
                     fields.Add(name + "=" + string.Join(",", Enumerable.Range(0, property.arraySize)
                         .Select(index => PropertyValue(property.GetArrayElementAtIndex(index)))));
@@ -188,6 +207,15 @@ public static class UnityProVrInstallChecks
         }
         Require(records.Count > 0, "XR settings assets were loaded for configuration comparison.");
         return string.Join("\n", records.OrderBy(value => value, StringComparer.Ordinal));
+    }
+
+    private static UnityEngine.Object StandaloneXrSettings()
+    {
+        var type = AppDomain.CurrentDomain.GetAssemblies()
+            .Select(assembly => assembly.GetType("UnityEditor.XR.Management.XRGeneralSettingsPerBuildTarget"))
+            .FirstOrDefault(candidate => candidate != null);
+        return type?.GetMethod("XRGeneralSettingsForBuildTarget", Static, null,
+            new[] { typeof(BuildTargetGroup) }, null)?.Invoke(null, new object[] { BuildTargetGroup.Standalone }) as UnityEngine.Object;
     }
 
     private static string PropertyValue(SerializedProperty property)
