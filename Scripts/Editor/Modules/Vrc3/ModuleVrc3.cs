@@ -96,6 +96,15 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         public bool IsPoseModeActive => PoseMode;
         public bool IsDummyModeActive => DummyMode != null;
         public IReadOnlyDictionary<string, VRC_AnimatorTrackingControl.TrackingType> TrackingStates => TrackingControls;
+        // External pose drivers run after animation/scale, before clone pose publication.
+        public event Action<ModuleVrc3> BeforePosePublish;
+        public event Action<ModuleVrc3> Resetting;
+        public float CalibrationPoseWeight => PoseT.FloatValue();
+        public bool GlobalHeadChopEnabled => HeadChop.BoolValue();
+        public void SetCalibrationPose(float weight) => PoseT.Set(this, weight);
+        public void SetGlobalHeadChop(bool enabled) => HeadChop.Set(this, enabled ? 1f : 0f);
+        public void BeginLocalHeadRender() => ApplyHeadChop(GetParam(Vrc3DefaultParams.VRMode));
+        public void EndLocalHeadRender() => ResetHeadChops();
 
         private readonly Dictionary<(Motion, VRCAvatarDescriptor.AnimLayerType), MotionItem> _motions = new();
         internal readonly Dictionary<int, VRCAvatarDescriptor.DebugHash> AnimationHashSet = new();
@@ -180,6 +189,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             if (PoseMode) SetPose(AvatarAnimator);
             if (_scaleFactors.Count != 0) ResetHeadChops();
             if (DummyMode == null) Avatar.transform.localScale = _baseScale * _scale;
+            BeforePosePublish?.Invoke(this);
             if (HeadChop.BoolValue()) ApplyHeadChop(GetParam(Vrc3DefaultParams.VRMode));
             foreach (var module in _clones) module.NetPose(module.AvatarAnimator, _cloneSyncDelay);
             AvatarTools.OnLateUpdate(this);
@@ -796,6 +806,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         public void ResetAvatar()
         {
+            Resetting?.Invoke(this);
             ResetHeight();
             ResetHeadChops();
             ResetContactsFlags();

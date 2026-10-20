@@ -21,12 +21,14 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices
         private readonly Vrc3Param[] _subParameters;
         private readonly VRCExpressionsMenu _subMenu;
         private readonly VRCExpressionsMenu.Control.Label[] _subLabels;
+        private readonly VRCExpressionsMenu.Control _expressionControl;
 
         private VisualRadialElement _radialElement;
 
         public RadialSliceControl(RadialMenu menu, VRCExpressionsMenu.Control control) : base(control.name, control.icon, RadialMenuUtility.GetSubIcon(control.type), RadialMenuUtility.GetDynamicType(control.type), offValue: 0f, control.value)
         {
             _menu = menu;
+            _expressionControl = control;
             _type = control.type;
             _subMenu = control.subMenu;
             _subLabels = control.labels;
@@ -67,7 +69,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices
                 case ControlType.Button:
                     _menu.PressingButton?.OnClickEnd();
                     _menu.PressingButton = this;
-                    SetControlValue();
+                    if (_expressionControl != null) ExpressionMenuController.BeginControl(_expressionControl, SetExpressionValue);
+                    else SetControlValue();
                     break;
                 case ControlType.Toggle:
                 case ControlType.SubMenu:
@@ -85,15 +88,18 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices
                 case ControlType.Button:
                     if (_menu.PressingButton == this) _menu.PressingButton = null;
                     else return;
-                    SetValue(0);
+                    if (_expressionControl != null) ExpressionMenuController.EndControl(_expressionControl, GetExpressionValue, SetExpressionValue);
+                    else SetValue(0);
                     break;
                 case ControlType.Toggle:
-                    if (RadialMenuUtility.Is(FloatValue(), ActiveValue)) SetValue(OffValue);
+                    if (_expressionControl != null) ExpressionMenuController.EndControl(_expressionControl, GetExpressionValue, SetExpressionValue);
+                    else if (RadialMenuUtility.Is(FloatValue(), ActiveValue)) SetValue(OffValue);
                     else SetControlValue();
                     break;
                 case ControlType.SubMenu:
                     if (!_subMenu) break;
-                    SetControlValue();
+                    if (_expressionControl != null) ExpressionMenuController.EndControl(_expressionControl, GetExpressionValue, SetExpressionValue);
+                    else SetControlValue();
                     _menu.OpenMenu(_subMenu, _parameter, ActiveValue);
                     break;
                 case ControlType.TwoAxisPuppet:
@@ -111,9 +117,47 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialSlices
 
         private float AmplifiedValue(float value) => _amplify.HasValue ? value * _amplify.Value : value;
 
+        private float GetExpressionValue(string name) => _menu.GetParam(name)?.FloatValue() ?? 0f;
+
+        private void SetExpressionValue(string name, float value) => _menu.GetParam(name)?.Set(_menu.Module, value);
+
         internal float NonAmplifiedValue(float value) => _amplify.HasValue ? value / _amplify.Value : value;
 
-        internal void SetControlValue() => SetValue(ActiveValue);
+        internal void SetControlValue()
+        {
+            if (ExpressionMenuController.IsPuppet(_expressionControl))
+                ExpressionMenuController.EndControl(_expressionControl, GetExpressionValue, SetExpressionValue);
+            else SetValue(ActiveValue);
+        }
+
+        internal void SetAxisValues(Vector2 axis)
+        {
+            if (_expressionControl != null)
+            {
+                ExpressionMenuController.SetPuppet(_expressionControl, axis, GetExpressionValue, SetExpressionValue);
+                return;
+            }
+            // Built-in developer tools retain their existing amplification and display ranges.
+            if (_type == ControlType.FourAxisPuppet)
+            {
+                SetSubValue(0, Mathf.Max(axis.y, 0f));
+                SetSubValue(1, Mathf.Max(axis.x, 0f));
+                SetSubValue(2, Mathf.Max(-axis.y, 0f));
+                SetSubValue(3, Mathf.Max(-axis.x, 0f));
+            }
+            else
+            {
+                SetSubValue(0, axis.x);
+                SetSubValue(1, axis.y);
+            }
+        }
+
+        internal bool SetExpressionRadial(float value)
+        {
+            if (_expressionControl == null) return false;
+            ExpressionMenuController.SetRadial(_expressionControl, value, GetExpressionValue, SetExpressionValue);
+            return true;
+        }
 
         internal void SetValue(float value) => _parameter?.Set(_menu.Module, AmplifiedValue(value));
 

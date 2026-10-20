@@ -69,6 +69,49 @@ namespace VRCLearn.GestureManagerPro.Control
 
         private void Update() => Step(Time.deltaTime);
 
+        /// <summary>Moves the motor and avatar together without retaining movement or free-look input.</summary>
+        public void Reposition(Pose pose)
+        {
+            if (!_initialized || !_avatar || !_controller)
+                throw new InvalidOperationException("The movement motor must be initialized before repositioning.");
+            if (!TrackingMixer.IsValidPose(pose) || float.IsInfinity(Quaternion.Dot(pose.rotation, pose.rotation)))
+                throw new ArgumentException("A finite position and a valid rotation are required.", nameof(pose));
+            var rotation = TrackingMixer.Normalize(pose.rotation);
+            var active = _controller.enabled;
+            _controller.enabled = false;
+            try
+            {
+                _input.Reset();
+                ViewYaw = WrapYaw(rotation.eulerAngles.y);
+                var yaw = Quaternion.Euler(0f, ViewYaw, 0f);
+                _tilt = Quaternion.Inverse(yaw) * rotation;
+                FreeLook = false;
+                _pendingViewYawAlignment = null;
+                transform.SetPositionAndRotation(pose.position, yaw);
+                _avatar.SetPositionAndRotation(pose.position, rotation);
+            }
+            finally
+            {
+                if (_controller) _controller.enabled = active;
+            }
+            Physics.SyncTransforms();
+            Halt();
+        }
+
+        public void Resize(float height, float radius)
+        {
+            if (!_initialized || !_controller || float.IsNaN(height) || float.IsInfinity(height) ||
+                float.IsNaN(radius) || float.IsInfinity(radius)) return;
+            var active = _controller.enabled;
+            _controller.enabled = false;
+            _controller.height = Mathf.Clamp(height, 0.2f, 10f);
+            _controller.radius = Mathf.Clamp(radius, 0.04f, _controller.height * 0.45f);
+            _controller.skinWidth = Mathf.Clamp(_controller.radius * 0.1f, 0.005f, 0.05f);
+            _controller.center = Vector3.up * (_controller.height * 0.5f + _controller.skinWidth);
+            _controller.stepOffset = Mathf.Min(0.3f, _controller.height * 0.15f);
+            _controller.enabled = active;
+        }
+
         private void LateUpdate()
         {
             if (_initialized && _avatar) ApplyAvatarTransform();
@@ -167,6 +210,8 @@ namespace VRCLearn.GestureManagerPro.Control
             LastResult = new MotionResult(Vector3.zero, 0f, _initialized && ProbeGround());
             _publish?.Invoke(LastResult);
         }
+
+        public void StopHorizontalMotion() => _horizontalVelocity = Vector2.zero;
 
         private bool ProbeGround()
         {

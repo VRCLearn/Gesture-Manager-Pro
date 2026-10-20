@@ -25,6 +25,9 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params
         private float _value;
         private Action<Vrc3Param, float> _onChange;
 
+        // Additional views subscribe here without replacing simulator-owned SetOnChange callbacks.
+        public event Action<Vrc3Param, float> Changed;
+
         public Vrc3Param(string name, AnimatorControllerParameterType type, Action<Vrc3Param, float> onChange = null, Vrc3DefaultParams.SyncType sync = Vrc3DefaultParams.SyncType.No)
         {
             Name = name;
@@ -46,6 +49,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Params
             InternalSet(value, source);
             if (isSame) return;
             _onChange?.Invoke(this, value);
+            Changed?.Invoke(this, value);
             module.OscModule.OnParameterChange(this, value);
             foreach (var menu in module.Radials) menu.UpdateValue(Name, value);
         }

@@ -14,8 +14,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets
         {
             if (!cursor.Get2Axis(Clamp, out var vector2)) return;
 
-            Control.SetSubValue(0, vector2.x);
-            Control.SetSubValue(1, vector2.y);
+            Control.SetAxisValues(vector2);
         }
     }
 }

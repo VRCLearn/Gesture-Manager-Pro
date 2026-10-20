@@ -12,12 +12,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.RadialPuppets
 
         public override void Update(RadialCursor cursor)
         {
-            if (!cursor.Get4Axis(Clamp, out var vector4)) return;
-
-            Control.SetSubValue(0, vector4.x);
-            Control.SetSubValue(1, vector4.y);
-            Control.SetSubValue(2, vector4.z);
-            Control.SetSubValue(3, vector4.w);
+            if (!cursor.Get2Axis(Clamp, out var vector2)) return;
+            Control.SetAxisValues(vector2);
         }
     }
 }
