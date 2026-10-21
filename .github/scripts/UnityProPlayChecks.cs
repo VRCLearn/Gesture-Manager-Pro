@@ -77,6 +77,7 @@ public static class UnityProPlayChecks
             CheckSimulationMicrophone();
             UnityProCameraChecks.Run(Check);
             UnityProGraphChecks.RunChecks(Check);
+            UnityProDesktopPoseChecks.Run(Check);
             UnityProVrLifecycleChecks.Run(Check);
             UnityProVrVisibilityChecks.Run(Check);
             UnityProSimulationRenderChecks.RunChecks(Check);

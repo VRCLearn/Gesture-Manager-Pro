@@ -12,6 +12,7 @@ namespace VRCLearn.GestureManagerPro.Control
         private CharacterController _controller;
         private IMotionInputSource _input;
         private Func<bool> _canMove;
+        private Func<bool> _canLook;
         private Action<MotionResult> _publish;
         private Quaternion _tilt;
         private float _verticalVelocity;
@@ -35,7 +36,7 @@ namespace VRCLearn.GestureManagerPro.Control
         public event Action<MotionPose> PoseRequested;
 
         public void Initialize(Transform avatar, IMotionInputSource input, float height, float radius,
-            float footOffset, Func<bool> canMove, Action<MotionResult> publish)
+            float footOffset, Func<bool> canMove, Action<MotionResult> publish, Func<bool> canLook = null)
         {
             if (!avatar) throw new ArgumentNullException(nameof(avatar));
             if (input == null) throw new ArgumentNullException(nameof(input));
@@ -43,6 +44,7 @@ namespace VRCLearn.GestureManagerPro.Control
             _avatar = avatar;
             _input = input;
             _canMove = canMove;
+            _canLook = canLook;
             _publish = publish;
             ViewYaw = WrapYaw(avatar.eulerAngles.y);
             var yaw = Quaternion.Euler(0f, ViewYaw, 0f);
@@ -143,7 +145,14 @@ namespace VRCLearn.GestureManagerPro.Control
             try
             {
                 input = _input.Sample();
-                if (_canMove != null && !_canMove()) { Halt(); ApplyAvatarTransform(); return; }
+                if (_canMove != null && !_canMove())
+                {
+                    // Desktop locomotion locks freeze the capsule and yaw while retaining vertical view input.
+                    if (_canLook != null && _canLook()) ViewPitch = Mathf.Clamp(ViewPitch + input.LookDelta.y, -85f, 85f);
+                    Halt();
+                    if (this && _avatar) ApplyAvatarTransform();
+                    return;
+                }
                 if (input.Pose != MotionPose.None) PoseRequested?.Invoke(input.Pose);
             }
             catch (Exception exception)

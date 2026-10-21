@@ -300,10 +300,12 @@ public static class UnityProTrackingChecks
         return child;
     }
 
-    public static Animator CreateHumanoid(out Avatar human, out Dictionary<HumanBodyBones, Transform> bones)
+    public static Animator CreateHumanoid(out Avatar human, out Dictionary<HumanBodyBones, Transform> bones,
+        Quaternion? headBoneBasis = null)
     {
         var root = new GameObject("Pro tracking Humanoid fixture");
         bones = MakeSkeleton(root.transform);
+        if (headBoneBasis.HasValue) bones[HumanBodyBones.Head].localRotation = headBoneBasis.Value;
         var humanBones = new List<HumanBone>();
         foreach (var pair in bones)
             humanBones.Add(new HumanBone { boneName = pair.Value.name, humanName = HumanTrait.BoneName[(int)pair.Key], limit = new HumanLimit { useDefaultValues = true } });

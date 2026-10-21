@@ -15,6 +15,14 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 - Start PC Game Simulation in first person without enabling Scene Camera.
 - Update the observer camera immediately when following the avatar, including
   while the Scene view is hidden, and restore its translation on exit.
+- Align PC Humanoid head tracking with the player's absolute view using reference
+  bone axes, respecting Head Animation control, body animation and free rotation.
+- Release the head override before animation evaluation so newly authored poses
+  survive even when they match the previous tracking output.
+- Keep vertical PC look available when SDK locomotion control locks movement.
+- Keep PC Temporary Pose Space independent of head tracking and movement locks.
+  Capture its viewpoint once per SDK callback, refresh on Enter and restore on
+  Exit, without modifying the avatar descriptor or duplicating SDK delays.
 
 ## [1.2.0] - 2026-10-21
 

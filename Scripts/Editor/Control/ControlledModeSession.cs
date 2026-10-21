@@ -41,6 +41,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private float _playerFieldOfView;
         private float _playerFarClipPlane;
         private float _playerOrthographicSize;
+        private DesktopHeadPoseSolver _desktopHead;
+        private float _desktopLookPitch;
 
         public CharacterMotionMotor Motor { get; private set; }
         public MotionPreviewCamera ViewCamera { get; private set; }
@@ -68,7 +70,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         public ControlledSessionMode Mode { get; private set; }
         public string Error { get; private set; }
         public event Action Stopped;
-        public bool LocomotionBlocked => _module != null && (_module.IsLocomotionDisabled || _module.IsPoseSpaceActive || _module.IsPoseModeActive || _module.IsDummyModeActive);
+        public bool LocomotionBlocked => _module != null && (_module.IsLocomotionDisabled ||
+            Mode == ControlledSessionMode.VirtualReality && _module.IsPoseSpaceActive ||
+            _module.IsPoseModeActive || _module.IsDummyModeActive);
 
         public bool Start(GestureManager manager, IMotionInputSource input, float speed = 2f, float turnSpeed = 120f,
             bool collisions = true, bool gravity = false, bool previewCamera = false,
@@ -140,7 +144,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 Motor.Failed += OnInputFailed;
                 Motor.PoseRequested += TogglePose;
                 Running = true;
-                Motor.Initialize(_avatar, input, height, radius, 0f, CanMove, Publish);
+                Motor.Initialize(_avatar, input, height, radius, 0f, CanMove, Publish,
+                    Mode == ControlledSessionMode.GameSimulation ? (Func<bool>)CanLook : null);
                 if (previewCamera || gameSimulation)
                 {
                     CreateGroundIfNeeded();
@@ -151,6 +156,16 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                     if (AvatarTools.UpdateSceneCamera.SimulationView != null)
                         throw new InvalidOperationException("Another game simulation is already active.");
                     AvatarTools.UpdateSceneCamera.SimulationView = this;
+                }
+                var animator = module.AvatarAnimator;
+                if (Mode == ControlledSessionMode.GameSimulation && animator && animator.avatar &&
+                    animator.avatar.isValid && animator.isHuman)
+                {
+                    _desktopHead = new DesktopHeadPoseSolver(animator);
+                    _desktopLookPitch = Motor.ViewPitch;
+                    module.BeforeAnimationEvaluation += ReleaseDesktopPose;
+                    module.BeforePosePublish += SolveDesktopPose;
+                    module.Resetting += OnAvatarReset;
                 }
                 EditorApplication.update += Poll;
                 EditorApplication.playModeStateChanged += OnPlayModeChanged;
@@ -192,9 +207,15 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private bool CanMove() => IsValid() && !LocomotionBlocked &&
             (!(_input is KeyboardMotionInputSource keyboard) || !keyboard.Suspended);
 
+        private bool CanLook() => IsValid() && Mode == ControlledSessionMode.GameSimulation &&
+            !_module.IsPoseModeActive && !_module.IsDummyModeActive &&
+            !_module.PlayingCustomAnimation &&
+            (!(_input is KeyboardMotionInputSource keyboard) || (keyboard.HasInputFocus && !keyboard.Suspended));
+
         private void Publish(MotionResult result)
         {
             if (!IsValid()) return;
+            if (!Motor.FreeLook) _desktopLookPitch = Motor.ViewPitch;
             if (ViewCamera)
             {
                 ViewCamera.Pitch = Motor.ViewPitch;
@@ -207,6 +228,29 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             Set("AngularY", result.AngularDegreesPerSecond);
             Set("Grounded", result.Grounded ? 1f : 0f);
             UpdateObserverView();
+        }
+
+        private void ReleaseDesktopPose(ModuleVrc3 module)
+        {
+            if (_stopping) return;
+            try { _desktopHead?.Release(); }
+            catch (Exception exception) { OnInputFailed(exception); }
+        }
+
+        private void SolveDesktopPose(ModuleVrc3 module)
+        {
+            if (_stopping || _desktopHead == null) return;
+            if (!IsValid()) { Stop(); return; }
+            try
+            {
+                if (ViewCamera) ViewCamera.ViewPosition = module.SimulationViewPosition;
+                var animatedHead = module.TrackingStates.TryGetValue("Head", out var tracking) && tracking.ToString() == "Animation";
+                if (animatedHead || module.IsPoseModeActive ||
+                    module.IsDummyModeActive || module.PlayingCustomAnimation)
+                    _desktopHead.Release();
+                else _desktopHead.Solve(Quaternion.Euler(_desktopLookPitch, _avatar.eulerAngles.y, 0f));
+            }
+            catch (Exception exception) { OnInputFailed(exception); }
         }
 
         private void TogglePose(MotionPose pose)
@@ -388,6 +432,13 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 EditorApplication.playModeStateChanged -= OnPlayModeChanged;
                 EditorApplication.pauseStateChanged -= OnPauseChanged;
                 AssemblyReloadEvents.beforeAssemblyReload -= Stop;
+                if (_module != null)
+                {
+                    _module.BeforeAnimationEvaluation -= ReleaseDesktopPose;
+                    _module.BeforePosePublish -= SolveDesktopPose;
+                    _module.Resetting -= OnAvatarReset;
+                }
+                TryRestore(() => _desktopHead?.Dispose());
                 if (_input is KeyboardMotionInputSource keyboard)
                 {
                     keyboard.ViewToggleRequested -= ToggleThirdPerson;
@@ -436,6 +487,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 _originalModuleCamera = null;
                 _ownedCamera = null;
                 _hasPreviewCamera = false;
+                _desktopHead = null;
+                _desktopLookPitch = 0f;
                 ThirdPersonEnabled = false;
                 if (ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, this))
                     AvatarTools.UpdateSceneCamera.SimulationView = null;
@@ -494,6 +547,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         }
         private void OnPlayModeChanged(PlayModeStateChange state) { if (state != PlayModeStateChange.EnteredPlayMode) Stop(); }
         private void OnPauseChanged(PauseState state) { if (state == PauseState.Paused) Stop(); }
+        private void OnAvatarReset(ModuleVrc3 module) => Stop();
         private void OnInputFailed(Exception exception) { Error = Message(exception); Stop(); }
         private static string Message(Exception exception) => exception is InvalidOperationException && exception.Message.Contains("Input System")
             ? "Keyboard control requires Active Input Handling set to Input Manager (Old) or Both."
@@ -549,8 +603,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             var follow = _cameraObject.AddComponent<MotionPreviewCamera>();
             follow.Target = _avatar;
             follow.Height = height;
-            follow.ViewPosition = _avatar.InverseTransformPoint(
-                _module.AvatarDescriptor.transform.TransformPoint(_module.AvatarDescriptor.ViewPosition));
+            follow.ViewPosition = Mode == ControlledSessionMode.GameSimulation ? _module.SimulationViewPosition :
+                _avatar.InverseTransformPoint(_module.AvatarDescriptor.transform.TransformPoint(_module.AvatarDescriptor.ViewPosition));
             if (float.IsNaN(follow.ViewPosition.x) || float.IsNaN(follow.ViewPosition.y) || float.IsNaN(follow.ViewPosition.z) ||
                 float.IsInfinity(follow.ViewPosition.x) || float.IsInfinity(follow.ViewPosition.y) || float.IsInfinity(follow.ViewPosition.z))
                 follow.ViewPosition = _avatar.InverseTransformPoint(_avatar.position + Vector3.up * (height * 0.9f));

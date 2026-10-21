@@ -90,13 +90,22 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         internal readonly Dictionary<string, VRC_AnimatorTrackingControl.TrackingType> TrackingControls = ModuleVrc3Styles.Data.DefaultTrackingState;
         internal bool LocomotionDisabled;
         internal bool PoseSpace;
+        private Transform _poseSpaceHead;
+        private Vector3 _poseSpaceReferenceHeadPosition;
+        private Vector3 _poseSpaceViewOffset;
+        private bool _poseSpacePending;
+        private bool _poseSpaceWarningShown;
 
         public bool IsLocomotionDisabled => LocomotionDisabled;
         public bool IsPoseSpaceActive => PoseSpace;
+        // The temporary offset is captured once in avatar-local space; it never follows animated bones.
+        public Vector3 SimulationViewPosition => Avatar.transform.InverseTransformPoint(
+            AvatarDescriptor.transform.TransformPoint(AvatarDescriptor.ViewPosition)) + _poseSpaceViewOffset;
         public bool IsPoseModeActive => PoseMode;
         public bool IsDummyModeActive => DummyMode != null;
         public IReadOnlyDictionary<string, VRC_AnimatorTrackingControl.TrackingType> TrackingStates => TrackingControls;
-        // External pose drivers run after animation/scale, before clone pose publication.
+        // Release external overrides before animation, then apply tracking before clone pose publication.
+        public event Action<ModuleVrc3> BeforeAnimationEvaluation;
         public event Action<ModuleVrc3> BeforePosePublish;
         public event Action<ModuleVrc3> Resetting;
         public float CalibrationPoseWeight => PoseT.FloatValue();
@@ -162,6 +171,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         {
             if (!EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode)
             {
+                BeforeAnimationEvaluation?.Invoke(this);
                 CloneUpdate();
                 if (Broken) return;
                 OscModule.Update();
@@ -189,6 +199,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             if (PoseMode) SetPose(AvatarAnimator);
             if (_scaleFactors.Count != 0) ResetHeadChops();
             if (DummyMode == null) Avatar.transform.localScale = _baseScale * _scale;
+            ApplyPendingPoseSpace();
             BeforePosePublish?.Invoke(this);
             if (HeadChop.BoolValue()) ApplyHeadChop(GetParam(Vrc3DefaultParams.VRMode));
             foreach (var module in _clones) module.NetPose(module.AvatarAnimator, _cloneSyncDelay);
@@ -200,6 +211,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         public override void InitForAvatar()
         {
             MemoryClone();
+            InitializePoseSpace();
             StartVrcHooks();
 
             AvatarAnimator.applyRootMotion = false;
@@ -231,6 +243,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             _renderers.Clear();
             _physBones.Clear();
             _animators.Clear();
+            _animators.Add(AvatarAnimator);
             _brokenLayers.Clear();
             _scaleFactors.Clear();
 
@@ -324,7 +337,6 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             foreach (var renderer in AvatarComponents<Renderer>()) RendererBaseSetup(renderer);
             foreach (var cloth in AvatarComponents<Cloth>()) ClothBaseSetup(cloth);
             HeadChopIfNotChopped(HumanBodyBones.Head);
-            _animators.Add(AvatarAnimator);
 
             OscModule.Resume();
         }
@@ -1349,7 +1361,75 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             if (!_hooked || !_animators.Contains(animator)) return;
 
             PoseSpace = poseSpace.enterPoseSpace;
+            // The SDK has already applied its delay and interruption rules. Sample after this
+            // frame's animation has written the bones, before external tracking drivers run.
+            _poseSpacePending = PoseSpace;
+            if (!PoseSpace) _poseSpaceViewOffset = Vector3.zero;
         }
+
+        private void InitializePoseSpace()
+        {
+            PoseSpace = false;
+            _poseSpacePending = false;
+            _poseSpaceWarningShown = false;
+            _poseSpaceViewOffset = Vector3.zero;
+            _poseSpaceHead = null;
+            if (!AvatarAnimator || !AvatarAnimator.avatar || !AvatarAnimator.avatar.isValid || !AvatarAnimator.isHuman) return;
+            var head = AvatarAnimator.GetBoneTransform(HumanBodyBones.Head);
+            if (!head) return;
+            var skeleton = AvatarAnimator.avatar.humanDescription.skeleton;
+            if (skeleton == null || skeleton.Length == 0) return;
+
+            // Imported reference transforms supply the neutral head position even if simulation
+            // starts during an animation. Include every real ancestor, including helper joints,
+            // while excluding the avatar root's transform from this avatar-local position.
+            var position = Vector3.zero;
+            var joint = head;
+            while (joint && joint != Avatar.transform)
+            {
+                var found = false;
+                var reference = default(SkeletonBone);
+                foreach (var bone in skeleton)
+                {
+                    if (bone.name != joint.name) continue;
+                    if (found) return;
+                    reference = bone;
+                    found = true;
+                }
+                if (!found) return;
+                position = reference.position + reference.rotation * Vector3.Scale(reference.scale, position);
+                joint = joint.parent;
+            }
+            if (joint != Avatar.transform || !FinitePoseSpacePosition(position)) return;
+            _poseSpaceReferenceHeadPosition = position;
+            _poseSpaceHead = head;
+        }
+
+        private void ApplyPendingPoseSpace()
+        {
+            if (!_poseSpacePending) return;
+            _poseSpacePending = false;
+            if (_poseSpaceHead)
+            {
+                var offset = Avatar.transform.InverseTransformPoint(_poseSpaceHead.position) - _poseSpaceReferenceHeadPosition;
+                if (FinitePoseSpacePosition(offset))
+                {
+                    // Preserve the descriptor-to-reference-head offset. This implements the
+                    // published snapshot semantics, not the client's unpublished exact formula.
+                    _poseSpaceViewOffset = offset;
+                    return;
+                }
+            }
+            _poseSpaceViewOffset = Vector3.zero;
+            if (_poseSpaceWarningShown) return;
+            _poseSpaceWarningShown = true;
+            Debug.LogWarning("Gesture Manager Pro cannot relocate the temporary pose-space viewpoint without a valid Humanoid reference skeleton. Movement and tracking controls remain independent.", Avatar);
+        }
+
+        private static bool FinitePoseSpacePosition(Vector3 position) =>
+            !float.IsNaN(position.x) && !float.IsInfinity(position.x) &&
+            !float.IsNaN(position.y) && !float.IsInfinity(position.y) &&
+            !float.IsNaN(position.z) && !float.IsInfinity(position.z);
 
         /* ╭────────────────────────────╮ *
          * │     Vrc Hooks (Helper)     │ *
