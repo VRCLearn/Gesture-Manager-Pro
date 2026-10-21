@@ -18,7 +18,9 @@ public static class UnityProCameraChecks
         try
         {
             avatar = new GameObject("Pro validation camera avatar");
-            avatar.transform.SetPositionAndRotation(new Vector3(600f, 20f, 900f), Quaternion.Euler(0f, 90f, 0f));
+            // Millimeter camera booms need a well-conditioned viewport projection.
+            // Large-world placement and orientation are checked separately below.
+            avatar.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0f, 90f, 0f));
             cameraObject = new GameObject("Pro validation simulation camera");
             var camera = cameraObject.AddComponent<Camera>();
             camera.enabled = false;
@@ -46,27 +48,30 @@ public static class UnityProCameraChecks
             check(Close(preview.transform.position, pivot + offset),
                 "Third-person camera uses the body axis at the exact descriptor world height");
             CheckCentered(camera, pivot, check, "Default third-person framing");
+            CheckCenteringSensitivity(camera, pivot, check);
             check(Quaternion.Angle(preview.transform.rotation, Quaternion.Euler(0f, 90f, 0f)) < 0.001f,
                 "Changing view mode preserves the avatar heading");
             preview.Distance = 0.02f;
             preview.ApplyView();
-            check(Close(preview.transform.position, pivot + Quaternion.Euler(0f, 90f, 0f) * Vector3.back * 0.02f) &&
-                Vector3.Distance(preview.transform.position, pivot) < 0.03f,
+            check(Vector3.Distance(preview.transform.position, pivot + Quaternion.Euler(0f, 90f, 0f) * Vector3.back * 0.02f) < 0.000001f,
                 "Close third-person placement approaches the body-axis pivot without moving sideways");
             CheckCentered(camera, pivot, check, "Close third-person framing");
             preview.Distance = 0.001f;
             preview.ApplyView();
-            check(Vector3.Distance(preview.transform.position, pivot) < 0.003f,
+            check(Mathf.Abs(Vector3.Distance(preview.transform.position, pivot) - 0.001f) < 0.000001f,
                 "Positive near-pivot third-person distances are not clamped back to a tenth of a meter");
             CheckCentered(camera, pivot, check, "Positive near-pivot third-person framing");
             foreach (var heading in new[] { -90f, 0f, 45f, 135f })
             foreach (var pitch in new[] { -35f, 0f, 45f })
-            foreach (var distance in new[] { 0.2f, 1f, 3f })
+            foreach (var distance in new[] { 0.001f, 0.02f, 0.2f, 1f, 3f })
             {
                 avatar.transform.rotation = Quaternion.Euler(0f, heading, 0f);
                 preview.Pitch = pitch;
                 preview.Distance = distance;
                 preview.ApplyView();
+                var expectedPosition = pivot + Quaternion.Euler(pitch, heading, 0f) * Vector3.back * distance;
+                check(Vector3.Distance(preview.transform.position, expectedPosition) < 0.000001f,
+                    $"Third-person placement at heading {heading}, pitch {pitch} and distance {distance}");
                 CheckCentered(camera, avatar.transform.position + Vector3.up * 1.6f, check,
                     $"Third-person framing at heading {heading}, pitch {pitch} and distance {distance}");
             }
@@ -74,6 +79,8 @@ public static class UnityProCameraChecks
             preview.Pitch = 0f;
             preview.Distance = 3f;
             preview.ApplyView();
+
+            CheckLargeWorldFraming(check);
 
             var bodyRotation = avatar.transform.rotation;
             foreach (var yaw in new[] { -135f, 0f, 150f })
@@ -473,12 +480,84 @@ public static class UnityProCameraChecks
 
     private static void RenderScope(MotionPreviewCamera preview, string method, Camera camera) =>
         typeof(MotionPreviewCamera).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(preview, new object[] { camera });
+
+    private static void CheckCenteringSensitivity(Camera camera, Vector3 pivot, Action<bool, string> check)
+    {
+        var position = camera.transform.position;
+        var rotation = camera.transform.rotation;
+        var distance = Vector3.Distance(position, pivot);
+        try
+        {
+            camera.transform.rotation = Quaternion.Euler(0f, 1f, 0f) * rotation;
+            check(!IsCentered(camera.WorldToViewportPoint(pivot)), "Centering rejects a one-degree view direction error");
+            camera.transform.SetPositionAndRotation(position + rotation * Vector3.right * distance * 0.01f, rotation);
+            check(!IsCentered(camera.WorldToViewportPoint(pivot)), "Centering rejects a lateral camera offset");
+            camera.transform.position = pivot + rotation * Vector3.forward * distance;
+            check(!IsCentered(camera.WorldToViewportPoint(pivot)), "Centering rejects a pivot behind the camera");
+            camera.transform.position = position;
+            var shifted = camera.projectionMatrix;
+            shifted.m02 += 0.02f;
+            camera.projectionMatrix = shifted;
+            check(!IsCentered(camera.WorldToViewportPoint(pivot)), "Centering rejects an offset projection center");
+        }
+        finally
+        {
+            camera.transform.SetPositionAndRotation(position, rotation);
+            camera.ResetProjectionMatrix();
+        }
+    }
+
+    private static void CheckLargeWorldFraming(Action<bool, string> check)
+    {
+        var target = new GameObject("Pro validation large-world camera target");
+        var cameraObject = new GameObject("Pro validation large-world camera");
+        try
+        {
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.enabled = false;
+            var preview = cameraObject.AddComponent<MotionPreviewCamera>();
+            preview.Target = target.transform;
+            preview.ViewPosition = Vector3.up * 1.6f;
+            foreach (var origin in new[] { new Vector3(600f, 20f, 900f), new Vector3(-600f, 20f, -900f) })
+            foreach (var yaw in new[] { -90f, 0f, 45f, 90f, 135f })
+            foreach (var pitch in new[] { -35f, 0f, 45f })
+            foreach (var distance in new[] { 0.001f, 0.02f, 0.2f, 3f })
+            {
+                target.transform.SetPositionAndRotation(origin, Quaternion.Euler(0f, yaw, 0f));
+                preview.Pitch = pitch;
+                preview.Distance = distance;
+                preview.ApplyView();
+                var pivot = origin + Vector3.up * 1.6f;
+                var expectedRotation = Quaternion.Euler(pitch, yaw, 0f);
+                var expectedPosition = pivot + expectedRotation * Vector3.back * distance;
+                // World-space float rounding is an absolute placement error. Dividing
+                // it by a millimeter depth makes native viewport projection unstable.
+                var magnitude = Mathf.Max(Mathf.Abs(pivot.x), Mathf.Abs(pivot.y), Mathf.Abs(pivot.z));
+                var tolerance = Mathf.Max(0.000001f, magnitude * 1.1920929e-7f);
+                var label = $"Large-world framing at {origin}, yaw {yaw}, pitch {pitch}, distance {distance}";
+                check(Vector3.Distance(camera.transform.position, expectedPosition) <= tolerance,
+                    label + " preserves the requested orbit within world-coordinate float precision");
+                check((camera.transform.forward - expectedRotation * Vector3.forward).sqrMagnitude < 1e-8f &&
+                    (camera.transform.up - expectedRotation * Vector3.up).sqrMagnitude < 1e-8f,
+                    label + " preserves view direction and roll independently of the placement tolerance");
+                if (distance >= 0.2f) CheckCentered(camera, pivot, check, label);
+            }
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(cameraObject);
+            UnityEngine.Object.DestroyImmediate(target);
+        }
+    }
+
     private static void CheckCentered(Camera camera, Vector3 viewpoint, Action<bool, string> check, string label)
     {
         var viewport = camera.WorldToViewportPoint(viewpoint);
-        check(viewport.z > 0f && Mathf.Abs(viewport.x - 0.5f) < 0.001f && Mathf.Abs(viewport.y - 0.5f) < 0.001f,
-            label + " keeps the descriptor-height body-axis pivot at viewport center: " + viewport);
+        check(IsCentered(viewport),
+            label + " keeps the descriptor-height body-axis pivot at viewport center: " + viewport.ToString("F8"));
     }
+    private static bool IsCentered(Vector3 viewport) =>
+        viewport.z > 0f && Mathf.Abs(viewport.x - 0.5f) < 0.001f && Mathf.Abs(viewport.y - 0.5f) < 0.001f;
     private static bool Close(Vector3 left, Vector3 right) => Vector3.Distance(left, right) < 0.001f;
     private static bool Finite(Vector3 value) => !float.IsNaN(value.x) && !float.IsNaN(value.y) && !float.IsNaN(value.z) &&
         !float.IsInfinity(value.x) && !float.IsInfinity(value.y) && !float.IsInfinity(value.z);
