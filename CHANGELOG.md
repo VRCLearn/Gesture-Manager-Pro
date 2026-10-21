@@ -10,6 +10,8 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-21
+
 ### Fixed
 
 - Start PC Game Simulation in first person without enabling Scene Camera.
@@ -23,6 +25,14 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 - Keep PC Temporary Pose Space independent of head tracking and movement locks.
   Capture its viewpoint once per SDK callback, refresh on Enter and restore on
   Exit, without modifying the avatar descriptor or duplicating SDK delays.
+
+### Notice
+
+- PC head tracking previews do not reproduce the client's complete body IK.
+  The exact client Temporary Pose Space offset formula and VRChat client parity
+  remain unverified.
+- Physical headset display, controller operation and native XR handovers remain
+  unverified. VR control and full-body tracking are experimental.
 
 ## [1.2.0] - 2026-10-21
 
@@ -402,7 +412,8 @@ Initial development release; visual and hardware acceptance remained incomplete.
 - SDK2 simulation and unused serialized controller objects with obsolete SDK
   references, retaining the reachable animation graphs for the SDK3 target.
 
-[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.0...HEAD
+[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.1...HEAD
+[1.2.1]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/0.5.0...1.0.0
