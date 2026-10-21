@@ -44,7 +44,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         public CharacterMotionMotor Motor { get; private set; }
         public MotionPreviewCamera ViewCamera { get; private set; }
-        public SimulationViewMode ViewMode { get; private set; } = SimulationViewMode.SceneCamera;
+        public SimulationViewMode ViewMode { get; private set; } = SimulationViewMode.FirstPerson;
         public bool FollowObserverCamera { get; private set; }
         public bool ThirdPersonEnabled { get; private set; }
         public float CameraDistance => _cameraDistance;
@@ -72,7 +72,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
 
         public bool Start(GestureManager manager, IMotionInputSource input, float speed = 2f, float turnSpeed = 120f,
             bool collisions = true, bool gravity = false, bool previewCamera = false,
-            SimulationViewMode viewMode = SimulationViewMode.SceneCamera, float cameraDistance = 2f,
+            SimulationViewMode viewMode = SimulationViewMode.FirstPerson, float cameraDistance = 2f,
             bool followObserverCamera = false, ControlledSessionMode mode = ControlledSessionMode.Automatic)
         {
             if (_stopping) return false;
@@ -275,10 +275,9 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
             {
                 if (view)
                 {
-                    view.pivot += delta;
+                    TranslateObserverView(view, delta);
                     _observerOffsets.TryGetValue(view, out var offset);
                     _observerOffsets[view] = offset + delta;
-                    view.Repaint();
                 }
                 else
                 {
@@ -287,6 +286,15 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 }
             }
             SyncObserverCamera();
+        }
+
+        private static void TranslateObserverView(SceneView view, Vector3 delta)
+        {
+            view.pivot += delta;
+            // SceneView only rebuilds its camera from the pivot during its GUI update.
+            // Keep the camera current when Game view covers the Scene tab.
+            if (view.camera) view.camera.transform.position += delta;
+            view.Repaint();
         }
 
         private void SyncObserverCamera()
@@ -400,7 +408,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                 if (_cameraObject) TryRestore(() => UnityEngine.Object.DestroyImmediate(_cameraObject));
                 if (_groundObject) TryRestore(() => UnityEngine.Object.DestroyImmediate(_groundObject));
                 foreach (var entry in _observerOffsets)
-                    if (entry.Key) TryRestore(() => { entry.Key.pivot -= entry.Value; entry.Key.Repaint(); });
+                    if (entry.Key) TryRestore(() => TranslateObserverView(entry.Key, -entry.Value));
                 if (_avatar) TryRestore(() => _avatar.SetPositionAndRotation(_position, _rotation));
                 if (_module != null && _module.Active && !_module.IsInvalid())
                     foreach (var entry in _originalParameters)

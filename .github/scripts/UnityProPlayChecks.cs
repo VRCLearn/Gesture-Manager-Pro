@@ -383,6 +383,8 @@ public static class UnityProPlayChecks
             session = new ControlledModeSession();
             Check(session.Start(manager, input, 2f, 120f, false, false, true), "Session starts for an active simulator: " + session.Error);
             Check(session.Running && manager.IsPlayerControlled && session.Motor, "Session owns manager and creates a motor");
+            Check(session.ViewMode == SimulationViewMode.FirstPerson && !session.SceneCameraEnabled,
+                "A default session starts in first person without enabling the Scene observer");
             Check(input.Resets >= 1, "Session startup resets input");
             var motionObject = session.Motor.gameObject;
             var camera = Resources.FindObjectsOfTypeAll<MotionPreviewCamera>().Single(component => component.Target == avatar.transform);
@@ -1655,7 +1657,7 @@ public static class UnityProPlayChecks
                 if (view) view.Close();
             Check(!SceneView.lastActiveSceneView && SceneView.sceneViews.Count == 0,
                 "The fallback fixture has no SceneView window or active Scene observer");
-            Check(session.Start(manager, input, previewCamera: true),
+            Check(session.Start(manager, input, previewCamera: true, viewMode: SimulationViewMode.SceneCamera),
                 "Observer simulation starts with only its existing scene camera: " + session.Error);
             var fallbackObject = session.ViewCamera.gameObject;
             var fallbackCamera = session.ViewCamera.PreviewCamera;
@@ -1663,7 +1665,7 @@ public static class UnityProPlayChecks
             Check(session.ViewMode == SimulationViewMode.SceneCamera && !session.FollowObserverCamera &&
                 Vector3.Distance(fallbackCamera.transform.position, originalCameraPosition) < 0.0001f &&
                 Quaternion.Angle(fallbackCamera.transform.rotation, originalCameraRotation) < 0.001f,
-                "The default Game observer mirrors the existing scene camera when Scene views are closed");
+                "An explicitly selected Game observer mirrors the existing scene camera when Scene views are closed");
             input.Frame = new MotionInputFrame(Vector2.up, 0f);
             for (var frame = 0; frame < 3; frame++) { session.Motor.Step(0.1f); session.Poll(); }
             Check(Vector3.Distance(avatar.transform.position, originalPosition) > 0.3f &&
@@ -1722,11 +1724,11 @@ public static class UnityProPlayChecks
             var originalRotation = observer.rotation;
             var originalSize = observer.size;
             var originalOrthographic = observer.orthographic;
-            Check(session.Start(manager, input, gravity: true, previewCamera: true),
-                "Observer game simulation starts with its default view: " + session.Error);
+            Check(session.Start(manager, input, gravity: true, previewCamera: true, viewMode: SimulationViewMode.SceneCamera),
+                "Observer game simulation starts with the explicitly selected view: " + session.Error);
             Check(session.ViewMode == SimulationViewMode.SceneCamera && !session.FollowObserverCamera &&
                 session.ViewCamera && session.ViewCamera.Mode == SimulationViewMode.SceneCamera,
-                "A default session keeps a temporary game camera in fixed Scene camera mode");
+                "An explicitly selected observer keeps its temporary game camera in fixed Scene camera mode");
             var ownedCameraObject = session.ViewCamera.gameObject;
 
             void CheckMirroredCamera(SceneView view, string label)
@@ -1777,6 +1779,9 @@ public static class UnityProPlayChecks
                 var rotation = view.rotation;
                 var size = view.size;
                 var orthographic = view.orthographic;
+                var gameCamera = session.ViewCamera.PreviewCamera;
+                var gamePosition = gameCamera.transform.position;
+                var gameRotation = gameCamera.transform.rotation;
                 input.Frame = frame;
                 session.Motor.Step(time);
                 session.Poll();
@@ -1785,15 +1790,24 @@ public static class UnityProPlayChecks
                     Quaternion.Angle(view.rotation, rotation) < 0.001f && Mathf.Abs(view.size - size) < 0.0001f &&
                     view.orthographic == orthographic,
                     label + " translates the observer by actual avatar displacement while retaining manual rotation and zoom");
+                Check(Vector3.Distance(gameCamera.transform.position - gamePosition, delta) < 0.001f &&
+                    Quaternion.Angle(gameCamera.transform.rotation, gameRotation) < 0.001f,
+                    label + " immediately translates the Game observer without requiring a Scene view repaint");
                 var followedPivot = view.pivot;
+                var followedGamePosition = gameCamera.transform.position;
                 session.Poll();
                 session.Poll();
-                Check(Vector3.Distance(view.pivot, followedPivot) < 0.0001f,
-                    "Repeated observer polling does not apply an already consumed avatar displacement again");
+                Check(Vector3.Distance(view.pivot, followedPivot) < 0.0001f &&
+                    Vector3.Distance(gameCamera.transform.position, followedGamePosition) < 0.0001f,
+                    "Repeated observer polling without repaint neither repeats nor reverses the consumed camera displacement");
                 return delta;
             }
 
             ownedTranslation += FollowStep(observer, new MotionInputFrame(Vector2.up, 0f), 0.1f, "Following horizontal movement");
+            var cameraBeforeRepaint = session.ViewCamera.transform.position;
+            CheckMirroredCamera(observer, "Repainting after immediate observer following");
+            Check(Vector3.Distance(session.ViewCamera.transform.position, cameraBeforeRepaint) < 0.001f,
+                "A later Scene view repaint retains the already followed Game-camera position without doubling the translation");
             ownedTranslation += FollowStep(observer, new MotionInputFrame(Vector2.zero, 0f, pose: MotionPose.Crouch), 0.02f, "Changing posture during observer follow");
             Check(module.GetParam("Upright").FloatValue() == 0.6f, "Observer following leaves explicit posture control available");
             var jumpDelta = FollowStep(observer, new MotionInputFrame(Vector2.zero, 0f, jump: true), 0.02f, "Following a jump");
@@ -1847,7 +1861,12 @@ public static class UnityProPlayChecks
             Check(Vector3.Distance(observer.pivot - ownedTranslation, originalPivot + manualPan) < 0.001f &&
                 Vector3.Distance(secondObserver.pivot - secondOwnedTranslation, secondPivot + secondManualPan) < 0.001f,
                 "The fixture distinguishes owned follow translations from each observer's manual navigation");
+            var firstCameraBeforeStop = observer.camera.transform.position;
+            var secondCameraBeforeStop = secondObserver.camera.transform.position;
             session.Stop();
+            Check(Vector3.Distance(observer.camera.transform.position, firstCameraBeforeStop - ownedTranslation) < 0.001f &&
+                Vector3.Distance(secondObserver.camera.transform.position, secondCameraBeforeStop - secondOwnedTranslation) < 0.001f,
+                "Stop immediately removes each owned translation from the Scene cameras without waiting for repaint");
             Check(Vector3.Distance(observer.pivot, originalPivot + manualPan) < 0.001f &&
                 Quaternion.Angle(observer.rotation, manualRotation) < 0.001f && Mathf.Abs(observer.size - 8f) < 0.0001f && !observer.orthographic,
                 "Stop removes owned following from the first observer while preserving manual pan, rotation, and zoom");
@@ -1868,11 +1887,11 @@ public static class UnityProPlayChecks
                 var cursorLock = Cursor.lockState;
                 var cursorVisible = Cursor.visible;
                 module.SimulationCamera = null;
-                Check(session.Start(manager, keyboard, collisions: false, followObserverCamera: true),
-                    "Keyboard simulation starts in the default observer mode with the optional follow setting");
+                Check(session.Start(manager, keyboard, collisions: false, viewMode: SimulationViewMode.SceneCamera, followObserverCamera: true),
+                    "Keyboard simulation starts in the explicitly selected observer mode with the optional follow setting");
                 Check(session.FollowObserverCamera && keyboard.ObserverView && !keyboard.Captured &&
                     Cursor.lockState == cursorLock && Cursor.visible == cursorVisible,
-                    "Default Game observer input does not capture or move the cursor");
+                    "Explicit Game observer input does not capture or move the cursor");
                 session.SetViewMode(SimulationViewMode.FirstPerson);
                 Check(!keyboard.ObserverView, "Selecting first person returns keyboard input to its capture-based mode");
                 session.SetViewMode(SimulationViewMode.SceneCamera);
@@ -1987,7 +2006,8 @@ public static class UnityProPlayChecks
                 Check(before.All(point => point.z > 0f), label + " samples the avatar root and a second visible world point");
                 using (var transition = new ControlledModeSession())
                 {
-                    Check(transition.Start(manager, new SessionMotionInput(), gravity: true, previewCamera: true),
+                    Check(transition.Start(manager, new SessionMotionInput(), gravity: true, previewCamera: true,
+                        viewMode: SimulationViewMode.SceneCamera),
                         label + " starts the real observer session: " + transition.Error);
                     var ownedObject = transition.ViewCamera.gameObject;
                     var game = transition.ViewCamera.PreviewCamera;
@@ -2441,8 +2461,8 @@ public static class UnityProPlayChecks
                 var ordinarySnapshot = stateField.GetValue(null);
                 ClickGame();
                 Check(session.Running && ReferenceEquals(AvatarTools.UpdateSceneCamera.SimulationView, session) &&
-                    session.ViewMode == SimulationViewMode.SceneCamera && SceneActive() && Keyboard().ObserverView,
-                    "Registered Game Simulation owns the ordinary Scene Camera button in its default observer view: " + session.Error);
+                    session.ViewMode == SimulationViewMode.FirstPerson && !SceneActive() && !Keyboard().ObserverView,
+                    "Registered Game Simulation starts in first person and leaves the Scene Camera button disabled: " + session.Error);
                 var ownedObject = session.ViewCamera.gameObject;
                 var camera = session.ViewCamera.PreviewCamera;
                 Navigate(false, preferenceRound + 2);
@@ -2452,9 +2472,12 @@ public static class UnityProPlayChecks
                     (bool)enabledField.GetValue(null) == ordinaryEnabled && EditorPrefs.GetBool(preference) == legacyPreference,
                     "While simulation owns the view, ordinary Scene Camera updates preserve Main Camera, its snapshot, its session state, and the unrelated legacy preference");
                 ClickScene();
+                Check(session.ViewMode == SimulationViewMode.SceneCamera && SceneActive() && Keyboard().ObserverView,
+                    "The real Scene Camera button enters the observer only after explicit enabling");
+                ClickScene();
                 Check(session.ViewMode == SimulationViewMode.FirstPerson && !session.ThirdPersonEnabled && !SceneActive() &&
                     !Keyboard().ObserverView && (bool)typeof(KeyboardMotionInputSource).GetField("_captureRequested", instance).GetValue(Keyboard()),
-                    "The real ordinary Scene Camera button leaves the initial observer for first person and requests fresh Game capture");
+                    "Disabling the explicitly selected observer returns to first person and requests fresh Game capture");
                 Check(!camera.orthographic && Mathf.Abs(camera.farClipPlane - 1000f) < 0.001f,
                     "Leaving the initial Scene observer restores the player's perspective and original far clip instead of the Scene lens");
                 camera.fieldOfView = 53f;

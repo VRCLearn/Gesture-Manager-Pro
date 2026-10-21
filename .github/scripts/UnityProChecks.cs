@@ -123,9 +123,9 @@ public static class UnityProChecks
                 "Game simulation is a standard tool and microphone lip sync has no independent tool entry");
             Check(ToolCaption(simulationTool) == "游戏模拟" && EditorLocalization.Tr("Microphone Lip Sync") == "麦克风口型",
                 "The simulation header and embedded microphone setting render in Chinese");
-            Check((VRCLearn.GestureManagerPro.Control.SimulationViewMode)typeof(GameSimulationTool).GetField("_viewMode", Any).GetValue(simulationTool) == VRCLearn.GestureManagerPro.Control.SimulationViewMode.SceneCamera &&
+            Check((VRCLearn.GestureManagerPro.Control.SimulationViewMode)typeof(GameSimulationTool).GetField("_viewMode", Any).GetValue(simulationTool) == VRCLearn.GestureManagerPro.Control.SimulationViewMode.FirstPerson &&
                 !(bool)typeof(GameSimulationTool).GetField("_followObserverCamera", Any).GetValue(simulationTool),
-                "Inline game simulation defaults to the fixed Scene camera without observer following");
+                "Inline game simulation defaults to first person without enabling the Scene observer or observer following");
             var microphone = (MicrophoneLipSync)typeof(GameSimulationTool).GetField("_lipSync", Any).GetValue(simulationTool);
             Check(microphone.Enabled && !microphone.Running, "Microphone lip sync is enabled by default but does not record before game simulation starts");
             Check(!typeof(MicrophoneLipSync).GetMethods(Any).Any(method => method.IsDefined(typeof(InitializeOnLoadMethodAttribute), false)),

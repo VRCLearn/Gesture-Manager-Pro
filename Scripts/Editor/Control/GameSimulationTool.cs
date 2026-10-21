@@ -19,7 +19,7 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
         private float _turnSpeed = 120f;
         private bool _collisions = true;
         private float _lookSensitivity = 2f;
-        private SimulationViewMode _viewMode = SimulationViewMode.SceneCamera;
+        private SimulationViewMode _viewMode = SimulationViewMode.FirstPerson;
         private bool _followObserverCamera;
         private float _cameraDistance = 2f;
         private bool _showControls;

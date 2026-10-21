@@ -10,6 +10,12 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+### Fixed
+
+- Start PC Game Simulation in first person without enabling Scene Camera.
+- Update the observer camera immediately when following the avatar, including
+  while the Scene view is hidden, and restore its translation on exit.
+
 ## [1.2.0] - 2026-10-21
 
 ### Changed
