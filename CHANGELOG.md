@@ -10,10 +10,21 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-24
+
 ### Fixed
 
 - Fill Model Statistics download and uncompressed sizes after a successful SDK
   build for its actual platform.
+
+### Notice
+
+- Size measurements require a successful SDK build on the target platform. Select
+  **After SDK Processing** and that platform to view them; before-processing and
+  Play Mode records have no bundle size measurements.
+- Android builds and VRChat client size comparisons remain unverified.
+- Physical headset operation and native XR handovers remain unverified.
+  VR control and full-body tracking are experimental.
 
 ## [1.2.1] - 2026-10-21
 
@@ -417,7 +428,8 @@ Initial development release; visual and hardware acceptance remained incomplete.
 - SDK2 simulation and unused serialized controller objects with obsolete SDK
   references, retaining the reachable animation graphs for the SDK3 target.
 
-[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.1...HEAD
+[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.0.0...1.1.0

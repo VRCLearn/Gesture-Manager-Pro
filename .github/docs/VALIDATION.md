@@ -1,14 +1,15 @@
 # Development validation
 
-## Unreleased model statistics size fix
+## 1.3.0 validation
 
-Validated on 2026-10-23 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
+Validated on 2026-10-23 and 2026-10-24 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
 
-- Editor integration passed 1,326 assertions (`Output~/SizeMetrics-editor.log`). The statistics runner builds a disposable prefab AssetBundle and verifies both size metrics, two-decimal MB formatting, SDK grades, actual-platform isolation, immutable pending observations and session serialization. Missing bundles, unchanged reports and a colliding SDK temporary report metadata file are covered. Generated fixture assets and temporary build-report imports were removed.
+- Editor integration passed 1,326 assertions, including the final 1.3.0 sources (`Output~/SizeMetrics-editor.log`, `Output~/Release130-editor.log`). The statistics runner builds a disposable prefab AssetBundle and verifies both size metrics, two-decimal MB formatting, SDK grades, actual-platform isolation, immutable pending observations and session serialization. Missing bundles, unchanged reports and a colliding SDK temporary report metadata file are covered. Generated fixture assets and temporary build-report imports were removed.
 - An independent actual bundle probe measured 44,186 download bytes and 181,788 uncompressed bytes; the SDK helper matched the sum of packed contents and overhead (`Output~/build-report-probe.log`).
-- Package validation passed 1,912 checks and localization passed 17,305 checks across five languages. `git diff --check` passed.
+- On 2026-10-24, the real Test-Avatar project's Chocolat completed a local SDK build with its installed processors. The PC record and Model Statistics window showed **7.69 MB** download and **45.65 MB** uncompressed, matching 8,067,247 bundle bytes and 47,868,936 bytes from the SDK report helper. The Mobile record retained unavailable sizes. The scene, descriptor, pipeline identity, project settings and existing asset metadata matched their pre-test state afterwards; the tested package remained installed. Evidence is retained in `Output~/TestAvatarSizeMetrics-20261024-010503/test-result.json` and `test-avatar-sdk-build.log`.
+- All 54 Python distribution/release tests passed (`Output~/Release130-python.log`). Package validation passed 1,912 checks and localization passed 17,305 checks across five languages. `git diff --check` passed.
 
-SDK lifecycle events in these checks are injected around a real Unity AssetBundle build. A complete SDK avatar build, upload, production avatar/optimizer combinations, Android builds and manual window/glyph inspection were not performed. Existing fixture CS0252 warnings and Unity shutdown allocation diagnostics remain in the log. The user's avatar project was not modified.
+The fixture injects SDK lifecycle events around a real Unity AssetBundle build; the Test-Avatar check uses the actual SDK avatar builder. The latter confirms one avatar and its installed processor combination, without upload or client startup. Android builds, other production avatar/optimizer combinations, VRChat client size comparisons and manual window/glyph inspection remain unverified. The Test-Avatar Console had no errors and two Modular Avatar CS0114 warnings. Existing fixture CS0252 warnings and Unity shutdown allocation diagnostics remain in its log.
 
 ## 1.2.1 validation
 
