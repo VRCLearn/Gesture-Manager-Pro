@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3A.Editor;
+using VRC.SDKBase.Editor.Validation;
 using VRC.SDKBase.Validation.Performance;
 using VRC.SDKBase.Validation.Performance.Stats;
 
@@ -23,7 +24,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         private const string BeforeBuildNotes = "Captured from the original avatar at SDK build start, before SDK preprocessing.";
         private const string CurrentPlayNotes = "Current Play Mode state. This snapshot may include changes made by simulators and other runtime scripts.";
         private const string ProcessedPlayNotes = "Captured on the first Editor update in Play Mode, using the same SDK calculation as Actual Performance Window. Only processing completed before capture is included.";
-        private const string ProcessedSdkNotes = "SDK preprocessing snapshot at the last callback priority. Later SDK processing and bundle generation are not included; build success is recorded only when the SDK reports it.";
+        private const string ProcessedSdkNotes = "SDK preprocessing snapshot at the last callback priority. Other metrics exclude later SDK processing. A successful SDK build adds download and uncompressed sizes for its actual platform.";
         private static readonly List<ModelStatisticsSnapshot> Snapshots = new List<ModelStatisticsSnapshot>();
         private static readonly List<string> PendingBuildSnapshotIds = new List<string>();
         private static IVRCSdkAvatarBuilderApi builder;
@@ -31,6 +32,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
         private static string buildAvatarName;
         private static bool buildActive;
         private static bool buildMobile;
+        private static DateTime buildReportTimestampUtc;
         private static bool playModeCaptured;
         private static bool leavingPlayMode;
 
@@ -271,9 +273,31 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             return metrics;
         }
 
-        private static string FormatBytes(int? bytes)
+        private static string FormatBytes(long? bytes)
         {
             return bytes.HasValue ? (bytes.Value / 1024.0 / 1024.0).ToString("F2", CultureInfo.CurrentCulture) : null;
+        }
+
+        private static List<ModelStatisticsMetric> BuildSizeMetrics(bool mobile, long bytes, int? uncompressedBytes)
+        {
+            // Use a fresh calculator: the SDK caches category ratings after their first lookup.
+            var stats = new AvatarPerformanceStats(mobile)
+            {
+                downloadSizeBytes = bytes >= 0 && bytes <= int.MaxValue ? (int?)bytes : null,
+                uncompressedSizeBytes = uncompressedBytes
+            };
+            var metrics = new List<ModelStatisticsMetric>();
+            Add(metrics, stats, AvatarPerformanceCategory.DownloadSize,
+                FormatBytes(bytes >= 0 ? (long?)bytes : null));
+            Add(metrics, stats, AvatarPerformanceCategory.UncompressedSize, FormatBytes(uncompressedBytes));
+            return metrics;
+        }
+
+        private static DateTime GetBuildReportTimestampUtc()
+        {
+            try { return File.GetLastWriteTimeUtc(Path.Combine("Library", "LastBuild.buildreport")); }
+            catch (IOException) { return DateTime.MinValue; }
+            catch (UnauthorizedAccessException) { return DateTime.MinValue; }
         }
 
         private static void Add(List<ModelStatisticsMetric> metrics, AvatarPerformanceStats stats,
@@ -360,6 +384,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             // Every automatic entry point must leave the SDK pipeline usable if diagnostics fails.
             try
             {
+                buildReportTimestampUtc = GetBuildReportTimestampUtc();
                 var avatar = target as GameObject;
                 buildActive = avatar && avatar.GetComponent<VRCAvatarDescriptor>();
                 buildAvatarIdentity = buildActive ? GetAvatarIdentity(avatar) : null;
@@ -379,14 +404,43 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
 
         private static void OnBuildSuccess(object sender, string bundlePath)
         {
+            if (!buildActive) return;
             long bytes = -1;
+            int? uncompressedBytes = null;
             try
             {
                 if (!string.IsNullOrEmpty(bundlePath) && File.Exists(bundlePath)) bytes = new FileInfo(bundlePath).Length;
             }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
-            CompletePendingBuild(true, bytes);
+            try
+            {
+                // The SDK reads LastBuild.buildreport and sums packed contents plus overhead.
+                // Only read a report produced during this build, never a previous avatar's report.
+                var timestamp = GetBuildReportTimestampUtc();
+                // This SDK helper imports and deletes a fixed temporary asset. Preserve any
+                // existing asset or orphan metadata at that path instead of overwriting it.
+                var reportAsset = Path.Combine("Assets", "Build AssetBundles.buildreport");
+                if (bytes >= 0 && buildReportTimestampUtc != DateTime.MinValue &&
+                    timestamp > buildReportTimestampUtc && !File.Exists(reportAsset) && !File.Exists(reportAsset + ".meta"))
+                {
+                    try
+                    {
+                        ValidationEditorHelpers.CheckIfUncompressedAssetBundleFileTooLarge(
+                            VRC.ContentType.Avatar, out var size, buildMobile);
+                        // The bool reports exceeding the limit, not whether the measurement exists.
+                        if (size > 0) uncompressedBytes = size;
+                    }
+                    finally
+                    {
+                        // The SDK may leave its temporary import behind when it cannot read the report.
+                        if (File.Exists(reportAsset) || File.Exists(reportAsset + ".meta"))
+                            AssetDatabase.DeleteAsset(reportAsset);
+                    }
+                }
+            }
+            catch (Exception exception) { ReportCaptureFailure(exception); }
+            CompletePendingBuild(true, bytes, uncompressedBytes);
         }
 
         private static void OnBuildError(object sender, string message)
@@ -399,7 +453,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             if (buildActive) CompletePendingBuild(false, -1);
         }
 
-        private static void CompletePendingBuild(bool succeeded, long bytes)
+        private static void CompletePendingBuild(bool succeeded, long bytes, int? uncompressedBytes = null)
         {
             if (!buildActive) return;
             buildActive = false;
@@ -407,7 +461,10 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             for (var index = 0; index < Snapshots.Count; index++)
             {
                 if (!PendingBuildSnapshotIds.Contains(Snapshots[index].Id)) continue;
-                Snapshots[index] = Snapshots[index].CompleteBuild(succeeded, bytes);
+                var snapshot = Snapshots[index];
+                Snapshots[index] = snapshot.CompleteBuild(succeeded, bytes,
+                    succeeded && snapshot.HasBuildPlatform && snapshot.IsMobile == snapshot.BuildPlatformIsMobile
+                        ? BuildSizeMetrics(snapshot.IsMobile, bytes, uncompressedBytes) : null);
                 changed = true;
             }
             PendingBuildSnapshotIds.Clear();

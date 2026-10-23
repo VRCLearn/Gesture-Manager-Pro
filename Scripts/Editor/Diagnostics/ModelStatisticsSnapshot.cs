@@ -102,12 +102,20 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             this.buildPlatformIsMobile = buildPlatformIsMobile;
         }
 
-        internal ModelStatisticsSnapshot CompleteBuild(bool succeeded, long bytes)
+        internal ModelStatisticsSnapshot CompleteBuild(bool succeeded, long bytes, List<ModelStatisticsMetric> sizeMetrics)
         {
             var completed = JsonUtility.FromJson<ModelStatisticsSnapshot>(JsonUtility.ToJson(this));
             completed.buildStatus = succeeded ? ModelStatisticsBuildStatus.Succeeded : ModelStatisticsBuildStatus.Failed;
             completed.source = succeeded ? ModelStatisticsSource.SdkBuild : ModelStatisticsSource.SdkPreprocess;
             completed.bundleBytes = succeeded && (!hasBuildPlatform || isMobile == buildPlatformIsMobile) ? bytes : -1;
+            if (succeeded && hasBuildPlatform && isMobile == buildPlatformIsMobile && sizeMetrics != null)
+            {
+                foreach (var metric in sizeMetrics)
+                {
+                    var index = completed.metrics.FindIndex(item => item.Category == metric.Category);
+                    if (index >= 0) completed.metrics[index] = metric;
+                }
+            }
             return completed;
         }
 

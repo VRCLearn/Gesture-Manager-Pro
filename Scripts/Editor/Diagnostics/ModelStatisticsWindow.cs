@@ -180,7 +180,7 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             _metrics = new VisualElement { name = "metricsTable" };
             panel.Add(_metrics);
             var about = new Foldout { text = EditorLocalization.Tr("About These Statistics"), value = false };
-            var explanation = new Label(EditorLocalization.Tr("Each record preserves the SDK result at its capture stage. Platform selection changes rating thresholds; texture memory uses currently imported assets. Unknown values retain the SDK rating. SDK processing records do not include later bundle generation."));
+            var explanation = new Label(EditorLocalization.Tr("Each record preserves the SDK result at its capture stage. Platform selection changes rating thresholds; texture memory uses currently imported assets. Download and uncompressed sizes are filled after a successful SDK build for its actual platform. Build through the SDK, then select After SDK Processing and that platform to view them."));
             explanation.AddToClassList("statistics-note");
             about.Add(explanation);
             panel.Add(about);

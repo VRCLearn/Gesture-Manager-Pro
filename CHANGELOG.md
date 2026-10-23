@@ -10,6 +10,11 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+### Fixed
+
+- Fill Model Statistics download and uncompressed sizes after a successful SDK
+  build for its actual platform.
+
 ## [1.2.1] - 2026-10-21
 
 ### Fixed

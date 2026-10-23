@@ -58,8 +58,8 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Bounds Size"] = "包围盒尺寸",
             ["Bounds (Center / Extents)"] = "包围盒（中心／半尺寸）",
             ["Texture Memory"] = "纹理内存",
-            ["Download Size"] = "下载文件大小",
-            ["Uncompressed Size"] = "未压缩大小",
+            ["Download Size"] = "下载大小",
+            ["Uncompressed Size"] = "解压后大小",
             ["Built Bundle File Size"] = "构建的资源包大小",
             ["Skinned Meshes"] = "蒙皮网格",
             ["Mesh Renderers"] = "网格渲染器",
@@ -97,9 +97,9 @@ namespace VRCLearn.GestureManagerPro.Localization
             ["Captured on the first Editor update in Play Mode, using the same SDK calculation as Actual Performance Window. Only processing completed before capture is included."] = "在播放模式首次编辑器更新时采样，使用与 Actual Performance Window 相同的 SDK 计算方式。仅包含采样前已完成的处理步骤。",
             ["Before-processing statistics can only be captured outside Play Mode."] = "处理前统计只能在播放模式外采样。",
             ["Play Mode preview before Gesture Manager simulation. Only processors already run at capture time are included; this is not an upload result."] = "Gesture Manager 模拟前的播放模式预览。仅包含采样时已完成的处理步骤；此快照并非上传结果。",
-            ["SDK preprocessing snapshot at the last callback priority. Later SDK processing and bundle generation are not included; build success is recorded only when the SDK reports it."] = "在 SDK 预处理的最后一级回调中采样。不包含后续 SDK 处理及资源包生成；仅在 SDK 报告成功后记录为构建成功。",
+            ["SDK preprocessing snapshot at the last callback priority. Other metrics exclude later SDK processing. A successful SDK build adds download and uncompressed sizes for its actual platform."] = "在 SDK 预处理的最后一级回调中采样。其他指标不包含后续 SDK 处理；SDK 构建成功后，会补充实际构建平台的下载大小和解压后大小。",
             ["Unknown metrics are unavailable, not zero. Platform selection changes SDK rating thresholds; texture memory uses currently imported assets. Use an SDK build on the target platform for a processed snapshot."] = "未知指标显示为暂无数据，不会记为零。平台选择仅切换 SDK 评级阈值；纹理内存按当前导入的资源计算。要获取处理后的快照，请切换到目标平台并通过 SDK 构建。",
-            ["Each record preserves the SDK result at its capture stage. Platform selection changes rating thresholds; texture memory uses currently imported assets. Unknown values retain the SDK rating. SDK processing records do not include later bundle generation."] = "每条记录保留采样阶段的 SDK 结果。平台选择切换评级阈值；纹理内存按当前导入的资源计算。未知数值保留 SDK 给出的评级。SDK 处理记录不包含后续资源包生成。",
+            ["Each record preserves the SDK result at its capture stage. Platform selection changes rating thresholds; texture memory uses currently imported assets. Download and uncompressed sizes are filled after a successful SDK build for its actual platform. Build through the SDK, then select After SDK Processing and that platform to view them."] = "每条记录保留采样阶段的 SDK 结果。平台选择切换评级阈值；纹理内存按当前导入的资源计算。SDK 构建成功后，会补充实际构建平台的下载大小和解压后大小。请通过 SDK 构建，再选择“SDK 处理后”和对应平台查看。",
         };
     }
 }

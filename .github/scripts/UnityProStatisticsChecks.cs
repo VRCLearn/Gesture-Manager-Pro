@@ -15,10 +15,11 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Dynamics.Contact.Components;
+using VRC.SDKBase.Editor.Validation;
 using VRC.SDKBase.Validation.Performance;
 using VRC.SDKBase.Validation.Performance.Stats;
 
-// Runs against the installed SDK calculator, using disposable scene objects.
+// Runs against the installed SDK calculator, using disposable objects and a prefab bundle.
 // A preprocess observer is exercised directly; this is not an upload or a claim
 // that a real SDK build, external processor, or production avatar was verified.
 public static class UnityProStatisticsChecks
@@ -177,6 +178,7 @@ public static class UnityProStatisticsChecks
                 "Distinct unsaved avatars with identical names retain different statistics identities");
 
             CheckBuildLifecycle(avatar, observer, check);
+            CheckBuiltBundleSizes(avatar, observer, check);
 
             var beforeInvalid = ModelStatisticsService.History.Count;
             var beforeInvalidChanges = changes;
@@ -293,7 +295,7 @@ public static class UnityProStatisticsChecks
             check(ModelStatisticsService.History.Take(2).SequenceEqual(failed),
                 "A later SDK finish notification preserves the failure on both platform records");
 
-            File.WriteAllBytes(bundle, new byte[23]);
+            File.WriteAllBytes(bundle, new byte[1310720]);
             service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
             observer.OnPreprocessAvatar(avatar);
             var pendingSuccess = ModelStatisticsService.History.Take(2).ToArray();
@@ -301,15 +303,39 @@ public static class UnityProStatisticsChecks
             var succeeded = ModelStatisticsService.History.Take(2).ToArray();
             check(SameIds(pendingSuccess, succeeded) && succeeded.All(snapshot =>
                 snapshot.Source == ModelStatisticsSource.SdkBuild && snapshot.BuildStatus == ModelStatisticsBuildStatus.Succeeded &&
-                snapshot.BundleBytes == (snapshot.IsMobile == actualMobile ? 23 : -1) &&
+                snapshot.BundleBytes == (snapshot.IsMobile == actualMobile ? 1310720 : -1) &&
                 snapshot.HasBuildPlatform && snapshot.BuildPlatformIsMobile == actualMobile),
                 "SDK success updates both grades and associates bundle bytes only with the actual build platform");
-            check(succeeded.All(snapshot => !Metric(snapshot, AvatarPerformanceCategory.DownloadSize).IsAvailable &&
-                !Metric(snapshot, AvatarPerformanceCategory.UncompressedSize).IsAvailable),
-                "A local bundle file size is kept separate from unavailable official download/uncompressed metrics");
+            var built = succeeded.Single(snapshot => snapshot.IsMobile == actualMobile);
+            var otherPlatform = succeeded.Single(snapshot => snapshot.IsMobile != actualMobile);
+            var expectedSizes = new AvatarPerformanceStats(actualMobile) { downloadSizeBytes = 1310720 };
+            check(Metric(built, AvatarPerformanceCategory.DownloadSize).IsAvailable &&
+                Metric(built, AvatarPerformanceCategory.DownloadSize).Value == 1.25.ToString("F2", CultureInfo.CurrentCulture) &&
+                Metric(built, AvatarPerformanceCategory.DownloadSize).Rating ==
+                    expectedSizes.GetPerformanceRatingForCategory(AvatarPerformanceCategory.DownloadSize) &&
+                !Metric(built, AvatarPerformanceCategory.UncompressedSize).IsAvailable &&
+                !Metric(otherPlatform, AvatarPerformanceCategory.DownloadSize).IsAvailable &&
+                !Metric(otherPlatform, AvatarPerformanceCategory.UncompressedSize).IsAvailable,
+                "Success fills the actual platform's download size with the SDK grade but never reuses a stale uncompressed report");
+            check(pendingSuccess.All(snapshot => !Metric(snapshot, AvatarPerformanceCategory.DownloadSize).IsAvailable) &&
+                succeeded.All(snapshot => snapshot.OverallRating == pendingSuccess.Single(item => item.Id == snapshot.Id).OverallRating),
+                "Size enrichment preserves pending observations and the captured overall grade");
+            var persistedBuild = JsonUtility.FromJson<StoredHistory>(SessionState.GetString(HistoryKey, string.Empty))
+                .Snapshots.Single(snapshot => snapshot.Id == built.Id);
+            check(Metric(persistedBuild, AvatarPerformanceCategory.DownloadSize).Value ==
+                Metric(built, AvatarPerformanceCategory.DownloadSize).Value,
+                "Completed size metrics survive session serialization");
             service.GetMethod("OnBuildFinish", Any).Invoke(null, new object[] { null, "Injected validation finish" });
             check(ModelStatisticsService.History.Take(2).SequenceEqual(succeeded),
                 "A later SDK finish notification preserves success on both platform records");
+
+            service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
+            observer.OnPreprocessAvatar(avatar);
+            service.GetMethod("OnBuildSuccess", Any).Invoke(null, new object[] { null, bundle + ".missing" });
+            check(ModelStatisticsService.History.Take(2).All(snapshot => snapshot.BuildStatus == ModelStatisticsBuildStatus.Succeeded &&
+                snapshot.BundleBytes == -1 && !Metric(snapshot, AvatarPerformanceCategory.DownloadSize).IsAvailable &&
+                !Metric(snapshot, AvatarPerformanceCategory.UncompressedSize).IsAvailable),
+                "A missing bundle preserves SDK success without inventing zero sizes or borrowing an older report");
 
             service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
             observer.OnPreprocessAvatar(avatar);
@@ -349,6 +375,130 @@ public static class UnityProStatisticsChecks
         {
             service.GetMethod("OnBuildFinish", Any).Invoke(null, new object[] { null, "Validation cleanup" });
             File.Delete(bundle);
+        }
+    }
+
+    private static void CheckBuiltBundleSizes(GameObject avatar, ModelStatisticsPreprocessCallback observer,
+        Action<bool, string> check)
+    {
+        // Builds only a disposable prefab bundle. SDK lifecycle events remain injected:
+        // this does not run the SDK avatar builder, upload, or third-party processors.
+        var service = typeof(ModelStatisticsService);
+        var token = Guid.NewGuid().ToString("N");
+        var assetFolder = "Assets/GestureManagerProBundleValidation-" + token;
+        var prefabPath = assetFolder + "/Fixture.prefab";
+        var output = Path.GetFullPath(Path.Combine("Temp", "GestureManagerProValidation", token));
+        var bundleName = "statistics-fixture.unity3d";
+        const string importedReportPath = "Assets/Build AssetBundles.buildreport";
+        var reportAssetExisted = File.Exists(importedReportPath) || File.Exists(importedReportPath + ".meta");
+        var lastReportPath = Path.Combine("Library", "LastBuild.buildreport");
+        DateTime? latestReportTimestamp = null;
+        GameObject fixture = null;
+        try
+        {
+            if (reportAssetExisted)
+                throw new InvalidOperationException("Bundle validation requires an unused SDK temporary report asset path.");
+            AssetDatabase.CreateFolder("Assets", "GestureManagerProBundleValidation-" + token);
+            fixture = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            PrefabUtility.SaveAsPrefabAsset(fixture, prefabPath);
+            UnityEngine.Object.DestroyImmediate(fixture);
+            fixture = null;
+            Directory.CreateDirectory(output);
+
+            service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
+            observer.OnPreprocessAvatar(avatar);
+            var pending = ModelStatisticsService.History.Take(2).ToArray();
+            var pendingJson = pending.Select(snapshot => JsonUtility.ToJson(snapshot)).ToArray();
+            var manifest = BuildPipeline.BuildAssetBundles(output, new[]
+            {
+                new AssetBundleBuild { assetBundleName = bundleName, assetNames = new[] { prefabPath } }
+            }, BuildAssetBundleOptions.ForceRebuildAssetBundle, EditorUserBuildSettings.activeBuildTarget);
+            check(manifest != null, "The disposable prefab produces an actual AssetBundle build report");
+            latestReportTimestamp = File.GetLastWriteTimeUtc(lastReportPath);
+            var bundlePath = Path.Combine(output, bundleName);
+            var bytes = new FileInfo(bundlePath).Length;
+            var actualMobile = ModelStatisticsService.IsCurrentPlatformMobile();
+            ValidationEditorHelpers.CheckIfUncompressedAssetBundleFileTooLarge(
+                VRC.ContentType.Avatar, out var sdkUncompressed, actualMobile);
+            check(bytes > 0 && sdkUncompressed > 0,
+                "A real bundle has measurable download bytes and an SDK uncompressed report");
+            check(!File.Exists(importedReportPath) && !File.Exists(importedReportPath + ".meta"),
+                "The SDK uncompressed check removes its temporary imported build report asset");
+
+            service.GetMethod("OnBuildSuccess", Any).Invoke(null, new object[] { null, bundlePath });
+            var completed = ModelStatisticsService.History.Take(2).ToArray();
+            var built = completed.Single(snapshot => snapshot.IsMobile == actualMobile);
+            var other = completed.Single(snapshot => snapshot.IsMobile != actualMobile);
+            var expected = new AvatarPerformanceStats(actualMobile)
+            {
+                downloadSizeBytes = (int)bytes,
+                uncompressedSizeBytes = sdkUncompressed
+            };
+            check(SameIds(pending, completed) && completed.All(snapshot =>
+                    snapshot.Source == ModelStatisticsSource.SdkBuild &&
+                    snapshot.BuildStatus == ModelStatisticsBuildStatus.Succeeded) &&
+                built.BundleBytes == bytes && other.BundleBytes == -1,
+                "A real bundle completes its correlated observations and retains bytes only for the built platform");
+            foreach (var pair in new[]
+            {
+                new KeyValuePair<AvatarPerformanceCategory, long>(AvatarPerformanceCategory.DownloadSize, bytes),
+                new KeyValuePair<AvatarPerformanceCategory, long>(AvatarPerformanceCategory.UncompressedSize, sdkUncompressed)
+            })
+            {
+                var metric = Metric(built, pair.Key);
+                check(metric.IsAvailable && metric.Value == (pair.Value / 1048576.0).ToString("F2", CultureInfo.CurrentCulture) &&
+                    metric.Rating == expected.GetPerformanceRatingForCategory(pair.Key) && !Metric(other, pair.Key).IsAvailable,
+                    "A real bundle fills " + pair.Key + " in MB with its SDK grade only for the actual platform");
+            }
+            check(pending.Select(snapshot => JsonUtility.ToJson(snapshot)).SequenceEqual(pendingJson),
+                "Real bundle completion preserves previously returned pending snapshot objects");
+            check(completed.All(snapshot => snapshot.OverallRating == pending.Single(item => item.Id == snapshot.Id).OverallRating &&
+                snapshot.Metrics.Where(metric => metric.Category != AvatarPerformanceCategory.DownloadSize &&
+                    metric.Category != AvatarPerformanceCategory.UncompressedSize).All(metric =>
+                    JsonUtility.ToJson(metric) == JsonUtility.ToJson(Metric(pending.Single(item => item.Id == snapshot.Id), metric.Category)))),
+                "Real bundle size enrichment preserves the captured overall grade and every other metric");
+            var persisted = JsonUtility.FromJson<StoredHistory>(SessionState.GetString(HistoryKey, string.Empty))
+                .Snapshots.Single(snapshot => snapshot.Id == built.Id);
+            check(JsonUtility.ToJson(Metric(persisted, AvatarPerformanceCategory.DownloadSize)) ==
+                    JsonUtility.ToJson(Metric(built, AvatarPerformanceCategory.DownloadSize)) &&
+                JsonUtility.ToJson(Metric(persisted, AvatarPerformanceCategory.UncompressedSize)) ==
+                    JsonUtility.ToJson(Metric(built, AvatarPerformanceCategory.UncompressedSize)),
+                "Both real bundle sizes and SDK grades survive session serialization");
+
+            service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
+            observer.OnPreprocessAvatar(avatar);
+            service.GetMethod("OnBuildSuccess", Any).Invoke(null, new object[] { null, bundlePath });
+            var noNewReport = ModelStatisticsService.History.Take(2).Single(snapshot => snapshot.IsMobile == actualMobile);
+            check(Metric(noNewReport, AvatarPerformanceCategory.DownloadSize).IsAvailable &&
+                !Metric(noNewReport, AvatarPerformanceCategory.UncompressedSize).IsAvailable,
+                "A second success without a new build cannot reuse the preceding uncompressed report");
+
+            var existingMeta = new byte[] { 71, 77, 80, 32, 114, 101, 112, 111, 114, 116 };
+            File.WriteAllBytes(importedReportPath + ".meta", existingMeta);
+            service.GetMethod("OnBuildStart", Any).Invoke(null, new object[] { null, avatar });
+            observer.OnPreprocessAvatar(avatar);
+            // Exercise the collision guard without another build or touching a pre-existing asset.
+            File.SetLastWriteTimeUtc(lastReportPath, latestReportTimestamp.Value.AddSeconds(2));
+            service.GetMethod("OnBuildSuccess", Any).Invoke(null, new object[] { null, bundlePath });
+            var protectedReport = ModelStatisticsService.History.Take(2).Single(snapshot => snapshot.IsMobile == actualMobile);
+            check(Metric(protectedReport, AvatarPerformanceCategory.DownloadSize).IsAvailable &&
+                !Metric(protectedReport, AvatarPerformanceCategory.UncompressedSize).IsAvailable &&
+                File.Exists(importedReportPath + ".meta") &&
+                File.ReadAllBytes(importedReportPath + ".meta").SequenceEqual(existingMeta),
+                "A colliding SDK temporary report metadata file is preserved and leaves uncompressed size unavailable");
+        }
+        finally
+        {
+            service.GetMethod("OnBuildFinish", Any).Invoke(null, new object[] { null, "Bundle validation cleanup" });
+            if (fixture) UnityEngine.Object.DestroyImmediate(fixture);
+            AssetDatabase.DeleteAsset(assetFolder);
+            if (!reportAssetExisted)
+            {
+                AssetDatabase.DeleteAsset(importedReportPath);
+                if (File.Exists(importedReportPath + ".meta")) File.Delete(importedReportPath + ".meta");
+            }
+            if (latestReportTimestamp.HasValue) File.SetLastWriteTimeUtc(lastReportPath, latestReportTimestamp.Value);
+            if (Directory.Exists(output)) Directory.Delete(output, true);
         }
     }
 

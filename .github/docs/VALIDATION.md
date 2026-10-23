@@ -1,5 +1,15 @@
 # Development validation
 
+## Unreleased model statistics size fix
+
+Validated on 2026-10-23 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
+
+- Editor integration passed 1,326 assertions (`Output~/SizeMetrics-editor.log`). The statistics runner builds a disposable prefab AssetBundle and verifies both size metrics, two-decimal MB formatting, SDK grades, actual-platform isolation, immutable pending observations and session serialization. Missing bundles, unchanged reports and a colliding SDK temporary report metadata file are covered. Generated fixture assets and temporary build-report imports were removed.
+- An independent actual bundle probe measured 44,186 download bytes and 181,788 uncompressed bytes; the SDK helper matched the sum of packed contents and overhead (`Output~/build-report-probe.log`).
+- Package validation passed 1,912 checks and localization passed 17,305 checks across five languages. `git diff --check` passed.
+
+SDK lifecycle events in these checks are injected around a real Unity AssetBundle build. A complete SDK avatar build, upload, production avatar/optimizer combinations, Android builds and manual window/glyph inspection were not performed. Existing fixture CS0252 warnings and Unity shutdown allocation diagnostics remain in the log. The user's avatar project was not modified.
+
 ## 1.2.1 validation
 
 Validated on 2026-10-21 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture without optional VR dependencies.
