@@ -10,6 +10,17 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+### Added
+
+- Add **MMD Simulation** to **Extra Tools**, with an optional user-provided Unity
+  AnimationClip, looping playback, non-seated station state, and selectable
+  Gesture/FX layer controls that restore when the session ends.
+
+### Fixed
+
+- Respect **Mouth & Jaw = Animation** tracking control so automatic visemes,
+  voice updates and microphone cleanup do not overwrite animated mouth poses.
+
 ## [1.3.0] - 2026-10-24
 
 ### Fixed

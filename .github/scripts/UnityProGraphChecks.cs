@@ -127,6 +127,7 @@ public static class UnityProGraphChecks
             }
 
             CheckAnimatedSource(check);
+            UnityProMmdChecks.Run(module, manager, check);
 
             var originalVelocity = module.GetParam("VelocityZ").FloatValue();
             var originalVrMode = module.GetParam("VRMode").FloatValue();
