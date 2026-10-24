@@ -189,6 +189,8 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
         private void ApplyFrame()
         {
             if (!_running || !_manager || _manager.Module != _module || !_module.Active || _module.IsInvalid() || EditorApplication.isPaused) return;
+            if (_module.TrackingStates.TryGetValue("Mouth & Jaw", out var mouthTracking) &&
+                mouthTracking == VRC_AnimatorTrackingControl.TrackingType.Animation) return;
             int dominant;
             float voice;
             lock (_gate)
@@ -283,7 +285,11 @@ namespace VRCLearn.GestureManagerPro.Extensions.Editor
             _tap = null;
             _microphoneClip = null;
             _microphone = null;
-            if (_module != null && _module.Active && !_module.IsInvalid())
+            // An animation may have taken ownership since recording began. Do not replace
+            // its mouth pose or speech parameters with the microphone session's old values.
+            if (_module != null && _module.Active && !_module.IsInvalid() &&
+                (!_module.TrackingStates.TryGetValue("Mouth & Jaw", out var mouthTracking) ||
+                    mouthTracking != VRC_AnimatorTrackingControl.TrackingType.Animation))
             {
                 _module.GetParam("Viseme")?.Set(_module, _originalViseme);
                 _module.GetParam("Voice")?.Set(_module, _originalVoice);

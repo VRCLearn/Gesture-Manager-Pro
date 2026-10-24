@@ -864,6 +864,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         private void SetViseVisual(int vise)
         {
+            if (TrackingControls.TryGetValue("Mouth & Jaw", out var mouthTracking) &&
+                mouthTracking == VRC_AnimatorTrackingControl.TrackingType.Animation) return;
             var skinnedMesh = AvatarDescriptor.VisemeSkinnedMesh;
 
             switch (AvatarDescriptor.lipSync)
@@ -988,6 +990,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         private void OnViseChange(Vrc3Param param, float fVise)
         {
+            if (TrackingControls.TryGetValue("Mouth & Jaw", out var mouthTracking) &&
+                mouthTracking == VRC_AnimatorTrackingControl.TrackingType.Animation) return;
             var vise = (int)fVise;
             var voiceParam = GetParam(Vrc3DefaultParams.Voice);
             voiceParam.Set(this, vise == 0 ? 0f : 1f);
