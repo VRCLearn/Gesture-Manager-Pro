@@ -10,6 +10,8 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-24
+
 ### Added
 
 - Add **MMD Simulation** to **Extra Tools**, with an optional user-provided Unity
@@ -20,6 +22,15 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 - Respect **Mouth & Jaw = Animation** tracking control so automatic visemes,
   voice updates and microphone cleanup do not overwrite animated mouth poses.
+
+### Notice
+
+- MMD Simulation is a local non-seated station preset. Worlds use different
+  controllers and layer settings; Udon, network behavior, native IK and client
+  viewpoint adjustments are not reproduced. Supply your own Unity AnimationClip
+  or leave it empty to test station state without a generated motion.
+- Physical headset operation and native XR handovers remain unverified.
+  VR control and full-body tracking are experimental.
 
 ## [1.3.0] - 2026-10-24
 
@@ -439,7 +450,8 @@ Initial development release; visual and hardware acceptance remained incomplete.
 - SDK2 simulation and unused serialized controller objects with obsolete SDK
   references, retaining the reachable animation graphs for the SDK3 target.
 
-[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.3.0...HEAD
+[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.4.0...HEAD
+[1.4.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.1.0...1.2.0

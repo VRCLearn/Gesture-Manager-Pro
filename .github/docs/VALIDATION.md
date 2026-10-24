@@ -1,15 +1,15 @@
 # Development validation
 
-## Unreleased MMD Simulation
+## 1.4.0 validation
 
 Validated on 2026-10-24 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
 
 - Final Editor integration passed 1,326 assertions (`Output~/Mmd-editor-final.log`) with no C# compilation errors. The full Play runner passed 1,634 assertions (`Output~/Mmd-play-final.log`); a focused graph/MMD run passed 107 assertions (`Output~/Mmd-focused-timing.log`).
 - Real Generic animation drives transform and blendshape curves; a real Humanoid graph evaluates an authored muscle clip and changes arm/leg bone rotations. Stops restore the previous pose and original Base animation control. Clip curves, settings, events, full initialized serialization, controller objects and descriptor references remain unchanged. Diagnostics are retained under the fixture's `ValidationOutput~/Mmd` directory.
-- Empty clips and unassigned clips retain station-only mode without a substitute animation. Independent Gesture and FX indices `1`/`2` controls, original FX index `0`, normal module update ordering, station parameter restoration, loop/one-shot completion, incompatible clips, Mouth tracking, ownership conflicts and reset/unlink/pause cleanup are covered.
+- Empty clips and unassigned clips retain station-only mode without a substitute animation. Independent Gesture and FX indices `1`/`2` controls, original FX index `0`, normal module update ordering, station parameter restoration, loop/one-shot completion, incompatible clips, Mouth tracking, ownership conflicts and reset/unlink cleanup are covered.
 - Package validation passed 1,924 checks and localization passed 17,856 checks across five languages. All 54 Python distribution/release tests passed (`Output~/Mmd-python.log`).
 
-The Play log retains an initial CS2001 for a removed temporary diagnostic runner before Unity refreshed its source list; the subsequent clean Editor run had no C# errors. Existing fixture CS0252 warnings and Unity shutdown allocation diagnostics remain in the logs. No user avatar project was modified. Actual MMD worlds, client-side station/IK/network behavior, third-party optimizer combinations, VR hardware and manual Inspector interaction/layout were not verified. The preset's sources and deliberate limits are documented in [MMD Simulation](MMD-SIMULATION.md).
+The Play log retains an initial CS2001 for a removed temporary diagnostic runner before Unity refreshed its source list; the subsequent clean Editor run had no C# errors. Existing fixture CS0252 warnings and Unity shutdown allocation diagnostics remain in the logs. No user avatar project was modified. Actual MMD worlds, client-side station/IK/network behavior, third-party optimizer combinations, MMD pause cleanup, VR hardware and manual Inspector interaction/layout were not verified. The preset's sources and deliberate limits are documented in [MMD Simulation](MMD-SIMULATION.md).
 
 ## 1.3.0 validation
 
