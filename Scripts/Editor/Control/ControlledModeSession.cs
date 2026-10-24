@@ -104,6 +104,8 @@ namespace VRCLearn.GestureManagerPro.Control.Editor
                         throw new InvalidOperationException("This avatar is already owned by another motion controller.");
                 if (module.IsDummyModeActive || module.PlayingCustomAnimation)
                     throw new InvalidOperationException("Stop custom animation and dummy modes before enabling controlled mode.");
+                if (module.IsMmdPreviewActive)
+                    throw new InvalidOperationException("Exit MMD Simulation before starting another animation or simulation tool.");
                 foreach (var name in ParameterNames)
                 {
                     var parameter = module.GetParam(name);

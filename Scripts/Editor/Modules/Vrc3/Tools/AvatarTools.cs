@@ -20,7 +20,13 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
     {
         private static readonly List<Func<GestureManager, GmgDynamicFunction>> ToolFactories = new();
         private List<GmgDynamicFunction> _registeredTools;
-        internal bool RequiresRepaint => _registeredTools != null && _registeredTools.Any(tool => tool.RequiresRepaint);
+        internal bool RequiresRepaint => (_mmdPreview?.RequiresRepaint ?? false) ||
+            _registeredTools != null && _registeredTools.Any(tool => tool.RequiresRepaint);
+        private MmdTool _mmdPreview;
+        internal MmdTool MmdPreview => _mmdPreview ??= new MmdTool();
+        internal bool IsMmdPreviewActive => _mmdPreview?.IsRunning ?? false;
+        internal void StopMmdPreview() => _mmdPreview?.Stop();
+        internal void ApplyAnimationOverrides() => _mmdPreview?.ApplyAnimationOverrides();
 
         public static void RegisterTool(Func<GestureManager, GmgDynamicFunction> factory)
         {
@@ -71,6 +77,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             PoseAvatar.Display(module);
             foreach (var tool in GetRegisteredTools(module)) tool.Display(module);
             GUILayout.Label(EditorLocalization.Tr("Extra Tools"), GestureManagerStyles.Header);
+            MmdPreview.Display(module);
             BackgroundAvatar.Display(module);
             AnimationTest.Display(module);
             PerformanceAnimator.Display(module);
@@ -84,6 +91,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             BackgroundAvatar.OnUpdate(module);
             ContactsClickable.OnUpdate(module);
             PerformanceAnimator.OnUpdate(module);
+            _mmdPreview?.OnUpdate(module);
             if (_registeredTools != null)
                 foreach (var tool in _registeredTools) tool.OnUpdate(module);
         }
@@ -104,6 +112,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
         public void Unlink(ModuleVrc3 module)
         {
+            _mmdPreview?.Dispose();
+            _mmdPreview = null;
             PerformanceAnimator.Disable(module);
             if (_registeredTools != null)
                 foreach (var tool in _registeredTools) tool.Dispose();
@@ -530,6 +540,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
             protected internal override void Toggle(ModuleVrc3 module)
             {
+                module.StopMmdPreview();
                 _poseMode = module.PoseMode = !module.PoseMode;
                 if (_poseMode) module.TryAddWarning(_poseWarning);
                 else module.TryRemoveWarning(_poseWarning);
@@ -651,6 +662,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             protected override void Gui(ModuleVrc3 module)
             {
                 _testMode = module.PlayingCustomAnimation;
+                using (new EditorGUI.DisabledScope(module.IsMmdPreviewActive))
                 using (new GUILayout.HorizontalScope())
                 using (new GmgLayoutHelper.GuiEnabled(!AnimationField(module)))
                     if (GUILayout.Button(_testMode ? EditorLocalization.Tr("Stop") : EditorLocalization.Tr("Play"), _options))

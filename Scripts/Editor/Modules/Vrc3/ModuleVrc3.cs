@@ -64,6 +64,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         private float _cloneDelay;
 
         private PlayableGraph _playableGraph;
+        private int _stationActionIndex;
         private string _paramFilter;
         private Vector3 _baseScale;
         private Vector3 _baseView;
@@ -103,6 +104,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             AvatarDescriptor.transform.TransformPoint(AvatarDescriptor.ViewPosition)) + _poseSpaceViewOffset;
         public bool IsPoseModeActive => PoseMode;
         public bool IsDummyModeActive => DummyMode != null;
+        public bool IsMmdPreviewActive => AvatarTools.IsMmdPreviewActive;
         public IReadOnlyDictionary<string, VRC_AnimatorTrackingControl.TrackingType> TrackingStates => TrackingControls;
         // Release external overrides before animation, then apply tracking before clone pose publication.
         public event Action<ModuleVrc3> BeforeAnimationEvaluation;
@@ -180,6 +182,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
                 if (DummyMode != null) DummyMode.Update(Avatar);
                 else if (_layers.Any(IsBroken)) OnBrokenSimulation();
                 foreach (var pair in _layers) pair.Value.Weight.Update();
+                AvatarTools.ApplyAnimationOverrides();
                 if (_preCullCountdown > 0 && --_preCullCountdown == 0 && !_isCulled) SetAvatarCulled(true);
                 if (Settings.simulateCulling) CheckCameraCulling(GetParam(Vrc3DefaultParams.IsAnimatorEnabled));
             }
@@ -223,7 +226,12 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             var layerList = AvatarDescriptor.baseAnimationLayers.ToList();
             layerList.AddRange(AvatarDescriptor.specialAnimationLayers);
             layerList.Sort(ModuleVrc3Styles.Data.LayerSort);
-            var intCount = layerList.Count + 1;
+            // Non-seated station animation follows Gesture and precedes the avatar's Action/FX.
+            // Keep the original avatar layers and their controller instances intact.
+            var stationPosition = layerList.FindIndex(layer => layer.type == VRCAvatarDescriptor.AnimLayerType.Action ||
+                layer.type == VRCAvatarDescriptor.AnimLayerType.FX);
+            _stationActionIndex = (stationPosition < 0 ? layerList.Count : stationPosition) + 1;
+            var intCount = layerList.Count + 2;
 
             const bool add = true;
             const float weightOn = 1f;
@@ -250,9 +258,11 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             Receivers.Clear();
             AnimationHashSet.Clear();
 
-            for (var i = 1; i < intCount; i++)
+            for (var layerIndex = 0; layerIndex < layerList.Count; layerIndex++)
             {
-                var layer = layerList[i - 1];
+                var i = layerIndex + 1;
+                if (i >= _stationActionIndex) i++;
+                var layer = layerList[layerIndex];
 
                 var isFx = layer.type == VRCAvatarDescriptor.AnimLayerType.FX;
                 var isAdd = layer.type == VRCAvatarDescriptor.AnimLayerType.Additive;
@@ -348,6 +358,11 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             _memoryClone.gameObject.SetActive(false);
         }
 
+        internal MmdPreviewSession CreateMmdPreview(AnimationClip clip, bool disableGesture, bool disableFxLayers, bool loop) =>
+            new MmdPreviewSession(this, _playableGraph, _stationActionIndex, _layers, clip, disableGesture, disableFxLayers, loop);
+
+        public void StopMmdPreview() => AvatarTools.StopMmdPreview();
+
         protected override void Unlink()
         {
             CloseDebugWindows();
@@ -417,6 +432,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         protected override Animator OnCustomAnimationPlay(AnimationClip clip)
         {
+            if (clip) StopMmdPreview();
             if (!clip) return Vrc3TestMode.Disable(DummyMode);
             if (DummyMode is not Vrc3TestMode testMode) testMode = new Vrc3TestMode(this);
             return testMode.Test(clip);
@@ -858,6 +874,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         private void DestroyGraphs()
         {
+            StopMmdPreview();
             if (_playableGraph.IsValid()) _playableGraph.Destroy();
             if (AvatarAnimator.playableGraph.IsValid()) AvatarAnimator.playableGraph.Destroy();
         }
