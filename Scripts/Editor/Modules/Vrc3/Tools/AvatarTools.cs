@@ -80,11 +80,11 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             PoseAvatar.Display(module);
             foreach (var tool in GetRegisteredTools(module)) tool.Display(module);
             GUILayout.Label(EditorLocalization.Tr("Extra Tools"), GestureManagerStyles.Header);
-            AndroidShaderTool.Display(module);
-            MmdPreview.Display(module);
             BackgroundAvatar.Display(module);
             AnimationTest.Display(module);
             PerformanceAnimator.Display(module);
+            MmdPreview.Display(module);
+            AndroidShaderTool.Display(module);
             GUILayout.Label(EditorLocalization.Tr("Customization"), GestureManagerStyles.Header);
             CustomizationTool.Display(module);
         }
