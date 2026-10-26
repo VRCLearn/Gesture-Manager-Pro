@@ -562,23 +562,29 @@ public static class UnityProStatisticsChecks
                 (snapshot.Source == ModelStatisticsSource.SdkPreprocess || snapshot.Source == ModelStatisticsSource.SdkBuild)),
                 "SDK stage selection filters history to the selected platform's processed snapshots");
             selectionId = (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window);
-            var latestId = ModelStatisticsService.History[0].Id;
+            var retainedHistory = ModelStatisticsService.History.ToArray();
+            var retainedJson = retainedHistory.Select(snapshot => JsonUtility.ToJson(snapshot)).ToArray();
+            var retainedStored = SessionState.GetString(HistoryKey, string.Empty);
+            var retainedVisibleIds = VisibleSnapshots(window).Select(snapshot => snapshot.Id).ToArray();
             check(window.titleContent.text == "Model Statistics", "Statistics window has its English title");
-            EditorLocalization.Language = ProLanguage.SimplifiedChinese;
-            check(window.titleContent.text == "模型统计" &&
-                window.rootVisualElement.Q<Button>("refreshButton").text == EditorLocalization.Tr("Measure Before Processing"),
-                "Open statistics window updates its Chinese title and action captions live");
-            check(window.rootVisualElement.Q<ObjectField>("avatarField").value == avatar && avatar.name == "Tools" &&
-                ModelStatisticsService.History[0].Id == latestId &&
-                window.rootVisualElement.Q<DropdownField>("platformField").index == 1 &&
-                window.rootVisualElement.Q<DropdownField>("stageField").index == 3 &&
-                (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window) == selectionId,
-                "Language switching retains avatar, platform, processing stage and selected snapshot without recapturing");
-            CheckRenderedRatings(window, check);
-            var chineseMetrics = window.rootVisualElement.Q("metricsTable").Query<Label>(className: "statistics-metric")
-                .ToList().Select(label => label.text).ToArray();
-            check(new[] { "三角面数", "纹理内存", "网格渲染器", "约束深度" }.All(chineseMetrics.Contains),
-                "Statistics captions describe the actual SDK geometry, memory and constraint metrics");
+            foreach (var nextLanguage in new[] { ProLanguage.Japanese, ProLanguage.Korean,
+                ProLanguage.TraditionalChinese, ProLanguage.SimplifiedChinese, ProLanguage.English })
+            {
+                EditorLocalization.Language = nextLanguage;
+                check(window.titleContent.text == EditorLocalization.Tr("Model Statistics") &&
+                    window.rootVisualElement.Q<Button>("refreshButton").text == EditorLocalization.Tr("Measure Before Processing"),
+                    "Open statistics window updates its title and action captions live: " + nextLanguage);
+                check(window.rootVisualElement.Q<ObjectField>("avatarField").value == avatar && avatar.name == "Tools" &&
+                    ModelStatisticsService.History.SequenceEqual(retainedHistory) &&
+                    ModelStatisticsService.History.Select(snapshot => JsonUtility.ToJson(snapshot)).SequenceEqual(retainedJson) &&
+                    SessionState.GetString(HistoryKey, string.Empty) == retainedStored &&
+                    VisibleSnapshots(window).Select(snapshot => snapshot.Id).SequenceEqual(retainedVisibleIds) &&
+                    window.rootVisualElement.Q<DropdownField>("platformField").index == 1 &&
+                    window.rootVisualElement.Q<DropdownField>("stageField").index == 3 &&
+                    (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window) == selectionId,
+                    "Language switching retains avatar, platform, stage, selected record and measurements without recapturing: " + nextLanguage);
+                CheckRenderedRatings(window, check);
+            }
             var styleCount = window.rootVisualElement.styleSheets.count;
             window.CreateGUI();
             EditorLocalization.Language = ProLanguage.English;
@@ -633,6 +639,50 @@ public static class UnityProStatisticsChecks
         { PerformanceRating.Medium, "Medium" },
         { PerformanceRating.Poor, "Poor" },
         { PerformanceRating.VeryPoor, "Horrible" }
+    };
+
+    private static readonly Dictionary<ProLanguage, string[]> VrcxRatingCaptions = new Dictionary<ProLanguage, string[]>
+    {
+        { ProLanguage.English, new[] { "Excellent", "Good", "Medium", "Poor", "Very Poor" } },
+        { ProLanguage.Japanese, new[] { "Excellent", "Good", "Medium", "Poor", "Very Poor" } },
+        { ProLanguage.Korean, new[] { "매우 좋음", "좋음", "보통", "나쁨", "매우 나쁨" } },
+        { ProLanguage.TraditionalChinese, new[] { "Excellent", "Good", "Medium", "Poor", "Very Poor" } },
+        { ProLanguage.SimplifiedChinese, new[] { "流畅", "低负载", "中负载", "高负载", "极高负载" } }
+    };
+
+    private static readonly Dictionary<AvatarPerformanceCategory, string> MetricCaptionKeys = new Dictionary<AvatarPerformanceCategory, string>
+    {
+        { AvatarPerformanceCategory.DownloadSize, "Download Size" },
+        { AvatarPerformanceCategory.UncompressedSize, "Uncompressed Size" },
+        { AvatarPerformanceCategory.PolyCount, "Triangles" },
+        { AvatarPerformanceCategory.AABB, "Bounds (Center / Extents)" },
+        { AvatarPerformanceCategory.SkinnedMeshCount, "Skinned Meshes" },
+        { AvatarPerformanceCategory.MeshCount, "Mesh Renderers" },
+        { AvatarPerformanceCategory.MaterialCount, "Material Slots" },
+        { AvatarPerformanceCategory.PhysBoneComponentCount, "PhysBone Components" },
+        { AvatarPerformanceCategory.PhysBoneTransformCount, "PhysBone Transforms" },
+        { AvatarPerformanceCategory.PhysBoneColliderCount, "PhysBone Colliders" },
+        { AvatarPerformanceCategory.PhysBoneCollisionCheckCount, "PhysBone Collision Checks" },
+        { AvatarPerformanceCategory.ContactCount, "Non-local Contacts" },
+        { AvatarPerformanceCategory.AnimatorCount, "Animators" },
+        { AvatarPerformanceCategory.BoneCount, "Bones" },
+        { AvatarPerformanceCategory.LightCount, "Lights" },
+        { AvatarPerformanceCategory.ParticleSystemCount, "Particle Systems" },
+        { AvatarPerformanceCategory.ParticleTotalCount, "Maximum Particles" },
+        { AvatarPerformanceCategory.ParticleMaxMeshPolyCount, "Particle Mesh Triangles" },
+        { AvatarPerformanceCategory.ParticleTrailsEnabled, "Particle Trails" },
+        { AvatarPerformanceCategory.ParticleCollisionEnabled, "Particle Collision" },
+        { AvatarPerformanceCategory.TrailRendererCount, "Trail Renderers" },
+        { AvatarPerformanceCategory.LineRendererCount, "Line Renderers" },
+        { AvatarPerformanceCategory.ClothCount, "Cloth Components" },
+        { AvatarPerformanceCategory.ClothMaxVertices, "Cloth Vertices" },
+        { AvatarPerformanceCategory.PhysicsColliderCount, "Physics Colliders" },
+        { AvatarPerformanceCategory.PhysicsRigidbodyCount, "Rigidbodies" },
+        { AvatarPerformanceCategory.AudioSourceCount, "Audio Sources" },
+        { AvatarPerformanceCategory.TextureMegabytes, "Texture Memory" },
+        { AvatarPerformanceCategory.ConstraintsCount, "Constraints" },
+        { AvatarPerformanceCategory.ConstraintDepth, "Constraint Depth" },
+        { AvatarPerformanceCategory.RaycastCount, "Raycasts" }
     };
 
     private static Texture ExpectedRatingIcon(PerformanceRating rating)
@@ -759,29 +809,46 @@ public static class UnityProStatisticsChecks
     {
         var selected = (string)typeof(ModelStatisticsWindow).GetField("_snapshotId", Any).GetValue(window);
         var snapshot = VisibleSnapshots(window).Single(item => item.Id == selected);
-        var chinese = EditorLocalization.Language == ProLanguage.SimplifiedChinese;
-        var captions = new Dictionary<PerformanceRating, string>
-        {
-            { PerformanceRating.Excellent, chinese ? "优秀" : "Excellent" },
-            { PerformanceRating.Good, chinese ? "良好" : "Good" },
-            { PerformanceRating.Medium, chinese ? "中等" : "Medium" },
-            { PerformanceRating.Poor, chinese ? "较差" : "Poor" },
-            { PerformanceRating.VeryPoor, chinese ? "极差" : "Very Poor" }
-        };
-        var unrated = chinese ? "未评级" : "Not Rated";
+        var language = EditorLocalization.EffectiveLanguage;
+        var expectedCaptions = VrcxRatingCaptions[language];
+        var grades = new[] { PerformanceRating.Excellent, PerformanceRating.Good, PerformanceRating.Medium,
+            PerformanceRating.Poor, PerformanceRating.VeryPoor };
+        var captions = grades.Select((grade, index) => new { grade, caption = expectedCaptions[index] })
+            .ToDictionary(item => item.grade, item => item.caption);
+        var unrated = EditorLocalization.Tr("Not Rated");
         var labelGetter = typeof(ModelStatisticsWindow).GetMethod("RatingLabel", Any);
         check(captions.All(pair => (string)labelGetter.Invoke(null, new object[] { pair.Key }) == pair.Value) &&
             (string)labelGetter.Invoke(null, new object[] { PerformanceRating.None }) == unrated &&
             (string)labelGetter.Invoke(null, new object[] { (PerformanceRating)999 }) == unrated,
-            "Performance captions preserve all five SDK grades and explicitly distinguish unrated results");
+            "Performance captions match all five VRCX-0 grades and explicitly distinguish unrated results: " + language);
         var overallCaption = captions.TryGetValue(snapshot.OverallRating, out var caption) ? caption : unrated;
         var overallIcon = window.rootVisualElement.Q<Image>("overallRatingIcon");
         check(overallIcon != null && MatchesRatingIcon(overallIcon.image, snapshot.OverallRating) &&
             overallIcon.tooltip == overallCaption &&
             window.rootVisualElement.Q<Label>("overallRating").text == EditorLocalization.Format("Overall: {0}", overallCaption),
-            "Overall performance displays the selected snapshot's matching SDK icon and localized caption");
+            "Overall performance displays the selected snapshot's matching SDK icon and localized caption: " + language);
 
         var rows = window.rootVisualElement.Q("metricsTable").Query<VisualElement>(className: "statistics-row").ToList();
+        check(snapshot.Metrics.Count == 31 && MetricCaptionKeys.Count == 31 && rows.Count == snapshot.Metrics.Count &&
+            snapshot.Metrics.Select((metric, index) => MetricCaptionKeys.TryGetValue(metric.Category, out var key) &&
+                rows[index].Q<Label>(className: "statistics-metric").text == EditorLocalization.Tr(key)).All(matches => matches),
+            "All 31 SDK metric categories render the matching localized VRCX-0 caption keys: " + language);
+        var header = window.rootVisualElement.Q<VisualElement>(className: "statistics-header");
+        check(header != null && header.Q<Label>(className: "statistics-rating-label").text == EditorLocalization.Tr("Rating"),
+            "The metric rating column uses the localized VRCX-0 rating caption: " + language);
+        var tooltipKeys = new Dictionary<AvatarPerformanceCategory, string>
+        {
+            { AvatarPerformanceCategory.AABB, snapshot.FormatVersion == 0
+                ? "Legacy bounds size." : "Bounds center and extents (half-size), as reported by the SDK." },
+            { AvatarPerformanceCategory.ContactCount, "SDK count of non-local Contacts." },
+            { AvatarPerformanceCategory.ConstraintDepth, "Raw constraint depth reported by the SDK." }
+        };
+        check(tooltipKeys.All(pair =>
+        {
+            var index = snapshot.Metrics.ToList().FindIndex(metric => metric.Category == pair.Key);
+            return index >= 0 && index < rows.Count &&
+                rows[index].Q<Label>(className: "statistics-metric").tooltip == EditorLocalization.Tr(pair.Value);
+        }), "VRCX-0 metric captions retain localized SDK bounds, contact and constraint-scope tooltips: " + language);
         check(rows.Count == snapshot.Metrics.Count && snapshot.Metrics.Select((metric, index) =>
         {
             var cell = rows[index].Q<VisualElement>(className: "statistics-rating");
@@ -793,7 +860,7 @@ public static class UnityProStatisticsChecks
                 (cell.tooltip == expectedCaption || label.tooltip == expectedCaption ||
                     icons.Any(icon => icon.tooltip == expectedCaption));
         }).All(matches => matches),
-            "All metric rows render their own SDK grade with the matching icon, caption and accessible tooltip");
+            "All metric rows render their own SDK grade with the matching icon, caption and accessible tooltip: " + language);
     }
 
     private static void CheckUnratedAndEmptyDisplay(ModelStatisticsWindow window, Action<bool, string> check)
@@ -894,8 +961,11 @@ public static class UnityProStatisticsChecks
                 legacyRows.Any(snapshot => snapshot.Source == ModelStatisticsSource.SdkBuild),
                 "Legacy stage includes old SDK preprocess and build records despite their unchanged source identifiers");
             check(window.rootVisualElement.Q<HelpBox>("statusLabel").text.Contains("Legacy Snapshot") &&
-                window.rootVisualElement.Q("metricsTable").Query<Label>().ToList().Any(label => label.text == "Bounds Size"),
-                "Legacy SDK display identifies historical semantics and labels its bounds as size only");
+                window.rootVisualElement.Q("metricsTable").Query<VisualElement>(className: "statistics-row").ToList().Any(row =>
+                    row.Q<Label>(className: "statistics-metric").text == EditorLocalization.Tr("Bounds Size") &&
+                    row.Q<Label>(className: "statistics-metric").tooltip == EditorLocalization.Tr("Legacy bounds size.") &&
+                    row.Q<Label>(className: "statistics-value").text == "1 × 1 × 1"),
+                "Legacy SDK display uses the VRCX-0 bounds caption while retaining size-only values and an explicit tooltip");
             window.rootVisualElement.Q<DropdownField>("stageField").index = 3;
             var currentRows = VisibleSnapshots(window).ToArray();
             check(currentRows.Length == 1 && currentRows[0].Id == currentSdk.Id && currentRows[0].FormatVersion == 1 &&

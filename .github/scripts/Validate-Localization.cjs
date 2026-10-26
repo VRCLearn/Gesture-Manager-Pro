@@ -63,7 +63,27 @@ for (const file of sources(path.join(root, 'Scripts'))) {
     for (const match of source.matchAll(/EditorLocalization\.(?:Tr|Format)\(\s*("(?:\\.|[^"\\])*")/g))
         check(simplified.has(JSON.parse(match[1])), 'Uncatalogued display string in ' + path.relative(root, file) + ': ' + match[1]);
 }
-check(simplified.get('Excellent') === '优秀' && simplified.get('Very Poor') === '极差',
-    'SDK ratings must not claim a measured frame rate or load');
+// Keep the agreed VRCX-0 performance terminology tied to an upstream snapshot,
+// independent of our catalogs and later general translation reviews.
+const performanceReference = JSON.parse(fs.readFileSync(path.join(__dirname, 'VrcxPerformanceReference.json'), 'utf8'));
+check(performanceReference.source.repository === 'Map1en/VRCX-0', 'Unexpected performance terminology source');
+check(/^[a-f0-9]{40}$/.test(performanceReference.source.revision), 'Performance reference must pin an upstream commit');
+check(performanceReference.source.namespace === 'dialog.avatar.performance', 'Unexpected upstream performance namespace');
+const performanceMapping = Object.entries(performanceReference.mapping);
+check(performanceMapping.length === 38, 'Performance reference must cover 31 metrics, five ranks, Rating and legacy Bounds Size');
+const upstreamKeys = new Set(performanceMapping.map(([, key]) => key));
+check(Object.keys(performanceReference.languages).length === catalogs.size, 'Performance reference must cover all supported languages');
+for (const [language, locale] of Object.entries(performanceReference.languages)) {
+    check(catalogs.has(language), 'Unknown performance reference language: ' + language);
+    const expected = performanceReference.translations[locale];
+    check(expected && Object.keys(expected).length === upstreamKeys.size, locale + ': incomplete upstream performance reference');
+    for (const [key, upstreamKey] of performanceMapping) {
+        check(simplified.has(key), 'Unknown performance display key: ' + key);
+        check(typeof expected[upstreamKey] === 'string' && expected[upstreamKey].length > 0,
+            locale + ': missing upstream performance text ' + upstreamKey);
+        check(catalogs.get(language).get(key) === expected[upstreamKey],
+            language + ': performance text must match VRCX-0 ' + upstreamKey + ' (' + key + ')');
+    }
+}
 check(simplified.get('Brightness') !== simplified.get('Value'), 'HSV brightness and parameter values need distinct translations');
 console.log('[Pro localization validation] PASS: ' + checks + ' checks; ' + simplified.size + ' keys in each of five languages.');

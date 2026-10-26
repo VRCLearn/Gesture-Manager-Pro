@@ -80,8 +80,9 @@ public static class UnityProLocalizationChecks
             EditorLocalization.Language = ProLanguage.SimplifiedChinese;
             check(EditorLocalization.Tr("Brightness") == "明度" && EditorLocalization.Tr("Value") != "明度",
                 "The color wheel no longer reuses the parameter-value caption");
-            check(EditorLocalization.Tr("Excellent") == "优秀" && EditorLocalization.Tr("Very Poor") == "极差",
-                "SDK rating translations express ratings rather than frame-rate/load claims");
+            check(new[] { "Excellent", "Good", "Medium", "Poor", "Very Poor" }.Select(EditorLocalization.Tr)
+                    .SequenceEqual(new[] { "流畅", "低负载", "中负载", "高负载", "极高负载" }),
+                "Simplified Chinese performance grades preserve the agreed VRCX-0 terminology");
         }
         finally
         {
