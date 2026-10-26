@@ -1,6 +1,25 @@
 # Development validation
 
-## Android Shader Preview (unreleased)
+## 1.5.0 validation
+
+Validated on 2026-10-26 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
+
+- The final 1.5.0 source passed the complete graphics-enabled Editor runner with 1,454 assertions and no C# compilation errors (`Output~/Release150-editor.log`). All 66 Python distribution and publishing tests passed (`Output~/Release150-python-final.log`); localization passed 19,079 checks and package validation passed 1,960 checks.
+- The detailed checks below cover the five-language terminology, Android shader preview and contributor display. The unchanged preview and contributor implementations retain their complete PC Play (1,719 assertions), actual Android-target focused (86 assertions) and online contributor (89 assertions) results. This release also preserves the existing Extra Tools order by appending new entries.
+
+Android-device rendering, VRChat-client comparisons, physical headset/native XR handovers and manual visual checks across all languages, themes and display scales remain unverified. The final Editor log retains Unity shutdown allocation diagnostics.
+
+## VRCX-0 performance terminology (1.5.0)
+
+Validated on 2026-10-26 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
+
+- The final graphics-enabled Editor runner passed 1,454 assertions (`Output~/VrcxTerminology-editor-final.log`) with no C# compilation errors. The actual Model Statistics window switches through English, Japanese, Korean, Traditional Chinese and Simplified Chinese and verifies all 31 metric captions, five rank captions, icons, the Rating heading and localized scope tooltips. Avatar identity, platform, stage, selected record, visible history and serialized/persisted snapshots remain unchanged during switching. Legacy bounds preserve their size-only values and explanatory tooltip.
+- Localization passed 19,079 checks across 596 keys in each of five languages. `VrcxPerformanceReference.json` pins the effective upstream strings at `Map1en/VRCX-0` commit `421d84d86fada534f7e1e508844dbe46a7f58dee`; all 185 unique language/key values match that source. Traditional Chinese rank captions follow VRCX-0's existing English fallback. Package validation passed 1,960 checks with 310 GUIDs.
+- The final eight package files were synchronized to the existing Test-Avatar installation after a full package backup. All 569 installed files were verified and 33 scene, package-manifest and project-setting files remained unchanged. The project was closed during synchronization; reopening it and inspecting the real avatar remain manual acceptance steps.
+
+SDK calculations, metric values, thresholds, units and snapshot formats were not changed. These checks verify text, UI bindings and data preservation; visual inspection of every language, editor theme and display scale was not performed. Existing Unity shutdown diagnostics remain in the fixture log.
+
+## Android Shader Preview (1.5.0)
 
 Validated on 2026-10-26 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
 
@@ -11,7 +30,7 @@ Validated on 2026-10-26 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX
 
 The Editor log retains an initial compilation diagnostic before Unity refreshed the added SDK assembly reference. The final Android and PC Play invocations compiled successfully. Existing fixture Dynamics allocation warnings and Unity shutdown diagnostics remain in the logs. These checks exercise Unity's DX11 renderer with Android as the build target; no Android device, APK upload or VRChat client comparison was performed. Pink is an explicitly chosen diagnostic appearance, not a claimed client fallback. Manual Inspector interaction and visual checks across all languages, themes and display scales remain unverified.
 
-## About and Contributors (unreleased)
+## About and Contributors (1.5.0)
 
 Validated on 2026-10-25 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
 
