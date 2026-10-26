@@ -6,6 +6,14 @@ namespace VRCLearn.GestureManagerPro.Localization
     {
         internal static IReadOnlyDictionary<string, string> Entries { get; } = new Dictionary<string, string>
         {
+            ["Android Shader Preview"] = "Android 셰이더 미리 보기",
+            ["Preview Android shader restrictions without changing source materials."] = "원본 머티리얼을 변경하지 않고 Android 셰이더 제한을 미리 봅니다.",
+            ["Restrict Unsupported Shaders"] = "지원되지 않는 셰이더 제한",
+            ["Only active while the build target is Android."] = "빌드 타깃이 Android일 때만 활성화됩니다.",
+            ["Unsupported materials are shown in pink for diagnosis. The SDK blocks their upload; this is not a client fallback simulation."] = "진단을 위해 지원되지 않는 머티리얼을 분홍색으로 표시합니다. SDK는 해당 머티리얼의 업로드를 차단합니다. 이 기능은 클라이언트의 폴백 동작을 시뮬레이션하지 않습니다.",
+            ["Toon Standard (Outline) uses the non-outline shader on Android."] = "Toon Standard (Outline)은 Android에서 외곽선이 없는 셰이더를 사용합니다.",
+            ["Unsupported Materials: {0}"] = "지원되지 않는 머티리얼: {0}",
+            ["Outline Materials: {0}"] = "외곽선 머티리얼: {0}",
             ["MMD Simulation"] = "MMD 시뮬레이션",
             ["Preview a non-seated MMD station with your own animation, or leave it empty to test station behavior."] = "직접 준비한 애니메이션으로 비착석 MMD 스테이션을 미리 봅니다. 비워 두면 스테이션 동작만 테스트합니다.",
             ["Animation (optional)"] = "애니메이션(선택 사항)",

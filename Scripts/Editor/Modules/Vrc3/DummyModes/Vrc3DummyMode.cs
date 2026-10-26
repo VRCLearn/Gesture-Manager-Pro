@@ -18,6 +18,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.DummyModes
 
         protected Vrc3DummyMode(ModuleVrc3 module, string prefix, bool keepPose = false)
         {
+            module.RestoreAndroidShaders();
             if (keepPose && module.DummyMode != null) Avatar = Object.Instantiate(module.DummyMode.Avatar);
             module.DummyMode?.StopExecution();
             module.DummyMode = this;

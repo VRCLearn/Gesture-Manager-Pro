@@ -63,6 +63,7 @@ public static class UnityProGraphChecks
             check(genericAvatar && genericAvatar.isValid && !genericAvatar.isHuman, "The fixture has a valid generic Avatar asset");
             animator.avatar = genericAvatar;
             var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
+            avatar.AddComponent<VRC.Core.PipelineManager>();
             descriptor.ViewPosition = new Vector3(0f, 1.6f, 0f);
             descriptor.lipSync = VRC_AvatarDescriptor.LipSyncStyle.VisemeParameterOnly;
             descriptor.baseAnimationLayers = new[]
@@ -161,8 +162,11 @@ public static class UnityProGraphChecks
                 module.GetParam("VRMode").FloatValue() == 0f && !manager.settings.vrMode &&
                 module.GetParam("TrackingType").FloatValue() == 6f && module.GetParam("Upright").FloatValue() == 0.6f,
                 "Stop restores owned motion parameters and preserves externally changed simulator settings");
+            UnityProAndroidShaderChecks.RunModule(module, manager, check);
+            graph = (PlayableGraph)typeof(ModuleVrc3).GetField("_playableGraph", Any).GetValue(module);
             manager.UnlinkModule();
             check(manager.Module == null && !module.Active && !GestureManager.ControlledAvatars.ContainsKey(avatar), "The actual Disconnect path releases the initialized graph and avatar registration");
+            UnityProAndroidShaderChecks.CheckUnlinked(module, check);
             check(!graph.IsValid(), "Disconnect destroys the real avatar animation graph");
         }
         finally

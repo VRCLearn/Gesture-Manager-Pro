@@ -21,7 +21,10 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
         private static readonly List<Func<GestureManager, GmgDynamicFunction>> ToolFactories = new();
         private List<GmgDynamicFunction> _registeredTools;
         internal bool RequiresRepaint => (_mmdPreview?.RequiresRepaint ?? false) ||
+            (_androidShaderTool?.RequiresRepaint ?? false) ||
             _registeredTools != null && _registeredTools.Any(tool => tool.RequiresRepaint);
+        private AndroidShaderTool _androidShaderTool;
+        private AndroidShaderTool AndroidShaderTool => _androidShaderTool ??= new AndroidShaderTool();
         private MmdTool _mmdPreview;
         internal MmdTool MmdPreview => _mmdPreview ??= new MmdTool();
         internal bool IsMmdPreviewActive => _mmdPreview?.IsRunning ?? false;
@@ -77,6 +80,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             PoseAvatar.Display(module);
             foreach (var tool in GetRegisteredTools(module)) tool.Display(module);
             GUILayout.Label(EditorLocalization.Tr("Extra Tools"), GestureManagerStyles.Header);
+            AndroidShaderTool.Display(module);
             MmdPreview.Display(module);
             BackgroundAvatar.Display(module);
             AnimationTest.Display(module);
@@ -91,6 +95,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
             BackgroundAvatar.OnUpdate(module);
             ContactsClickable.OnUpdate(module);
             PerformanceAnimator.OnUpdate(module);
+            _androidShaderTool?.OnUpdate(module);
             _mmdPreview?.OnUpdate(module);
             if (_registeredTools != null)
                 foreach (var tool in _registeredTools) tool.OnUpdate(module);
@@ -112,6 +117,8 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3.Tools
 
         public void Unlink(ModuleVrc3 module)
         {
+            _androidShaderTool?.Dispose();
+            _androidShaderTool = null;
             _mmdPreview?.Dispose();
             _mmdPreview = null;
             PerformanceAnimator.Disable(module);

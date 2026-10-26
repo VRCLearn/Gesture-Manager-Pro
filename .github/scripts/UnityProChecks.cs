@@ -230,6 +230,7 @@ public static class UnityProChecks
             UnityProLocalizationChecks.Run(Check);
             UnityProFontChecks.Run(Check);
             UnityProContributorsChecks.Run(Check);
+            UnityProAndroidShaderChecks.Run(Check);
 
             Check(Application.platform == RuntimePlatform.WindowsEditor && IntPtr.Size == 8, "Native validation runs on supported Windows x64 Editor");
             var analyzerType = audioTools.GetType("VRCLearn.GestureManagerPro.Extensions.Editor.OvrLipSyncAnalyzer", true);

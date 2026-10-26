@@ -1,5 +1,16 @@
 # Development validation
 
+## Android Shader Preview (unreleased)
+
+Validated on 2026-10-26 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
+
+- The Editor runner passed 1,417 assertions (`Output~/AndroidShaders-editor-final.log`). The final complete PC Play regression passed 1,719 assertions (`Output~/AndroidShaders-play-final.log`). The focused runner also passed 86 assertions with the actual active build target set to Android (`Output~/AndroidShaders-android.log`); its target result and images are preserved in `Output~/AndroidShaders-android-diagnostics`.
+- Real GPU rendering verifies unsupported materials' normal output changes to pink only during preview, allowed SDK materials remain unchanged, and Outline matches a native non-outline Toon Standard reference. Real Animator/PlayableGraph clips change material slots and shader properties; current animated references and output survive preview restoration. Source material and initialized animation serialization remain unchanged. Renderer-wide and indexed material property blocks, live Outline flags, nested cameras, interrupted rendering, target changes, disabling, paused previews, Play exit and disposal are covered.
+- The actual simulator owner covers dynamically added renderers, remote clones and the animation-test dummy. Reset restores references before rebuilding its graph; unlink releases preview resources and camera callbacks. The fixture adds the SDK PipelineManager needed by the existing clone path and explicitly owns the synthetic clone's test graph cleanup.
+- Package validation passed 1,960 checks with 310 distinct asset GUIDs. Localization passed 18,321 checks across 592 keys in each of five languages. Both installation archives built and retained the final preview sources and metadata (`Output~/AndroidShaders-final-package`). The fixture was returned to the PC build target after Android acceptance; the user avatar project was not modified.
+
+The Editor log retains an initial compilation diagnostic before Unity refreshed the added SDK assembly reference. The final Android and PC Play invocations compiled successfully. Existing fixture Dynamics allocation warnings and Unity shutdown diagnostics remain in the logs. These checks exercise Unity's DX11 renderer with Android as the build target; no Android device, APK upload or VRChat client comparison was performed. Pink is an explicitly chosen diagnostic appearance, not a claimed client fallback. Manual Inspector interaction and visual checks across all languages, themes and display scales remain unverified.
+
 ## About and Contributors (unreleased)
 
 Validated on 2026-10-25 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.

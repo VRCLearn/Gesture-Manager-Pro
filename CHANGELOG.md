@@ -15,6 +15,10 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 - Add **About and Contributors** to the Inspector's gear settings, with version
   and project links, a release-generated contributor list, and avatar images
   loaded on demand without bundling images in the package.
+- Add **Android Shader Preview**, enabled for connected avatars on the Android
+  build target. Unsupported shaders use temporary pink diagnostic materials;
+  Toon Standard's outline variant previews with its documented non-outline
+  mobile shader. Camera rendering restores the original material references.
 
 ## [1.4.0] - 2026-10-24
 

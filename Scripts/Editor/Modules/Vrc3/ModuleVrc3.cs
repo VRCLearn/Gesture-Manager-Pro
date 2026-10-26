@@ -72,6 +72,27 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
         private Camera _camera;
         private float _scale;
         private bool _hooked;
+        private AndroidShaderPreview _androidShaders;
+
+        internal AndroidShaderPreview AndroidShaders => _source != null ? _source.AndroidShaders :
+            _androidShaders ??= new AndroidShaderPreview(ShaderPreviewAvatars);
+
+        internal void RestoreAndroidShaders()
+        {
+            if (_source != null) _source.RestoreAndroidShaders();
+            else _androidShaders?.Restore();
+        }
+
+        private IEnumerable<GameObject> ShaderPreviewAvatars()
+        {
+            if (Avatar) yield return Avatar;
+            if (DummyMode?.Avatar) yield return DummyMode.Avatar;
+            foreach (var clone in _clones)
+            {
+                if (clone.Avatar) yield return clone.Avatar;
+                if (clone.DummyMode?.Avatar) yield return clone.DummyMode.Avatar;
+            }
+        }
 
         private readonly Dictionary<ScriptableObject, Vrc3WeightController> _weightControllers = new();
         private readonly Dictionary<ScriptableObject, VisualEpContainer> _oscContainers = new();
@@ -171,6 +192,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         public override void Update()
         {
+            RestoreAndroidShaders();
             if (!EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode)
             {
                 BeforeAnimationEvaluation?.Invoke(this);
@@ -213,6 +235,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         public override void InitForAvatar()
         {
+            RestoreAndroidShaders();
             MemoryClone();
             InitializePoseSpace();
             StartVrcHooks();
@@ -349,6 +372,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
             HeadChopIfNotChopped(HumanBodyBones.Head);
 
             OscModule.Resume();
+            if (_source == null) AndroidShaders.RefreshStatus();
         }
 
         private void MemoryClone()
@@ -365,15 +389,24 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         protected override void Unlink()
         {
-            CloseDebugWindows();
-            AvatarTools.Unlink(this);
-            if (OscModule.Enabled) OscModule.Stop();
-            DummyMode?.StopExecution();
-            if (AvatarAnimator) ForgetAvatar();
-            StopVisualElements();
-            StopVrcHooks();
-            RemoveClones();
-            if (_memoryClone) UnityEngine.Object.DestroyImmediate(_memoryClone.gameObject);
+            RestoreAndroidShaders();
+            try
+            {
+                CloseDebugWindows();
+                AvatarTools.Unlink(this);
+                if (OscModule.Enabled) OscModule.Stop();
+                DummyMode?.StopExecution();
+                if (AvatarAnimator) ForgetAvatar();
+                StopVisualElements();
+                StopVrcHooks();
+                RemoveClones();
+                if (_memoryClone) UnityEngine.Object.DestroyImmediate(_memoryClone.gameObject);
+            }
+            finally
+            {
+                _androidShaders?.Dispose();
+                _androidShaders = null;
+            }
         }
 
         public override void EditorHeader()
@@ -621,6 +654,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         private void DestroyCloneObjects()
         {
+            RestoreAndroidShaders();
             if (AvatarDescriptor) UnityEngine.Object.Destroy(AvatarDescriptor.gameObject);
             if (Avatar) UnityEngine.Object.Destroy(Avatar);
         }
@@ -834,6 +868,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         public void ResetAvatar()
         {
+            RestoreAndroidShaders();
             Resetting?.Invoke(this);
             ResetHeight();
             ResetHeadChops();
@@ -859,6 +894,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         internal void ForgetAvatar()
         {
+            RestoreAndroidShaders();
             RemoveVise();
             ResetHeight();
             RemoveClones();
@@ -874,6 +910,7 @@ namespace VRCLearn.GestureManagerPro.Editor.Modules.Vrc3
 
         private void DestroyGraphs()
         {
+            RestoreAndroidShaders();
             StopMmdPreview();
             if (_playableGraph.IsValid()) _playableGraph.Destroy();
             if (AvatarAnimator.playableGraph.IsValid()) AvatarAnimator.playableGraph.Destroy();

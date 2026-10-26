@@ -6,6 +6,14 @@ namespace VRCLearn.GestureManagerPro.Localization
     {
         internal static IReadOnlyDictionary<string, string> Entries { get; } = new Dictionary<string, string>
         {
+            ["Android Shader Preview"] = "Android 着色器预览",
+            ["Preview Android shader restrictions without changing source materials."] = "预览 Android 着色器限制，不会修改源材质。",
+            ["Restrict Unsupported Shaders"] = "限制不受支持的着色器",
+            ["Only active while the build target is Android."] = "仅在构建目标为 Android 时生效。",
+            ["Unsupported materials are shown in pink for diagnosis. The SDK blocks their upload; this is not a client fallback simulation."] = "不受支持的材质会显示为粉色，便于诊断。SDK 会阻止上传这些材质；此功能并非模拟客户端的回退行为。",
+            ["Toon Standard (Outline) uses the non-outline shader on Android."] = "Toon Standard (Outline) 在 Android 上使用无描边着色器。",
+            ["Unsupported Materials: {0}"] = "不受支持的材质：{0}",
+            ["Outline Materials: {0}"] = "描边材质：{0}",
             ["About and Contributors"] = "关于与贡献者",
             ["Project on GitHub"] = "GitHub 项目",
             ["Contributors"] = "贡献者",

@@ -3,6 +3,7 @@
   "rootNamespace": "VRCLearn.GestureManagerPro",
   "references": [
     "VRCLearn.GestureManagerPro",
+    "VRC.SDKBase",
     "VRC.SDK3A",
     "VRCLearn.GestureManagerPro.Localization",
     "VRCLearn.GestureManagerPro.Diagnostics.Editor"
