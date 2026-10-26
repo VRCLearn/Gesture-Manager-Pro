@@ -281,17 +281,17 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
             foreach (var metric in snapshot.Metrics)
                 AddRow(snapshot.FormatVersion == 0 && metric.Category == AvatarPerformanceCategory.AABB
                     ? EditorLocalization.Tr("Bounds Size") : MetricLabel(metric.Category), MetricValue(metric),
-                    RatingLabel(metric.Rating), false, metric.Rating);
+                    RatingLabel(metric.Rating), false, metric.Rating, MetricTooltip(metric.Category, snapshot.FormatVersion == 0));
             if (snapshot.BundleBytes >= 0)
                 AddRow(EditorLocalization.Tr("Built Bundle File Size"), EditorUtility.FormatBytes(snapshot.BundleBytes), "—", false);
         }
 
         private void AddRow(string metric, string value, string rating, bool header,
-            PerformanceRating? performance = null)
+            PerformanceRating? performance = null, string metricTooltip = null)
         {
             var row = new VisualElement();
             row.AddToClassList(header ? "statistics-header" : "statistics-row");
-            var name = new Label(metric) { enableRichText = false };
+            var name = new Label(metric) { enableRichText = false, tooltip = metricTooltip };
             name.AddToClassList("statistics-metric");
             var number = new Label(value) { enableRichText = false };
             number.AddToClassList("statistics-value");
@@ -439,6 +439,21 @@ namespace VRCLearn.GestureManagerPro.Diagnostics
                 case AvatarPerformanceCategory.DownloadSize:
                 case AvatarPerformanceCategory.UncompressedSize: return metric.Value + " MB";
                 default: return metric.Value;
+            }
+        }
+
+        private static string MetricTooltip(AvatarPerformanceCategory category, bool legacy)
+        {
+            switch (category)
+            {
+                case AvatarPerformanceCategory.AABB:
+                    return legacy ? EditorLocalization.Tr("Legacy bounds size.")
+                        : EditorLocalization.Tr("Bounds center and extents (half-size), as reported by the SDK.");
+                case AvatarPerformanceCategory.ContactCount:
+                    return EditorLocalization.Tr("SDK count of non-local Contacts.");
+                case AvatarPerformanceCategory.ConstraintDepth:
+                    return EditorLocalization.Tr("Raw constraint depth reported by the SDK.");
+                default: return null;
             }
         }
 
