@@ -10,6 +10,12 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+### Added
+
+- Add **About and Contributors** to the Inspector's gear settings, with version
+  and project links, a release-generated contributor list, and avatar images
+  loaded on demand without bundling images in the package.
+
 ## [1.4.0] - 2026-10-24
 
 ### Added

@@ -1,5 +1,15 @@
 # Development validation
 
+## About and Contributors (unreleased)
+
+Validated on 2026-10-25 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.
+
+- The complete graphics-enabled Editor runner passed 1,401 assertions (`Output~/Contributors-editor-graphics.log`). The final focused contributor runner passed 89 assertions (`Output~/Contributors-expanded-online.log`), including a real public GitHub avatar download, exact cached-texture reuse, cancellation of another pending request, texture destruction and prevention of late work after disposal.
+- Default collapsed GUI events leave the catalog and image queue untouched. Actual GUI events render the expanded list at a 220-pixel window width without exceptions, queue all 11 local entries without starting requests during drawing, and deactivate the queue when folded. Expanded/collapsed layout uses explicit foldout-state input; it does not establish physical mouse interaction with the inherited foldout control. Closing the owner and destroying the actual Inspector release their resources. Manager settings and the avatar descriptor retain their previous data.
+- The real snapshot contains 11 GitHub contributors in 2,215 bytes of JSON, including inherited upstream contributions. Both local archive formats preserve the snapshot and its Unity GUID; no contributor avatar image is bundled. All 66 Python distribution tests passed (`Output~/Contributors-python.log`); the 12 contributor tests also passed after the final identifier-validation adjustment (`Output~/Contributors-python-focused.log`). Package validation passed 1,948 checks and localization passed 18,073 checks across 584 keys in each of five languages.
+
+GUI diagnostics and the online result are retained in the fixture's `ValidationOutput~/Contributors` directory. Final C# compilation succeeded. Existing fixture warnings and Unity shutdown allocation diagnostics remain in the logs. Manual mouse interaction and visual inspection of every language, display scale and editor theme were not performed. The user avatar project was not modified.
+
 ## 1.4.0 validation
 
 Validated on 2026-10-24 with Unity 2022.3.22f1, VRChat Avatars SDK 3.10.5 and DX11 in the disposable `Output~/VrValidationProject` fixture.

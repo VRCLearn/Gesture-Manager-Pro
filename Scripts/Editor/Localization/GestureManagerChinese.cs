@@ -6,6 +6,13 @@ namespace VRCLearn.GestureManagerPro.Localization
     {
         internal static IReadOnlyDictionary<string, string> Entries { get; } = new Dictionary<string, string>
         {
+            ["About and Contributors"] = "关于与贡献者",
+            ["Project on GitHub"] = "GitHub 项目",
+            ["Contributors"] = "贡献者",
+            ["View all contributors"] = "查看所有贡献者",
+            ["Contributor information is unavailable."] = "无法获取贡献者信息。",
+            ["Based on Gesture Manager by BlackStartx."] = "基于 BlackStartx 开发的 Gesture Manager。",
+            ["Avatars load when this section is expanded."] = "展开此部分后才会加载头像。",
             ["Controlling Avatar: "] = "正在控制的角色：",
             ["I'm disabled!"] = "组件已禁用！",
             ["Drag & Drop me into the scene to start testing! ♥"] = "将组件拖入场景，即可开始测试！♥",

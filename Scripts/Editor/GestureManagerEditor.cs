@@ -31,6 +31,7 @@ namespace VRCLearn.GestureManagerPro.Editor
 
         private VisualElement _root;
         private bool _setting;
+        private ContributorsPanel _contributors;
 
         private const int AntiAliasing = 4;
 
@@ -107,9 +108,20 @@ namespace VRCLearn.GestureManagerPro.Editor
             if (isPrefab || isPlaying) GUILayout.Label(GestureManager.Version, GestureManagerStyles.TitleStyle);
             else if (GmgLayoutHelper.SettingsGearLabel(GestureManager.Version, _setting)) _setting = !_setting;
 
+            _contributors?.SetVisible(Manager.Module == null && _setting);
             if (Manager.Module != null) ModuleGui();
-            else if (_setting) GestureManagerSettings.SettingGui(Manager);
+            else if (_setting)
+            {
+                GestureManagerSettings.SettingGui(Manager);
+                (_contributors ??= new ContributorsPanel(Repaint)).Draw();
+            }
             else SetupGui(isActive, Manager.enabled, isPlaying, isPrefab);
+        }
+
+        private void OnDisable()
+        {
+            _contributors?.Dispose();
+            _contributors = null;
         }
 
         private void ModuleGui()

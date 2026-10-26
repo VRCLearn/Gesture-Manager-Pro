@@ -1,4 +1,4 @@
-"""Validate a numeric stable release tag and build artifacts from that exact revision."""
+"""Validate a stable tag and package its source with the prepared contributor snapshot."""
 from __future__ import annotations
 
 import argparse

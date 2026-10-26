@@ -46,6 +46,11 @@ class PackageFixture(unittest.TestCase):
             "GestureManagerPro.prefab": b"%YAML 1.1\n",
             "Scripts/Runtime/GestureManager.cs": b"public class Fixture { }\n",
             "Resources/Preview.txt": b"Keep source bytes and GUID identity.\n",
+            builder.CONTRIBUTORS_ASSET: builder.encode_json({
+                "repository": builder.REPOSITORY,
+                "contributors": [{"login": "test-contributor", "avatarUrl": "https://avatars.githubusercontent.com/u/1?v=4",
+                                  "profileUrl": "https://github.com/test-contributor"}]
+            }),
             self.vendor + "LICENSE.txt": b"Original Meta SDK license fixture.\n",
             self.vendor + "THIRD_PARTY_NOTICES.txt": b"Original Meta third-party notice fixture.\n",
             self.vendor + "Plugins/Win64/VRCLearnOVRLipSync.dll": binary,
@@ -247,7 +252,7 @@ class DistributionTests(PackageFixture):
     def test_powershell_entrypoint_preserves_release_filtering_and_validation(self):
         scripts = self.package / ".github/scripts"
         scripts.mkdir(parents=True)
-        for name in ("Build-Package.ps1", "build_package.py", "validate_steamvr.py"):
+        for name in ("Build-Package.ps1", "build_package.py", "validate_steamvr.py", "generate_contributors.py", "build_listing.py"):
             shutil.copyfile(ROOT / ".github/scripts" / name, scripts / name)
         for name in ("Plugins/Win64/VRCLearnOVRLipSync.dll", "PROVENANCE.json"):
             shutil.copyfile(ROOT / self.vendor / name, self.package / self.vendor / name)

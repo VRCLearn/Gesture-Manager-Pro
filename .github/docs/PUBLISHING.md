@@ -29,7 +29,31 @@ preparation before any archives are built or a release is published.
 3. Run `python -m unittest discover -s .github/scripts -v` and the existing Unity checks appropriate to the changes. The release workflow gates publication on the distribution tests and archive checks on Windows/macOS/Linux with Python 3.10 and 3.12. These checks do not replace Unity licensing or hardware acceptance.
 4. Commit the reviewed change, confirm the remote state and existing releases, then push the new tag. Normal releases must not move a published tag, overwrite its assets or remove old versions that projects may depend on. Replacing an existing release requires an explicit maintainer instruction and the controlled procedure below.
 
-The workflow builds from the tagged revision and uploads four assets: the VPM ZIP, UnityPackage, staged `package.json` and `SHA256SUMS.txt`. The checksum file covers the two archives. Both archives include the Pro SteamVR integration, its optional Editor assembly, action bindings and Valve attribution in `ThirdParty/SteamVR/ThirdPartyNotices.md`. The main manifest does not require VR dependencies, so the SteamVR assembly stays disabled in PC-only projects. The original OpenVR archive remains a separate official dependency and is not redistributed. Both archives preserve source asset GUIDs, the complete GNU AGPL version 3 text in `LICENSE.md`, the version-3-only grant and limited SDK linking permission in `LICENSING.md`, the original MIT notice in `ThirdParty/GestureManager/LICENSE.txt` and the separate Meta SDK notices/binary. The manifest declares `SEE LICENSE IN LICENSING.md`; the builder rejects a missing or conflicting declaration, an incomplete AGPL text, missing attribution or missing SteamVR assets and conditional compilation constraints. Earlier distributed copies retain their existing license grants, including when a release identifier is reused by an explicitly authorized replacement. The manifest records the exact published ZIP URL and changelog link, plus the source repository and full commit through `repository.url`, `repository.revision`, and `sourceRevision`. The same manifest is included in both archives. Publishing scripts, their tests and Unity validation runners live in `.github/scripts`; maintenance documentation lives in `.github/docs`. Neither development directory is included in the release archives.
+The workflow builds from the tagged revision, refreshes its contributor text snapshot as described below, and uploads four assets: the VPM ZIP, UnityPackage, staged `package.json` and `SHA256SUMS.txt`. The checksum file covers the two archives. Both archives include the Pro SteamVR integration, its optional Editor assembly, action bindings and Valve attribution in `ThirdParty/SteamVR/ThirdPartyNotices.md`. The main manifest does not require VR dependencies, so the SteamVR assembly stays disabled in PC-only projects. The original OpenVR archive remains a separate official dependency and is not redistributed. Both archives preserve source asset GUIDs, the complete GNU AGPL version 3 text in `LICENSE.md`, the version-3-only grant and limited SDK linking permission in `LICENSING.md`, the original MIT notice in `ThirdParty/GestureManager/LICENSE.txt` and the separate Meta SDK notices/binary. The manifest declares `SEE LICENSE IN LICENSING.md`; the builder rejects a missing or conflicting declaration, an incomplete AGPL text, missing attribution or missing SteamVR assets and conditional compilation constraints. Earlier distributed copies retain their existing license grants, including when a release identifier is reused by an explicitly authorized replacement. The manifest records the exact published ZIP URL and changelog link, plus the source repository and full commit through `repository.url`, `repository.revision`, and `sourceRevision`. The same manifest is included in both archives. Publishing scripts, their tests and Unity validation runners live in `.github/scripts`; maintenance documentation lives in `.github/docs`. Neither development directory is included in the release archives.
+
+### Contributor snapshot
+
+Before `prepare_release.py` builds the published archives, the release workflow runs
+`python .github/scripts/generate_contributors.py` with its `GITHUB_TOKEN`. The
+generator reads every page of the canonical repository's GitHub contributors API
+and atomically replaces `Resources/GestureManagerPro/Contributors.json`. It records
+only the repository, account logins, avatar HTTPS URLs and profile HTTPS URLs;
+it does not download or package avatar images. The existing Unity metadata and GUID
+stay unchanged. Both archive formats include the same validated snapshot.
+
+If any page cannot be fetched or validated, generation fails before replacing the
+previous file and publication stops. An empty or invalid response must not silently
+erase the list. This generated release resource can differ from the checked-in
+snapshot at `sourceRevision`; the remaining package sources still come from that
+tagged revision. Rebuilding later may reflect a newer contributor list, so compare
+published archive checksums against the published `SHA256SUMS.txt`.
+
+Ordinary CI builds, `build_package.py`, `Build-Package.ps1` and local
+`prepare_release.py` calls validate and package the checked-in or explicitly prepared
+snapshot without fetching GitHub. To refresh a local release candidate, run the
+generator once before preparation. Its unit tests mock all API requests and make
+no network calls. GitHub's contributor list follows repository commit attribution;
+it is not a manually curated list of translation, testing or other contributions.
 
 ## Explicitly authorized replacement
 

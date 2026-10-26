@@ -15,6 +15,7 @@ import uuid
 import zipfile
 
 from validate_steamvr import validate as validate_steamvr
+from generate_contributors import CONTRIBUTORS_ASSET, validate_snapshot
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT
@@ -149,6 +150,10 @@ def source_assets(manifest: dict) -> list[Asset]:
             raise ValueError("Package source contains duplicate GUIDs.")
         seen.add(guid)
     validate_vendor_assets(assets)
+    contributor_asset = next((asset for asset in assets if asset.path == UNITY_ROOT + "/" + CONTRIBUTORS_ASSET), None)
+    if contributor_asset is None or contributor_asset.content is None:
+        raise ValueError("The package must include its contributor text snapshot.")
+    validate_snapshot(json.loads(contributor_asset.content))
     return assets
 
 
