@@ -10,6 +10,8 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-26
+
 ### Added
 
 - Add **About and Contributors** to the Inspector's gear settings, with version
@@ -19,6 +21,25 @@ This file covers Pro releases, starting at 0.1.0. Pro embeds Gesture Manager
   build target. Unsupported shaders use temporary pink diagnostic materials;
   Toon Standard's outline variant previews with its documented non-outline
   mobile shader. Camera rendering restores the original material references.
+
+### Fixed
+
+- Align all 31 Model Statistics metric names and five performance-rank captions
+  with VRCX-0 in English, Japanese, Korean, Traditional Chinese and Simplified
+  Chinese. Restore the agreed Simplified Chinese load terminology and retain
+  SDK data-scope details in localized tooltips.
+- Append new Extra Tools entries after the existing tools, preserving their order.
+
+### Notice
+
+- Android Shader Preview uses pink materials for editor diagnosis. Android-device
+  rendering and VRChat-client comparisons remain unverified; validation uses the
+  DX11 Editor with Android as the build target.
+- Japanese rank names and Traditional Chinese's existing English rank fallback
+  match VRCX-0. Manual visual checks across every language, editor theme and
+  display scale remain unverified.
+- Physical headset operation and native XR handovers remain unverified.
+  VR control and full-body tracking are experimental.
 
 ## [1.4.0] - 2026-10-24
 
@@ -460,7 +481,8 @@ Initial development release; visual and hardware acceptance remained incomplete.
 - SDK2 simulation and unused serialized controller objects with obsolete SDK
   references, retaining the reachable animation graphs for the SDK3 target.
 
-[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.4.0...HEAD
+[Unreleased]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.5.0...HEAD
+[1.5.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.4.0...1.5.0
 [1.4.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/VRCLearn/Gesture-Manager-Pro/compare/1.2.0...1.2.1
